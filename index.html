@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Prop Vol Calc</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent-blue: #38bdf8;
+            --accent-green: #4ade80;
+            --accent-red: #ef4444;
+            --border-color: #334155;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 440px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            box-sizing: border-box;
+        }
+
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            color: var(--accent-blue);
+            font-size: 1.3rem;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 4px;
+            font-weight: 700;
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 1rem;
+            box-sizing: border-box;
+            outline: none;
+            -moz-appearance: textfield;
+        }
+
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .row .input-group {
+            flex: 1;
+        }
+
+        .status-banner {
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 16px;
+            border: 1px solid transparent;
+        }
+
+        .status-clear { background: rgba(74, 222, 128, 0.15); color: var(--accent-green); border-color: rgba(74, 222, 128, 0.3); }
+        .status-fail { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); }
+        .status-neutral { background: #0f172a; color: #94a3b8; border-color: var(--border-color); }
+
+        .results-box {
+            background-color: var(--bg-color);
+            border-radius: 12px;
+            padding: 14px;
+            border: 1px solid var(--border-color);
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 0.9rem;
+        }
+
+        .result-val {
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .split-box {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .split-card {
+            flex: 1;
+            background: #1e293b;
+            padding: 8px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .split-title {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            margin-bottom: 2px;
+        }
+
+        .split-val {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h2>Volatility & Lot Engine</h2>
+    
+    <div id="tradeStatusBanner" class="status-banner status-neutral">
+        Awaiting Morning Inputs...
+    </div>
+
+    <div class="section-title">1. Capital & Risk Configuration</div>
+    
+    <div class="row">
+        <div class="input-group" style="flex: 2;">
+            <label for="balance">Live Account Balance ($)</label>
+            <input type="number" id="balance" value="200000" step="any" oninput="runEngine()">
+        </div>
+        <div class="input-group" style="flex: 1;">
+            <label for="riskPct">Risk (%)</label>
+            <input type="number" id="riskPct" value="0.50" step="0.01" oninput="runEngine()">
+        </div>
+    </div>
+
+    <div class="section-title">2. Required Market Inputs</div>
+
+    <div class="row">
+        <div class="input-group">
+            <label for="atr">14-Day ATR</label>
+            <input type="number" id="atr" placeholder="e.g. 150" step="any" oninput="runEngine()">
+        </div>
+        <div class="input-group">
+            <label for="high15">15-Min High</label>
+            <input type="number" id="high15" placeholder="e.g. 18550" step="any" oninput="runEngine()">
+        </div>
+        <div class="input-group">
+            <label for="low15">15-Min Low</label>
+            <input type="number" id="low15" placeholder="e.g. 18510" step="any" oninput="runEngine()">
+        </div>
+    </div>
+
+    <div class="section-title">3. Strategy Outputs</div>
+    
+    <div class="results-box">
+        <div class="result-row">
+            <span>15-Min Range (Stop Distance):</span>
+            <span class="result-val" id="rangeDistance">0.00</span>
+        </div>
+        <div class="result-row">
+            <span>Current Saturation %:</span>
+            <span class="result-val" id="satPct" style="color: var(--accent-blue);">0.0%</span>
+        </div>
+        <div class="result-row" style="border-bottom: 1px dashed var(--border-color); padding-bottom: 8px; margin-bottom: 8px;">
+            <span>Sweet Spot Variance (vs 42.5%):</span>
+            <span class="result-val" id="medianVariance">--</span>
+        </div>
+        <div class="result-row">
+            <span>Allowed Cash Risk:</span>
+            <span class="result-val" id="cashRisk" style="color: var(--accent-green);">$0.00</span>
+        </div>
+        <div class="result-row" style="border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">
+            <span>Total MT5 Volume:</span>
+            <span class="result-val" id="totalLots" style="color: var(--accent-green); font-size: 1.1rem;">0.00 Lots</span>
+        </div>
+        
+        <div style="margin-top: 10px; font-size: 0.75rem; color: #94a3b8; font-weight:700;">MT5 SPLIT ORDER EXECUTION:</div>
+        
+        <div class="split-box">
+            <div class="split-card">
+                <div class="split-title">Order 1 (2/3 Chunk)</div>
+                <div class="split-val" id="twoThirdsLots">0.00</div>
+            </div>
+            <div class="split-card">
+                <div class="split-title">Order 2 (1/3 Runner)</div>
+                <div class="split-val" id="oneThirdRunner">0.00</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function runEngine() {
+    const balance = parseFloat(document.getElementById('balance').value) || 0;
+    const riskPct = parseFloat(document.getElementById('riskPct').value) || 0;
+    const atr = parseFloat(document.getElementById('atr').value) || 0;
+    const high15 = parseFloat(document.getElementById('high15').value) || 0;
+    const low15 = parseFloat(document.getElementById('low15').value) || 0;
+
+    const banner = document.getElementById('tradeStatusBanner');
+
+    // Reset layout if parameters are blank or invalid
+    if (balance === 0 || riskPct === 0 || atr === 0 || high15 === 0 || low15 === 0 || high15 <= low15) {
+        banner.className = "status-banner status-neutral";
+        banner.innerText = "Awaiting Morning Inputs...";
+        document.getElementById('rangeDistance').innerText = '0.00';
+        document.getElementById('satPct').innerText = '0.0%';
+        document.getElementById('medianVariance').innerText = '--';
+        document.getElementById('cashRisk').innerText = '$0.00';
+        document.getElementById('totalLots').innerText = '0.00 Lots';
+        document.getElementById('twoThirdsLots').innerText = '0.00';
+        document.getElementById('oneThirdRunner').innerText = '0.00';
+        return;
+    }
+
+    // 1. Core Range & Saturation Math
+    const currentRange = high15 - low15;
+    document.getElementById('rangeDistance').innerText = currentRange.toFixed(2);
+
+    const saturation = (currentRange / atr) * 100;
+    document.getElementById('satPct').innerText = saturation.toFixed(1) + '%';
+
+    // 2. Filter Evaluation (Strict 20% to 65% walls)
+    let volCleared = false;
+    if (saturation < 20) {
+        banner.className = "status-banner status-fail";
+        banner.innerText = "NO TRADE: Volume Compressed (< 20%)";
+    } else if (saturation > 65) {
+        banner.className = "status-banner status-fail";
+        banner.innerText = "NO TRADE: Saturation Exhausted (> 65%)";
+    } else {
+        volCleared = true;
+        const targetMedian = 42.5;
+        const variance = saturation - targetMedian;
+        const varianceAbs = Math.abs(variance).toFixed(1);
+        
+        if (variance < 0) {
+            banner.className = "status-banner status-clear";
+            banner.innerText = "TRADE APPROVED (" + varianceAbs + "% below target)";
+        } else {
+            banner.className = "status-banner status-clear";
+            banner.innerText = "TRADE APPROVED (" + varianceAbs + "% above target)";
+        }
+        document.getElementById('medianVariance').innerText = varianceAbs + '% deviation';
+    }
+
+    // 3. Position Sizing based on Live Risk % and Balance
+    const cashRisk = balance * (riskPct / 100); 
+    document.getElementById('cashRisk').innerText = '$' + cashRisk.toFixed(2);
+
+    let totalLots = cashRisk / currentRange;
+
+    if (totalLots < 0 || isNaN(totalLots) || !isFinite(totalLots) || !volCleared) {
+        totalLots = 0;
+    }
+
+    if (volCleared) {
+        document.getElementById('totalLots').innerText = totalLots.toFixed(2) + ' Lots';
+        
+        // Exact 2/3 and 1/3 splits
+        const twoThirds = totalLots * (2 / 3);
+        const oneThird = totalLots * (1 / 3);
+
+        document.getElementById('twoThirdsLots').innerText = twoThirds.toFixed(2);
+        document.getElementById('oneThirdRunner').innerText = oneThird.toFixed(2);
+    } else {
+        document.getElementById('totalLots').innerText = '0.00 Lots';
+        document.getElementById('twoThirdsLots').innerText = '0.00';
+        document.getElementById('oneThirdRunner').innerText = '0.00';
+    }
+}
+</script>
+
+</body>
+</html>
