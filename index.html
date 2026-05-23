@@ -53,6 +53,7 @@
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 4px;
             font-weight: 700;
+            margin-top: 14px;
         }
 
         .input-group {
@@ -79,6 +80,10 @@
             outline: none;
         }
 
+        input:focus {
+            border-color: var(--accent-blue);
+        }
+
         .row {
             display: flex;
             gap: 10px;
@@ -96,7 +101,7 @@
             font-size: 0.95rem;
             margin-bottom: 16px;
             border: 1px solid transparent;
-            line-height: 1.3;
+            line-height: 1.4;
         }
 
         .status-clear { background: rgba(74, 222, 128, 0.15); color: var(--accent-green); border-color: rgba(74, 222, 128, 0.3); }
@@ -176,12 +181,23 @@
         Awaiting Morning Inputs...
     </div>
 
-    <div class="section-title">1. Capital & Risk Configuration</div>
-    
+    <div class="section-title">1. Weekend Macro Configuration</div>
+    <div class="row">
+        <div class="input-group" style="flex: 1.2;">
+            <label for="macroCeiling">Spotted Daily Ceiling</label>
+            <input type="number" id="macroCeiling" value="18450" step="any" oninput="runEngine()">
+        </div>
+        <div class="input-group" style="flex: 1;">
+            <label for="lastChecked">Last Checked Date</label>
+            <input type="date" id="lastChecked" value="2026-05-23" onchange="runEngine()">
+        </div>
+    </div>
+
+    <div class="section-title">2. Capital & Risk Configuration</div>
     <div class="row">
         <div class="input-group" style="flex: 2;">
             <label for="balance">Live Account Balance ($)</label>
-            <input type="number" id="balance" value="200000" step="any" oninput="runEngine()">
+            <input type="number" id="balance" value="100000" step="any" oninput="runEngine()">
         </div>
         <div class="input-group" style="flex: 1;">
             <label for="riskPct">Risk (%)</label>
@@ -189,8 +205,7 @@
         </div>
     </div>
 
-    <div class="section-title">2. Required Market Inputs</div>
-
+    <div class="section-title">3. Required Market Inputs</div>
     <div class="row">
         <div class="input-group">
             <label for="atr">14-Day ATR</label>
@@ -206,8 +221,7 @@
         </div>
     </div>
 
-    <div class="section-title">3. Strategy Outputs</div>
-    
+    <div class="section-title">4. Strategy Outputs</div>
     <div class="results-box">
         <div class="result-row">
             <span>15-Min Range (Stop Distance):</span>
@@ -256,22 +270,21 @@
 </div>
 
 <script>
-// =====================================================================
-// WEEKLY MACRO CONFIGURATION (Update during weekend level lookover)
-// =====================================================================
-const SPOTTED_CEILING = 18450.00;         // Major horizontal daily resistance wick
-const LAST_CHECKED_DATE = "2026-05-23";   // Format: YYYY-MM-DD
-// =====================================================================
-
 function checkDateFreshness(dateStr) {
-    const lastChecked = new Date(dateStr);
+    if (!dateStr) return false;
+    const lastChecked = new Date(dateStr + 'T00:00:00');
     const today = new Date();
+    today.setHours(0,0,0,0);
+    
     const timeDiff = today.getTime() - lastChecked.getTime();
-    const daysDiff = Math.floor(timeDiff / (1000 * 30 * 24 * 60 * 60)); // Check if > 30 days
+    const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
     return daysDiff <= 30;
 }
 
 function runEngine() {
+    const macroCeiling = parseFloat(document.getElementById('macroCeiling').value) || 0;
+    const lastCheckedStr = document.getElementById('lastChecked').value;
+    
     const balance = parseFloat(document.getElementById('balance').value) || 0;
     const riskPct = parseFloat(document.getElementById('riskPct').value) || 0;
     const atr = parseFloat(document.getElementById('atr').value) || 0;
@@ -280,8 +293,7 @@ function runEngine() {
 
     const banner = document.getElementById('tradeStatusBanner');
 
-    // Reset fields if incomplete input
-    if (balance === 0 || riskPct === 0 || atr === 0 || high15 === 0 || low15 === 0 || high15 <= low15) {
+    if (balance === 0 || riskPct === 0 || atr === 0 || high15 === 0 || low15 === 0 || high15 <= low15 || macroCeiling === 0) {
         banner.className = "status-banner status-neutral";
         banner.innerText = "Awaiting Morning Inputs...";
         document.getElementById('rangeDistance').innerText = '0.00';
@@ -297,8 +309,7 @@ function runEngine() {
         return;
     }
 
-    // 1. Enforce 30-Day Freshness Filter
-    if (!checkDateFreshness(LAST_CHECKED_DATE)) {
+    if (!checkDateFreshness(lastCheckedStr)) {
         banner.className = "status-banner status-fail";
         banner.innerText = "CRITICAL: Levels Outdated (>30 Days). Refresh Daily Chart.";
         return;
@@ -307,14 +318,13 @@ function runEngine() {
     const currentRange = high15 - low15;
     const saturation = (currentRange / atr) * 100;
     const requiredBuffer = atr * 0.5;
-    const distanceToCeiling = SPOTTED_CEILING - high15;
+    const distanceToCeiling = macroCeiling - high15;
 
     document.getElementById('rangeDistance').innerText = currentRange.toFixed(2);
     document.getElementById('satPct').innerText = saturation.toFixed(1) + '%';
 
     let tradeCleared = false;
 
-    // 2. Run Volatility and Structural Room-to-Run Validations
     if (saturation < 20) {
         banner.className = "status-banner status-fail";
         banner.innerText = "NO TRADE: Volume Compressed (< 20%)";
@@ -333,7 +343,6 @@ function runEngine() {
         document.getElementById('medianVariance').innerText = varianceAbs + '% deviation';
     }
 
-    // Populate Long Bias Order Parameters
     document.getElementById('buyEntry').innerText = high15.toFixed(2);
     document.getElementById('buySL').innerText = low15.toFixed(2);
     document.getElementById('buyTP').innerText = (high15 + currentRange).toFixed(2);
