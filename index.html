@@ -224,8 +224,16 @@
     <div class="section-title">4. Strategy Outputs</div>
     <div class="results-box">
         <div class="result-row">
-            <span>15-Min Range (Stop Distance):</span>
+            <span>Raw 15-Min Bracket Range:</span>
             <span class="result-val" id="rangeDistance">0.00</span>
+        </div>
+        <div class="result-row">
+            <span>Institutional Buffer (10% ATR):</span>
+            <span class="result-val" id="instBufferValue" style="color: var(--accent-blue);">0.00</span>
+        </div>
+        <div class="result-row">
+            <span>Total Risk Stop Distance:</span>
+            <span class="result-val" id="totalStopDistance" style="color: #f8fafc; font-weight: 800;">0.00</span>
         </div>
         <div class="result-row">
             <span>Current Saturation %:</span>
@@ -241,7 +249,7 @@
         <div class="target-card" style="border-left: 4px solid var(--accent-green);">
             <div class="target-card-title" style="color: var(--accent-green);">BUY BREAKOUT EXECUTION</div>
             <div class="result-row"><span>Trigger Entry (Bracket High):</span> <span class="result-val" id="buyEntry">--</span></div>
-            <div class="result-row"><span>Hard Stop Loss (Bracket Low):</span> <span class="result-val" id="buySL">--</span></div>
+            <div class="result-row"><span>Buffered Stop Loss (Low - Buffer):</span> <span class="result-val" id="buySL" style="color: var(--accent-red);">--</span></div>
             <div class="result-row"><span>Core Target (TP1 1:1 RR):</span> <span class="result-val" id="buyTP">--</span></div>
         </div>
 
@@ -297,6 +305,8 @@ function runEngine() {
         banner.className = "status-banner status-neutral";
         banner.innerText = "Awaiting Morning Inputs...";
         document.getElementById('rangeDistance').innerText = '0.00';
+        document.getElementById('instBufferValue').innerText = '0.00';
+        document.getElementById('totalStopDistance').innerText = '0.00';
         document.getElementById('satPct').innerText = '0.0%';
         document.getElementById('medianVariance').innerText = '--';
         document.getElementById('cashRisk').innerText = '$0.00';
@@ -315,12 +325,17 @@ function runEngine() {
         return;
     }
 
-    const currentRange = high15 - low15;
-    const saturation = (currentRange / atr) * 100;
+    const rawRange = high15 - low15;
+    const instBuffer = atr * 0.10; // 10% Volatility-scaled Buffer
+    const bufferedStopDistance = high15 - (low15 - instBuffer);
+    const saturation = (rawRange / atr) * 100;
+    
     const requiredBuffer = atr * 0.5;
     const distanceToCeiling = macroCeiling - high15;
 
-    document.getElementById('rangeDistance').innerText = currentRange.toFixed(2);
+    document.getElementById('rangeDistance').innerText = rawRange.toFixed(2);
+    document.getElementById('instBufferValue').innerText = instBuffer.toFixed(2);
+    document.getElementById('totalStopDistance').innerText = bufferedStopDistance.toFixed(2);
     document.getElementById('satPct').innerText = saturation.toFixed(1) + '%';
 
     let tradeCleared = false;
@@ -343,14 +358,19 @@ function runEngine() {
         document.getElementById('medianVariance').innerText = varianceAbs + '% deviation';
     }
 
+    // Populate Buffered Targets
+    const calculatedSL = low15 - instBuffer;
+    const calculatedTP = high15 + bufferedStopDistance;
+
     document.getElementById('buyEntry').innerText = high15.toFixed(2);
-    document.getElementById('buySL').innerText = low15.toFixed(2);
-    document.getElementById('buyTP').innerText = (high15 + currentRange).toFixed(2);
+    document.getElementById('buySL').innerText = calculatedSL.toFixed(2);
+    document.getElementById('buyTP').innerText = calculatedTP.toFixed(2);
 
     const cashRisk = balance * (riskPct / 100); 
     document.getElementById('cashRisk').innerText = '$' + cashRisk.toFixed(2);
 
-    let totalLots = cashRisk / currentRange;
+    // Position Sizing based entirely on the total padded risk distance
+    let totalLots = cashRisk / bufferedStopDistance;
 
     if (totalLots < 0 || isNaN(totalLots) || !isFinite(totalLots) || !tradeCleared) {
         totalLots = 0;
