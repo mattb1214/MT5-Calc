@@ -57,17 +57,18 @@
                          Stop Loss: ${sl.toFixed(2)}<br>
                          Take Profit: ${tp.toFixed(2)}<br><hr>`;
                 
+                // FINALIZED SPLIT: 1/3 Body, 2/3 Runner
                 if (mode === 'MT5') {
                     const total = cashRisk / stopDist;
                     html += `Total: ${total.toFixed(2)} Lots<br>
-                             Order 1 (2/3 Core): ${(total * 0.66).toFixed(2)} Lots<br>
-                             Order 2 (1/3 Runner): ${(total * 0.33).toFixed(2)} Lots`;
+                             Order 1 (1/3 Body): ${(total * 0.33).toFixed(2)} Lots<br>
+                             Order 2 (2/3 Runner): ${(total * 0.66).toFixed(2)} Lots`;
                 } else {
                     const total = Math.floor(cashRisk / stopDist);
-                    const core = Math.floor(total * 0.66);
+                    const body = Math.floor(total * 0.33); 
                     html += `Total: ${total} Shares<br>
-                             Order 1 (2/3 Core): ${core} Shares<br>
-                             Order 2 (1/3 Runner): ${total - core} Shares`;
+                             Order 1 (1/3 Body): ${body} Shares<br>
+                             Order 2 (2/3 Runner): ${total - body} Shares`;
                 }
             }
             document.getElementById('output').innerHTML = html;
