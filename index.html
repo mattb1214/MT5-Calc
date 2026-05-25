@@ -4,31 +4,32 @@
     <meta charset="UTF-8">
     <title>Trading Strategy Engine</title>
     <style>
-        body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
-        .container { max-width: 400px; margin: auto; background: #1e293b; padding: 20px; border-radius: 12px; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; }
-        .result { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 8px; }
-        .highlight { color: #4ade80; font-weight: bold; }
+        body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 400px; background: #1e293b; padding: 20px; border-radius: 12px; }
+        input { width: 100%; padding: 10px; margin: 8px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; }
+        .result { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; }
+        .approved { color: #4ade80; font-weight: bold; }
+        .disqualified { color: #ef4444; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Trading Engine</h2>
-        <select id="mode" onchange="calculate()" style="width:100%; padding:10px;">
+        <h2>Strategy Engine</h2>
+        <select id="mode" onchange="runEngine()" style="width:100%; padding:10px; background:#0f172a; color:#fff;">
             <option value="MT5">MT5 (Lots)</option>
             <option value="ETRADE">E*TRADE (Shares)</option>
         </select>
-        <input type="number" id="balance" placeholder="Balance ($)" oninput="calculate()">
-        <input type="number" id="risk" placeholder="Risk (%)" oninput="calculate()">
-        <input type="number" id="atr" placeholder="14-Day ATR" oninput="calculate()">
-        <input type="number" id="high" placeholder="Bracket High" oninput="calculate()">
-        <input type="number" id="low" placeholder="Bracket Low" oninput="calculate()">
+        <input type="number" id="balance" placeholder="Balance ($)" oninput="runEngine()">
+        <input type="number" id="risk" placeholder="Risk (%)" oninput="runEngine()">
+        <input type="number" id="atr" placeholder="14-Day ATR" oninput="runEngine()">
+        <input type="number" id="high" placeholder="Bracket High" oninput="runEngine()">
+        <input type="number" id="low" placeholder="Bracket Low" oninput="runEngine()">
         
         <div id="output" class="result">Awaiting inputs...</div>
     </div>
 
     <script>
-        function calculate() {
+        function runEngine() {
             const mode = document.getElementById('mode').value;
             const bal = parseFloat(document.getElementById('balance').value);
             const risk = parseFloat(document.getElementById('risk').value);
@@ -39,25 +40,35 @@
             if (!bal || !risk || !atr || !high || !low) return;
 
             const saturation = ((high - low) / atr) * 100;
-            if (saturation < 32.5 || saturation > 52.5) {
-                document.getElementById('output').innerHTML = `<span style="color:red">DISQUALIFIED: Saturation ${saturation.toFixed(1)}%</span>`;
-                return;
-            }
-
             const cashRisk = bal * (risk / 100);
-            const stopDist = high - (low - (atr * 0.1));
-            
-            let html = `<strong>APPROVED: Saturation ${saturation.toFixed(1)}%</strong><br>`;
-            if (mode === 'MT5') {
-                const total = cashRisk / stopDist;
-                html += `Total: ${total.toFixed(2)} Lots<br>
-                         Core (2/3): ${(total * 0.66).toFixed(2)} Lots<br>
-                         Runner (1/3): ${(total * 0.33).toFixed(2)} Lots`;
+            const buffer = atr * 0.10;
+            const sl = low - buffer;
+            const entry = high + 0.02;
+            const tp = entry + (high - low);
+            const stopDist = entry - sl;
+
+            let html = `<strong>Saturation: ${saturation.toFixed(1)}%</strong><br>`;
+
+            if (saturation < 32.5 || saturation > 52.5) {
+                html += `<span class="disqualified">DISQUALIFIED: Outside Sweet Spot</span>`;
             } else {
-                const total = Math.floor(cashRisk / stopDist);
-                html += `Total: ${total} Shares<br>
-                         Core (2/3): ${Math.floor(total * 0.66)} Shares<br>
-                         Runner (1/3): ${total - Math.floor(total * 0.66)} Shares`;
+                html += `<span class="approved">APPROVED</span><br>
+                         Entry: ${entry.toFixed(2)}<br>
+                         Stop Loss: ${sl.toFixed(2)}<br>
+                         Take Profit: ${tp.toFixed(2)}<br><hr>`;
+                
+                if (mode === 'MT5') {
+                    const total = cashRisk / stopDist;
+                    html += `Total: ${total.toFixed(2)} Lots<br>
+                             Order 1 (2/3 Core): ${(total * 0.66).toFixed(2)} Lots<br>
+                             Order 2 (1/3 Runner): ${(total * 0.33).toFixed(2)} Lots`;
+                } else {
+                    const total = Math.floor(cashRisk / stopDist);
+                    const core = Math.floor(total * 0.66);
+                    html += `Total: ${total} Shares<br>
+                             Order 1 (2/3 Core): ${core} Shares<br>
+                             Order 2 (1/3 Runner): ${total - core} Shares`;
+                }
             }
             document.getElementById('output').innerHTML = html;
         }
