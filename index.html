@@ -1,455 +1,56 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Prop & Equity Vol Calc</title>
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-color: #f8fafc;
-            --accent-blue: #38bdf8;
-            --accent-green: #4ade80;
-            --accent-red: #ef4444;
-            --border-color: #334155;
-        }
+def calculate_lot_size(ticker, terminal_type, vs_percentage, bracket_high, bracket_low):
+    # Establish your tight structural sweet spot
+    if not (32.5 <= vs_percentage <= 52.5):
+        print(f"\n❌ {ticker} is DISQUALIFIED (Volatility Saturation: {vs_percentage}% is out of bounds).")
+        print("Move to the next ticker on your watchlist.")
+        return False
         
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 12px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .app-container {
-            width: 100%;
-            max-width: 440px;
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--border-color);
-            box-sizing: border-box;
-        }
-
-        h2 {
-            text-align: center;
-            margin-top: 0;
-            color: var(--accent-blue);
-            font-size: 1.3rem;
-            margin-bottom: 16px;
-        }
-
-        .section-title {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #94a3b8;
-            margin-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 4px;
-            font-weight: 700;
-            margin-top: 14px;
-        }
-
-        .input-group {
-            margin-bottom: 12px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 4px;
-            font-size: 0.8rem;
-            color: #94a3b8;
-            font-weight: 600;
-        }
-
-        input {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-size: 1rem;
-            box-sizing: border-box;
-            outline: none;
-        }
-
-        input:focus {
-            border-color: var(--accent-blue);
-        }
-
-        .row {
-            display: flex;
-            gap: 10px;
-        }
-
-        .row .input-group {
-            flex: 1;
-        }
-
-        .status-banner {
-            border-radius: 8px;
-            padding: 12px;
-            text-align: center;
-            font-weight: 700;
-            font-size: 0.95rem;
-            margin-bottom: 16px;
-            border: 1px solid transparent;
-            line-height: 1.4;
-        }
-
-        .status-clear { background: rgba(74, 222, 128, 0.15); color: var(--accent-green); border-color: rgba(74, 222, 128, 0.3); }
-        .status-fail { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); }
-        .status-neutral { background: #0f172a; color: #94a3b8; border-color: var(--border-color); }
-
-        .results-box {
-            background-color: var(--bg-color);
-            border-radius: 12px;
-            padding: 14px;
-            border: 1px solid var(--border-color);
-        }
-
-        .toggle-container {
-            display: flex;
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 2px;
-            margin-bottom: 12px;
-        }
-
-        .toggle-btn {
-            flex: 1;
-            border: none;
-            background: none;
-            color: #94a3b8;
-            padding: 8px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .toggle-btn.active {
-            background: var(--accent-blue);
-            color: var(--bg-color);
-        }
-
-        .result-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            font-size: 0.9rem;
-        }
-
-        .result-val {
-            font-weight: 700;
-            color: #f8fafc;
-        }
-
-        .target-card {
-            background: #1e293b;
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
-            font-size: 0.85rem;
-            margin: 8px 0;
-        }
-
-        .target-card-title {
-            font-weight: 700;
-            text-align: center;
-            margin-bottom: 6px;
-            padding-bottom: 4px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .split-box {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .split-card {
-            flex: 1;
-            background: #1e293b;
-            padding: 8px;
-            border-radius: 8px;
-            text-align: center;
-            border: 1px solid var(--border-color);
-        }
-
-        .split-title {
-            font-size: 0.7rem;
-            color: #94a3b8;
-            margin-bottom: 2px;
-        }
-
-        .split-val {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--accent-blue);
-        }
-    </style>
-</head>
-<body>
-
-<div class="app-container">
-    <h2>Volatility & Volume Engine</h2>
+    # Calculate exact parameters for a valid trade
+    risk_capital = 25.0  # Your fixed $25 risk per trade
+    bracket_size = bracket_high - bracket_low
+    entry_price = bracket_high + 0.02
+    stop_loss = bracket_low
+    target_1to1 = entry_price + bracket_size
     
-    <div id="tradeStatusBanner" class="status-banner status-neutral">
-        Awaiting Morning Inputs...
-    </div>
-
-    <div class="section-title">1. Weekend Macro Configuration</div>
-    <div class="row">
-        <div class="input-group" style="flex: 1.2;">
-            <label for="macroCeiling">Spotted Daily Ceiling</label>
-            <input type="number" id="macroCeiling" value="18450" step="any" oninput="runEngine()">
-        </div>
-        <div class="input-group" style="flex: 1;">
-            <label for="lastChecked">Last Checked Date</label>
-            <input type="date" id="lastChecked" value="2026-05-23" onchange="runEngine()">
-        </div>
-    </div>
-
-    <div class="section-title">2. Capital & Risk Configuration</div>
-    <div class="row">
-        <div class="input-group" style="flex: 2;">
-            <label for="balance">Live Account Balance ($)</label>
-            <input type="number" id="balance" value="100000" step="any" oninput="runEngine()">
-        </div>
-        <div class="input-group" style="flex: 1;">
-            <label for="riskPct">Risk (%)</label>
-            <input type="number" id="riskPct" value="0.75" step="0.01" oninput="runEngine()">
-        </div>
-    </div>
-
-    <div class="section-title">3. Required Market Inputs</div>
-    <div class="row">
-        <div class="input-group">
-            <label for="atr">14-Day ATR</label>
-            <input type="number" id="atr" placeholder="e.g. 150" step="any" oninput="runEngine()">
-        </div>
-        <div class="input-group">
-            <label for="high15">15-Min High</label>
-            <input type="number" id="high15" placeholder="e.g. 18550" step="any" oninput="runEngine()">
-        </div>
-        <div class="input-group">
-            <label for="low15">15-Min Low</label>
-            <input type="number" id="low15" placeholder="e.g. 18510" step="any" oninput="runEngine()">
-        </div>
-    </div>
-
-    <div class="section-title">4. Strategy Outputs</div>
-    <div class="results-box">
+    # Simple terminal sizing rules
+    if terminal_type.lower() == 'mt5':
+        # Typical contract size math (e.g., Silver/XAGUSD or Forex pairs)
+        # Lot Size = Risk / (Pip/Point Value * Distance)
+        print(f"\n✅ {ticker} is VALID! (VS: {vs_percentage}%)")
+        print(f"--- MT5 ORDER EXECUTION (1/3 Base, 2/3 Runner) ---")
+        print(f"Entry Stop: {entry_price:.3f} | Stop Loss: {stop_loss:.3f}")
+        print(f"Ticket 1 (1/3 Size) -> Take Profit: {target_1to1:.3f}")
+        print(f"Ticket 2 (2/3 Size) -> Take Profit: OPEN (Move to BE at 1:1)")
         
-        <!-- Broker Platform Toggle Switch -->
-        <div class="toggle-container">
-            <button id="modeMt5" class="toggle-btn active" onclick="setMode('MT5')">MT5 FUTURES</button>
-            <button id="modeEtrade" class="toggle-btn" onclick="setMode('ETRADE')">E*TRADE STOCKS</button>
-        </div>
-
-        <div class="result-row">
-            <span>Raw 15-Min Bracket Range:</span>
-            <span class="result-val" id="rangeDistance">0.00</span>
-        </div>
-        <div class="result-row">
-            <span>Institutional Buffer (10% ATR):</span>
-            <span class="result-val" id="instBufferValue" style="color: var(--accent-blue);">0.00</span>
-        </div>
-        <div class="result-row">
-            <span>Total Risk Stop Distance:</span>
-            <span class="result-val" id="totalStopDistance" style="color: #f8fafc; font-weight: 800;">0.00</span>
-        </div>
-        <div class="result-row">
-            <span>Current Saturation %:</span>
-            <span class="result-val" id="satPct" style="color: var(--accent-blue);">0.0%</span>
-        </div>
-        <div class="result-row" style="border-bottom: 1px dashed var(--border-color); padding-bottom: 8px; margin-bottom: 8px;">
-            <span>Sweet Spot Variance (vs 42.5%):</span>
-            <span class="result-val" id="medianVariance">--</span>
-        </div>
-
-        <div style="font-size: 0.75rem; color: #94a3b8; font-weight:700; margin-top: 4px;">PRICE ENTRY TARGETS:</div>
+    elif terminal_type.lower() == 'etrade':
+        # Equity Share Math
+        total_shares = int(risk_capital / (entry_price - stop_loss))
+        base_shares = int(total_shares * (1/3))
+        runner_shares = total_shares - base_shares
         
-        <div class="target-card" style="border-left: 4px solid var(--accent-green);">
-            <div class="target-card-title" style="color: var(--accent-green);">BUY BREAKOUT EXECUTION</div>
-            <div class="result-row"><span>Trigger Entry (Bracket High):</span> <span class="result-val" id="buyEntry">--</span></div>
-            <div class="result-row"><span>Buffered Stop Loss (Low - Buffer):</span> <span class="result-val" id="buySL" style="color: var(--accent-red);">--</span></div>
-            <div class="result-row"><span>Core Target (TP1 1:1 RR):</span> <span class="result-val" id="buyTP">--</span></div>
-        </div>
-
-        <div class="result-row" style="border-top: 1px dashed var(--border-color); padding-top: 8px;">
-            <span>Allowed Cash Risk:</span>
-            <span class="result-val" id="cashRisk" style="color: var(--accent-green);">$0.00</span>
-        </div>
-        <div class="result-row" style="border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">
-            <span id="volumeLabel">Total MT5 Volume:</span>
-            <span class="result-val" id="totalLots" style="color: var(--accent-green); font-size: 1.1rem;">0.00 Lots</span>
-        </div>
+        print(f"\n✅ {ticker} is VALID! (VS: {vs_percentage}%)")
+        print(f"--- E*TRADE ORDER EXECUTION (1/3 Base, 2/3 Runner) ---")
+        print(f"Total Position: {total_shares} shares")
+        print(f"Order 1: Buy Stop {base_shares} shares @ {entry_price:.2f} | Limit TP: {target_1to1:.2f} | SL: {stop_loss:.2f}")
+        print(f"Order 2: Buy Stop {runner_shares} shares @ {entry_price:.2f} | Limit TP: NONE | SL: {stop_loss:.2f}")
         
-        <div id="splitLabel" style="margin-top: 10px; font-size: 0.75rem; color: #94a3b8; font-weight:700;">MT5 SPLIT ORDER EXECUTION:</div>
-        
-        <div class="split-box">
-            <div class="split-card">
-                <div id="chunkTitle" class="split-title">Order 1 (2/3 Chunk)</div>
-                <div class="split-val" id="twoThirdsLots">0.00</div>
-            </div>
-            <div class="split-card">
-                <div id="runnerTitle" class="split-title">Order 2 (1/3 Runner)</div>
-                <div class="split-val" id="oneThirdRunner">0.00</div>
-            </div>
-        </div>
-    </div>
-</div>
+    return True
 
-<script>
-let currentMode = 'MT5';
-
-function setMode(mode) {
-    currentMode = mode;
-    document.getElementById('modeMt5').className = (mode === 'MT5') ? 'toggle-btn active' : 'toggle-btn';
-    document.getElementById('modeEtrade').className = (mode === 'ETRADE') ? 'toggle-btn active' : 'toggle-btn';
+# Main Interactive Morning Loop
+while True:
+    print("\n==============================")
+    terminal = input("Select Terminal (mt5 / etrade) or 'exit': ")
+    if terminal.lower() == 'exit': break
     
-    // Switch labels visually
-    if (mode === 'ETRADE') {
-        document.getElementById('volumeLabel').innerText = "Total E*TRADE Volume:";
-        document.getElementById('splitLabel').innerText = "E*TRADE SPLIT SHARE EXECUTION:";
-        document.getElementById('chunkTitle').innerText = "Order 1 (2/3 Shares)";
-        document.getElementById('runnerTitle').innerText = "Order 2 (1/3 Shares)";
-    } else {
-        document.getElementById('volumeLabel').innerText = "Total MT5 Volume:";
-        document.getElementById('splitLabel').innerText = "MT5 SPLIT ORDER EXECUTION:";
-        document.getElementById('chunkTitle').innerText = "Order 1 (2/3 Chunk)";
-        document.getElementById('runnerTitle').innerText = "Order 2 (1/3 Runner)";
-    }
-    runEngine();
-}
-
-function checkDateFreshness(dateStr) {
-    if (!dateStr) return false;
-    const lastChecked = new Date(dateStr + 'T00:00:00');
-    const today = new Date();
-    today.setHours(0,0,0,0);
+    symbol = input("Enter Ticker/Symbol (e.g., SOFI, XAGUSD): ").upper()
+    vs = float(input(f"Enter Volatility Saturation for {symbol} (%): "))
+    high = float(input(f"Enter 15m Bracket High: "))
+    low = float(input(f"Enter 15m Bracket Low: "))
     
-    const timeDiff = today.getTime() - lastChecked.getTime();
-    const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-    return daysDiff <= 30;
-}
-
-function runEngine() {
-    const macroCeiling = parseFloat(document.getElementById('macroCeiling').value) || 0;
-    const lastCheckedStr = document.getElementById('lastChecked').value;
+    trade_taken = calculate_lot_size(symbol, terminal, vs, high, low)
     
-    const balance = parseFloat(document.getElementById('balance').value) || 0;
-    const riskPct = parseFloat(document.getElementById('riskPct').value) || 0;
-    const atr = parseFloat(document.getElementById('atr').value) || 0;
-    const high15 = parseFloat(document.getElementById('high15').value) || 0;
-    const low15 = parseFloat(document.getElementById('low15').value) || 0;
-
-    const banner = document.getElementById('tradeStatusBanner');
-
-    if (balance === 0 || riskPct === 0 || atr === 0 || high15 === 0 || low15 === 0 || high15 <= low15 || macroCeiling === 0) {
-        banner.className = "status-banner status-neutral";
-        banner.innerText = "Awaiting Morning Inputs...";
-        document.getElementById('rangeDistance').innerText = '0.00';
-        document.getElementById('instBufferValue').innerText = '0.00';
-        document.getElementById('totalStopDistance').innerText = '0.00';
-        document.getElementById('satPct').innerText = '0.0%';
-        document.getElementById('medianVariance').innerText = '--';
-        document.getElementById('cashRisk').innerText = '$0.00';
-        document.getElementById('totalLots').innerText = currentMode === 'MT5' ? '0.00 Lots' : '0 Shares';
-        document.getElementById('twoThirdsLots').innerText = '0.00';
-        document.getElementById('oneThirdRunner').innerText = '0.00';
-        document.getElementById('buyEntry').innerText = '--';
-        document.getElementById('buySL').innerText = '--';
-        document.getElementById('buyTP').innerText = '--';
-        return;
-    }
-
-    if (!checkDateFreshness(lastCheckedStr)) {
-        banner.className = "status-banner status-fail";
-        banner.innerText = "CRITICAL: Levels Outdated (>30 Days). Refresh Daily Chart.";
-        return;
-    }
-
-    const rawRange = high15 - low15;
-    const instBuffer = atr * 0.10; 
-    const bufferedStopDistance = high15 - (low15 - instBuffer);
-    const saturation = (rawRange / atr) * 100;
-    
-    const requiredBuffer = atr * 0.5;
-    const distanceToCeiling = macroCeiling - high15;
-
-    document.getElementById('rangeDistance').innerText = rawRange.toFixed(2);
-    document.getElementById('instBufferValue').innerText = instBuffer.toFixed(2);
-    document.getElementById('totalStopDistance').innerText = bufferedStopDistance.toFixed(2);
-    document.getElementById('satPct').innerText = saturation.toFixed(1) + '%';
-
-    let tradeCleared = false;
-
-    if (saturation < 20) {
-        banner.className = "status-banner status-fail";
-        banner.innerText = "NO TRADE: Volume Compressed (< 20%)";
-    } else if (saturation > 65) {
-        banner.className = "status-banner status-fail";
-        banner.innerText = "NO TRADE: Saturation Exhausted (> 65%)";
-    } else if (distanceToCeiling < requiredBuffer) {
-        banner.className = "status-banner status-fail";
-        banner.innerText = "NO TRADE: Overcrowded. Daily Ceiling blocks runway.";
-    } else {
-        tradeCleared = true;
-        const targetMedian = 42.5;
-        const varianceAbs = Math.abs(saturation - targetMedian).toFixed(1);
-        banner.className = "status-banner status-clear";
-        banner.innerText = "TRADE APPROVED (" + varianceAbs + "% deviation from sweet spot)";
-        document.getElementById('medianVariance').innerText = varianceAbs + '% deviation';
-    }
-
-    const calculatedSL = low15 - instBuffer;
-    const calculatedTP = high15 + bufferedStopDistance;
-
-    document.getElementById('buyEntry').innerText = high15.toFixed(2);
-    document.getElementById('buySL').innerText = calculatedSL.toFixed(2);
-    document.getElementById('buyTP').innerText = calculatedTP.toFixed(2);
-
-    const cashRisk = balance * (riskPct / 100); 
-    document.getElementById('cashRisk').innerText = '$' + cashRisk.toFixed(2);
-
-    if (tradeCleared) {
-        if (currentMode === 'MT5') {
-            let totalLots = cashRisk / bufferedStopDistance;
-            if (totalLots < 0 || isNaN(totalLots) || !isFinite(totalLots)) totalLots = 0;
-            
-            document.getElementById('totalLots').innerText = totalLots.toFixed(2) + ' Lots';
-            document.getElementById('twoThirdsLots').innerText = (totalLots * (2 / 3)).toFixed(2);
-            document.getElementById('oneThirdRunner').innerText = (totalLots * (1 / 3)).toFixed(2);
-        } else {
-            // E*TRADE Shares Mode: Rounded completely down to avoid over-leverage
-            let totalShares = Math.floor(cashRisk / bufferedStopDistance);
-            if (totalShares < 0 || isNaN(totalShares) || !isFinite(totalShares)) totalShares = 0;
-            
-            let chunkShares = Math.floor(totalShares * (2 / 3));
-            let runnerShares = totalShares - chunkShares; // Ensures whole numbers completely match total
-            
-            document.getElementById('totalLots').innerText = totalShares + ' Shares';
-            document.getElementById('twoThirdsLots').innerText = chunkShares;
-            document.getElementById('oneThirdRunner').innerText = runnerShares;
-        }
-    } else {
-        document.getElementById('totalLots').innerText = currentMode === 'MT5' ? '0.00 Lots' : '0 Shares';
-        document.getElementById('twoThirdsLots').innerText = '0.00';
-        document.getElementById('oneThirdRunner').innerText = '0.00';
-    }
-}
-</script>
-</body>
-</html>
+    if trade_taken:
+        print("\nPosition fully calculated. Execution complete for the day.")
+        break  # You found your trade! Close the script.
+    else:
+        print("\nCycling back for the next asset...")
