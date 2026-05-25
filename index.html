@@ -1,56 +1,115 @@
+import sys
+
 def calculate_lot_size(ticker, terminal_type, vs_percentage, bracket_high, bracket_low):
-    # Establish your tight structural sweet spot
+    """
+    Validates the asset's Volatility Saturation and prints a scannable, high-contrast
+    order layout tailored to either MT5 or E*TRADE terminal interfaces.
+    """
+    # Establish the tight structural sweet spot
     if not (32.5 <= vs_percentage <= 52.5):
-        print(f"\n❌ {ticker} is DISQUALIFIED (Volatility Saturation: {vs_percentage}% is out of bounds).")
-        print("Move to the next ticker on your watchlist.")
+        print("\n" + "!" * 45)
+        print(f"❌ {ticker} IS DISQUALIFIED")
+        print(f"Volatility Saturation ({vs_percentage}%) is outside the 32.5% - 52.5% sweet spot.")
+        print("ACTION: Sitting on hands. Move to the next ticker on your watchlist.")
+        print("!" * 45)
         return False
         
-    # Calculate exact parameters for a valid trade
-    risk_capital = 25.0  # Your fixed $25 risk per trade
+    # Fixed Risk Strategy Parameters
+    risk_capital = 25.0  # Fixed $25 risk allocation per trade
     bracket_size = bracket_high - bracket_low
     entry_price = bracket_high + 0.02
     stop_loss = bracket_low
     target_1to1 = entry_price + bracket_size
     
-    # Simple terminal sizing rules
+    # ----------------------------------------------------
+    # TERMINAL READOUT: METATRADER 5 (MT5)
+    # ----------------------------------------------------
     if terminal_type.lower() == 'mt5':
-        # Typical contract size math (e.g., Silver/XAGUSD or Forex pairs)
-        # Lot Size = Risk / (Pip/Point Value * Distance)
-        print(f"\n✅ {ticker} is VALID! (VS: {vs_percentage}%)")
-        print(f"--- MT5 ORDER EXECUTION (1/3 Base, 2/3 Runner) ---")
-        print(f"Entry Stop: {entry_price:.3f} | Stop Loss: {stop_loss:.3f}")
-        print(f"Ticket 1 (1/3 Size) -> Take Profit: {target_1to1:.3f}")
-        print(f"Ticket 2 (2/3 Size) -> Take Profit: OPEN (Move to BE at 1:1)")
+        print("\n" + "=" * 45)
+        print(f"🚨 STATUS: {ticker} IS VALID! (VS: {vs_percentage}%)")
+        print("=" * 45)
+        print(f"▶️  ENTRY ORDER : Buy Stop @ {entry_price:.3f}")
+        print(f"🛑 STOP LOSS  : {stop_loss:.3f}  [Risk: $25.00]")
+        print("-" * 45)
+        print(f"📦 TICKET 1 (1/3 Base Size)  -> TAKE PROFIT: {target_1to1:.3f}")
+        print(f"🏃 TICKET 2 (2/3 Runner Size)-> TAKE PROFIT: OPEN (Move SL to BE @ {entry_price:.3f})")
+        print("=" * 45)
         
+    # ----------------------------------------------------
+    # TERMINAL READOUT: E*TRADE
+    # ----------------------------------------------------
     elif terminal_type.lower() == 'etrade':
-        # Equity Share Math
-        total_shares = int(risk_capital / (entry_price - stop_loss))
+        # Share calculation based on the $25 risk ceiling
+        risk_per_share = entry_price - stop_loss
+        if risk_per_share <= 0:
+            print("\n❌ Error: Bracket High must be greater than Bracket Low.")
+            return False
+            
+        total_shares = int(risk_capital / risk_per_share)
+        
+        # Enforce exact 1/3 Base and 2/3 Runner distribution split
         base_shares = int(total_shares * (1/3))
         runner_shares = total_shares - base_shares
         
-        print(f"\n✅ {ticker} is VALID! (VS: {vs_percentage}%)")
-        print(f"--- E*TRADE ORDER EXECUTION (1/3 Base, 2/3 Runner) ---")
-        print(f"Total Position: {total_shares} shares")
-        print(f"Order 1: Buy Stop {base_shares} shares @ {entry_price:.2f} | Limit TP: {target_1to1:.2f} | SL: {stop_loss:.2f}")
-        print(f"Order 2: Buy Stop {runner_shares} shares @ {entry_price:.2f} | Limit TP: NONE | SL: {stop_loss:.2f}")
+        print("\n" + "=" * 45)
+        print(f"🚨 STATUS: {ticker} IS VALID! (VS: {vs_percentage}%)")
+        print("=" * 45)
+        print(f"📊 RISK CAP: $25.00 | Total Allocation: {total_shares} Shares")
+        print("-" * 45)
+        print(f"🛒 ORDER 1: Buy Stop {base_shares} Shares @ {entry_price:.2f}")
+        print(f"🎯 TARGET 1: Limit TP @ {target_1to1:.2f} | SL @ {stop_loss:.2f}")
+        print("-" * 45)
+        print(f"🛒 ORDER 2: Buy Stop {runner_shares} Shares @ {entry_price:.2f}")
+        print(f"🎯 TARGET 2: Limit TP @ NONE (Runner) | SL @ {stop_loss:.2f}")
+        print("=" * 45)
         
     return True
 
-# Main Interactive Morning Loop
-while True:
-    print("\n==============================")
-    terminal = input("Select Terminal (mt5 / etrade) or 'exit': ")
-    if terminal.lower() == 'exit': break
+
+def main():
+    """
+    Main interactive morning execution loop. Processes one ticker at a time 
+    to eliminate decision fatigue at market open.
+    """
+    print("=============================================")
+    print("   MORNING STRATEGIC ROTATION ENGINE v2.0    ")
+    print("=============================================")
     
-    symbol = input("Enter Ticker/Symbol (e.g., SOFI, XAGUSD): ").upper()
-    vs = float(input(f"Enter Volatility Saturation for {symbol} (%): "))
-    high = float(input(f"Enter 15m Bracket High: "))
-    low = float(input(f"Enter 15m Bracket Low: "))
-    
-    trade_taken = calculate_lot_size(symbol, terminal, vs, high, low)
-    
-    if trade_taken:
-        print("\nPosition fully calculated. Execution complete for the day.")
-        break  # You found your trade! Close the script.
-    else:
-        print("\nCycling back for the next asset...")
+    while True:
+        # Step 1: Select execution interface
+        terminal = input("\nSelect Terminal (mt5 / etrade) or type 'exit': ").strip()
+        if terminal.lower() == 'exit':
+            print("Exiting tool. Good luck in the markets today!")
+            break
+            
+        if terminal.lower() not in ['mt5', 'etrade']:
+            print("❌ Invalid terminal selection. Please type 'mt5' or 'etrade'.")
+            continue
+            
+        # Step 2: Input active ticker data sequential check
+        symbol = input("Enter Ticker/Symbol (e.g., SOFI, XAGUSD): ").strip().upper()
+        
+        try:
+            vs = float(input(f"Enter Volatility Saturation for {symbol} (%): ").strip().replace('%', ''))
+            high = float(input(f"Enter 15-Minute Bracket High: ").strip())
+            low = float(input(f"Enter 15-Minute Bracket Low: ").strip())
+        except ValueError:
+            print("❌ Invalid numeric input. Please restart the query for this ticker.")
+            continue
+            
+        # Step 3: Run validation and print instructions
+        trade_executed = calculate_lot_size(symbol, terminal, vs, high, low)
+        
+        if trade_executed:
+            print("\n⚙️ Orders generated. Copy numbers directly into your active terminal window.")
+            print("Closing application for the session.")
+            break  # Break the loop because a valid trade configuration was logged
+        else:
+            print("\n🔄 Ready for next ticker input...")
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\nTool manually closed. Good luck trading!")
+        sys.exit(0)
