@@ -1,85 +1,60 @@
 import sys
 
-def calculate_lot_size(ticker, terminal_type, vs_percentage, bracket_high, bracket_low):
-    # Establish the tight structural sweet spot
-    if not (32.5 <= vs_percentage <= 52.5):
-        print("\n" + "!" * 45)
-        print(f"❌ {ticker} IS DISQUALIFIED")
-        print(f"Volatility Saturation ({vs_percentage}%) is outside the 32.5% - 52.5% sweet spot.")
-        print("ACTION: Sitting on hands. Move to the next ticker on your watchlist.")
-        print("!" * 45)
-        return False
-        
-    # Fixed Risk Strategy Parameters
-    risk_capital = 25.0
-    bracket_size = bracket_high - bracket_low
-    entry_price = bracket_high + 0.02
-    stop_loss = bracket_low
-    target_1to1 = entry_price + bracket_size
-    
-    if terminal_type.lower() == 'mt5':
-        print("\n" + "=" * 45)
-        print(f"🚨 STATUS: {ticker} IS VALID! (VS: {vs_percentage}%)")
-        print("=" * 45)
-        print(f"▶️  ENTRY ORDER : Buy Stop @ {entry_price:.3f}")
-        print(f"🛑 STOP LOSS  : {stop_loss:.3f}  [Risk: $25.00]")
-        print("-" * 45)
-        print(f"📦 TICKET 1 (1/3 Base Size)  -> TAKE PROFIT: {target_1to1:.3f}")
-        print(f"🏃 TICKET 2 (2/3 Runner Size)-> TAKE PROFIT: OPEN (Move SL to BE @ {entry_price:.3f})")
-        print("=" * 45)
-        
-    elif terminal_type.lower() == 'etrade':
-        risk_per_share = entry_price - stop_loss
-        if risk_per_share <= 0:
-            print("\n❌ Error: Bracket High must be greater than Bracket Low.")
-            return False
-            
-        total_shares = int(risk_capital / risk_per_share)
-        base_shares = int(total_shares * (1/3))
-        runner_shares = total_shares - base_shares
-        
-        print("\n" + "=" * 45)
-        print(f"🚨 STATUS: {ticker} IS VALID! (VS: {vs_percentage}%)")
-        print("=" * 45)
-        print(f"📊 RISK CAP: $25.00 | Total Allocation: {total_shares} Shares")
-        print("-" * 45)
-        print(f"🛒 ORDER 1: Buy Stop {base_shares} Shares @ {entry_price:.2f}")
-        print(f"🎯 TARGET 1: Limit TP @ {target_1to1:.2f} | SL @ {stop_loss:.2f}")
-        print("-" * 45)
-        print(f"🛒 ORDER 2: Buy Stop {runner_shares} Shares @ {entry_price:.2f}")
-        print(f"🎯 TARGET 2: Limit TP @ NONE (Runner) | SL @ {stop_loss:.2f}")
-        print("=" * 45)
-        
-    return True
+def run_engine():
+    print("=============================================")
+    print("      TRADING STRATEGY ENGINE v2.0           ")
+    print("=============================================")
 
-def main():
-    print("=============================================")
-    print("   MORNING STRATEGIC ROTATION ENGINE v2.0    ")
-    print("=============================================")
+    try:
+        # Inputs
+        mode = input("Select Platform (MT5 / ETRADE): ").strip().upper()
+        balance = float(input("Account Balance ($): "))
+        risk_pct = float(input("Risk (%): "))
+        atr = float(input("14-Day ATR: "))
+        high15 = float(input("15m Bracket High: "))
+        low15 = float(input("15m Bracket Low: "))
+    except ValueError:
+        print("❌ Error: Invalid numeric input.")
+        return
+
+    # Calculations
+    raw_range = high15 - low15
+    inst_buffer = atr * 0.10
+    buffered_stop_distance = high15 - (low15 - inst_buffer)
+    saturation = (raw_range / atr) * 100
+    cash_risk = balance * (risk_pct / 100)
+
+    # Gatekeeper: 32.5% to 52.5%
+    print("\n--- STATUS ---")
+    if not (32.5 <= saturation <= 52.5):
+        print(f"❌ NO TRADE: Saturation {saturation:.1f}% is outside sweet spot (32.5% - 52.5%).")
+        return
+    else:
+        print(f"✅ TRADE APPROVED (Saturation: {saturation:.1f}%)")
+
+    # Outputs
+    print("\n--- EXECUTION TARGETS ---")
+    print(f"Trigger Entry: {high15:.2f}")
+    print(f"Stop Loss    : {(low15 - inst_buffer):.2f}")
+    print(f"Target (1:1) : {(high15 + buffered_stop_distance):.2f}")
     
-    while True:
-        terminal = input("\nSelect Terminal (mt5 / etrade) or type 'exit': ").strip()
-        if terminal.lower() == 'exit':
-            break
-        if terminal.lower() not in ['mt5', 'etrade']:
-            print("❌ Invalid terminal selection.")
-            continue
-            
-        symbol = input("Enter Ticker/Symbol: ").strip().upper()
-        try:
-            vs = float(input(f"Enter Volatility Saturation for {symbol} (%): ").strip().replace('%', ''))
-            high = float(input(f"Enter 15-Minute Bracket High: ").strip())
-            low = float(input(f"Enter 15-Minute Bracket Low: ").strip())
-        except ValueError:
-            print("❌ Invalid numeric input.")
-            continue
-            
-        trade_executed = calculate_lot_size(symbol, terminal, vs, high, low)
-        if trade_executed:
-            print("\n⚙️ Orders generated. Closing application.")
-            break
-        else:
-            print("\n🔄 Ready for next ticker input...")
+    print("\n--- SPLIT ORDER EXECUTION ---")
+    if mode == 'MT5':
+        total_lots = cash_risk / buffered_stop_distance
+        # 2/3 Core, 1/3 Runner
+        core_lots = total_lots * (2/3)
+        runner_lots = total_lots * (1/3)
+        print(f"Total Volume : {total_lots:.2f} Lots")
+        print(f"Order 1 (2/3): {core_lots:.2f} Lots (CORE CHUNK)")
+        print(f"Order 2 (1/3): {runner_lots:.2f} Lots (RUNNER)")
+    else:
+        total_shares = int(cash_risk / buffered_stop_distance)
+        # 2/3 Core, 1/3 Runner
+        core_shares = int(total_shares * (2/3))
+        runner_shares = total_shares - core_shares
+        print(f"Total Shares : {total_shares}")
+        print(f"Order 1 (2/3): {core_shares} Shares (CORE CHUNK)")
+        print(f"Order 2 (1/3): {runner_shares} Shares (RUNNER)")
 
 if __name__ == "__main__":
-    main()
+    run_engine()
