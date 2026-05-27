@@ -11,7 +11,7 @@
         .approved { color: #4ade80; font-weight: bold; }
         .disqualified { color: #ef4444; font-weight: bold; }
         .btn { width: 100%; padding: 10px; background: #3b82f6; border: none; color: white; border-radius: 6px; cursor: pointer; margin-top: 10px; }
-        .journal-row { background: #334155; padding: 10px; margin-top: 10px; border-radius: 6px; font-size: 0.85em; }
+        .download-btn { background: #10b981; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -28,11 +28,12 @@
         <input type="number" id="low" placeholder="Bracket Low" oninput="runEngine()">
         
         <div id="output" class="result">Awaiting inputs...</div>
-        <div id="journal"></div>
+        <button class="btn download-btn" onclick="downloadCSV()">Download Journal as CSV</button>
     </div>
 
     <script>
         let currentTrade = null;
+        let tradeLog = [];
 
         function runEngine() {
             const mode = document.getElementById('mode').value;
@@ -58,7 +59,7 @@
                 html += `<span class="disqualified">DISQUALIFIED: Outside Sweet Spot</span>`;
                 currentTrade = null;
             } else {
-                currentTrade = { mode, saturation, entry, sl, tp, total: 0, body: 0, runner: 0 };
+                currentTrade = { date: new Date().toLocaleString(), mode, saturation, entry, sl, tp, total: 0, body: 0, runner: 0 };
                 
                 html += `<span class="approved">APPROVED</span><br>
                          Entry: ${entry.toFixed(2)}<br>
@@ -83,9 +84,8 @@
 
         function captureTrade() {
             if (!currentTrade) return;
-            const journal = document.getElementById('journal');
-            const date = new Date().toLocaleTimeString();
-            journal.innerHTML += `<div class="journal-row">${date} | Entry: ${currentTrade.entry.toFixed(2)} | Total: ${currentTrade.total} | <button onclick="this.parentElement.remove()">Done</button></div>`;
+            tradeLog.push(currentTrade);
+            alert("Trade captured!");
             
             // Clear inputs
             document.getElementById('balance').value = '';
@@ -94,6 +94,21 @@
             document.getElementById('high').value = '';
             document.getElementById('low').value = '';
             document.getElementById('output').innerHTML = "Awaiting inputs...";
+            currentTrade = null;
+        }
+
+        function downloadCSV() {
+            if (tradeLog.length === 0) { alert("No trades captured yet!"); return; }
+            let csv = "Date,Mode,Saturation,Entry,Stop Loss,Take Profit,Total,Body,Runner\n";
+            tradeLog.forEach(t => {
+                csv += `${t.date},${t.mode},${t.saturation.toFixed(1)},${t.entry.toFixed(2)},${t.sl.toFixed(2)},${t.tp.toFixed(2)},${t.total},${t.body},${t.runner}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'trading_journal.csv');
+            a.click();
         }
     </script>
 </body>
