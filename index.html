@@ -99,7 +99,8 @@
             if (tradeLog.length === 0) { alert("No trades captured yet!"); return; }
             let csv = "Date,Ticker,Mode,Saturation,Entry,Stop Loss,Take Profit,Total,Body,Runner\n";
             tradeLog.forEach(t => {
-                csv += `${t.date},${t.ticker},${t.mode},${t.saturation.toFixed(1)},${t.entry.toFixed(2)},${t.sl.toFixed(2)},${t.tp.toFixed(2)},${t.total},${t.body},${t.runner}\n`;
+                let dateStr = t.date.replace(',', ''); 
+                csv += `"${dateStr}",${t.ticker},${t.mode},${t.saturation.toFixed(1)},${t.entry.toFixed(2)},${t.sl.toFixed(2)},${t.tp.toFixed(2)},${t.total},${t.body},${t.runner}\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
