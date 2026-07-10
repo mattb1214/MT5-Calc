@@ -71,10 +71,10 @@
             if (saturation < 32.5 || saturation > 52.5) {
                 html += `<span class="disqualified">DISQUALIFIED: Outside Sweet Spot</span>`;
             } else {
-                activeTrade = { ticker: document.getElementById('ticker').value, mode, bal, atr, high, low, entry, sl, cashRisk, total };
+                activeTrade = { ticker: document.getElementById('ticker').value, mode, bal, atr, high, low, entry, sl, tp1, tp2, tp3, cashRisk, total, body, runner };
                 html += `<span class="approved">APPROVED</span><br>
                          Entry: ${entry.toFixed(2)} | Stop: ${sl.toFixed(2)}<br>
-                         1:1 TP: ${tp1.toFixed(2)} | 1:2 TP: ${tp2.toFixed(2)} | 1:3 TP: ${tp3.toFixed(2)}<br>
+                         TP1: ${tp1.toFixed(2)} | TP2: ${tp2.toFixed(2)} | TP3: ${tp3.toFixed(2)}<br>
                          Total: ${total} | Body: ${body} | Runner: ${runner}
                          <div class="analysis-section">
                             <input type="number" id="iHigh" placeholder="Intraday High">
@@ -95,17 +95,17 @@
             const status = document.getElementById('status').value;
 
             const actualPnL = (fPrice - activeTrade.entry) * activeTrade.total;
-            const percentGain = (actualPnL / activeTrade.cashRisk) * 100;
+            const percentGain = (actualPnL / activeTrade.bal) * 100; // Percentage of account balance
 
             tradeLog.push({ ...activeTrade, iHigh, fPrice, followed, status, actualPnL, percentGain });
-            alert("Trade captured and saved!");
+            alert("Trade captured!");
         }
 
         function downloadCSV() {
-            if (tradeLog.length === 0) { alert("No trades captured yet!"); return; }
-            let csv = "Date,Ticker,Brokerage,Entry,Intraday High,Flatten Price,Actual PnL,Percentage Gain/Loss (%),Strategy Followed,Strategy W/L/N\n";
+            if (tradeLog.length === 0) { alert("No trades captured!"); return; }
+            let csv = "Date,Ticker,Start Balance,Daily ATR,15m High,15m Low,Brokerage,Entry,SL,1:1 TP,1:2 TP,1:3 TP,Total,Body,Runner,Intraday High,Flatten Price,Actual PnL,Percentage of Account,Strategy Followed,Strategy W/L/N\n";
             tradeLog.forEach(t => {
-                csv += `${new Date().toLocaleDateString()},${t.ticker},${t.mode},${t.entry.toFixed(2)},${t.iHigh},${t.fPrice},${t.actualPnL.toFixed(2)},${t.percentGain.toFixed(2)}%,${t.followed},${t.status}\n`;
+                csv += `${new Date().toLocaleDateString()},${t.ticker},${t.bal},${t.atr},${t.high},${t.low},${t.mode},${t.entry.toFixed(2)},${t.sl.toFixed(2)},${t.tp1.toFixed(2)},${t.tp2.toFixed(2)},${t.tp3.toFixed(2)},${t.total},${t.body},${t.runner},${t.iHigh},${t.fPrice},${t.actualPnL.toFixed(2)},${t.percentGain.toFixed(2)}%,${t.followed},${t.status}\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
