@@ -7,6 +7,8 @@
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
         .container { width: 100%; max-width: 450px; background: #1e293b; padding: 20px; border-radius: 12px; }
         input, select { width: 100%; padding: 10px; margin: 8px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; }
+        .checkbox-container { display: flex; justify-content: center; align-items: center; margin: 10px 0; padding: 10px; background: #0f172a; border-radius: 6px; }
+        .checkbox-container input { width: auto; margin-right: 10px; }
         .result { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; font-size: 0.9em; }
         .approved { color: #4ade80; font-weight: bold; }
         .disqualified { color: #ef4444; font-weight: bold; }
@@ -29,7 +31,10 @@
         <input type="number" id="high" placeholder="15m High" oninput="runEngine()">
         <input type="number" id="low" placeholder="15m Low" oninput="runEngine()">
         
-        <label><input type="checkbox" id="isGold" onchange="runEngine()"> Trade XAUUSD (100x)</label>
+        <div id="goldCheckbox" class="checkbox-container" style="display: none;">
+            <input type="checkbox" id="isGold" onchange="runEngine()"> 
+            <label for="isGold">Trade XAUUSD (100x)</label>
+        </div>
         
         <div id="output" class="result">Awaiting inputs...</div>
         
@@ -41,6 +46,11 @@
         let activeTrade = null;
 
         function runEngine() {
+            const mode = document.getElementById('brokerage').value;
+            // Show/Hide Gold checkbox based on brokerage
+            document.getElementById('goldCheckbox').style.display = (mode === 'MT5') ? 'flex' : 'none';
+            if (mode !== 'MT5') document.getElementById('isGold').checked = false;
+
             const inputs = ['ticker', 'balance', 'risk', 'atr', 'high', 'low'];
             if (inputs.some(id => !document.getElementById(id).value)) return;
 
@@ -49,7 +59,6 @@
             const high = parseFloat(document.getElementById('high').value);
             const low = parseFloat(document.getElementById('low').value);
             const atr = parseFloat(document.getElementById('atr').value);
-            const mode = document.getElementById('brokerage').value;
             const isGold = document.getElementById('isGold').checked;
 
             const saturation = ((high - low) / atr) * 100;
@@ -95,7 +104,7 @@
             const status = document.getElementById('status').value;
 
             const actualPnL = (fPrice - activeTrade.entry) * activeTrade.total;
-            const percentGain = (actualPnL / activeTrade.bal) * 100; // Percentage of account balance
+            const percentGain = (actualPnL / activeTrade.bal) * 100;
 
             tradeLog.push({ ...activeTrade, iHigh, fPrice, followed, status, actualPnL, percentGain });
             alert("Trade captured!");
