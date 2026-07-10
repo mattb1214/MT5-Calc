@@ -11,7 +11,7 @@
         .approved { color: #4ade80; font-weight: bold; }
         .disqualified { color: #ef4444; font-weight: bold; }
         .btn { width: 100%; padding: 12px; background: #3b82f6; border: none; color: white; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: bold; }
-        .download-btn { background: #10b981; }
+        .download-btn { background: #10b981; margin-top: 20px; }
         .analysis-section { border-top: 2px solid #3b82f6; margin-top: 15px; padding-top: 15px; }
     </style>
 </head>
@@ -32,6 +32,8 @@
         <label><input type="checkbox" id="isGold" onchange="runEngine()"> Trade XAUUSD (100x)</label>
         
         <div id="output" class="result">Awaiting inputs...</div>
+        
+        <button class="btn download-btn" onclick="downloadCSV()">Download Journal as CSV</button>
     </div>
 
     <script>
@@ -86,6 +88,7 @@
         }
 
         function captureTrade() {
+            if(!activeTrade) return;
             const iHigh = parseFloat(document.getElementById('iHigh').value);
             const fPrice = parseFloat(document.getElementById('fPrice').value);
             const followed = document.getElementById('followed').value;
@@ -95,7 +98,21 @@
             const percentGain = (actualPnL / activeTrade.cashRisk) * 100;
 
             tradeLog.push({ ...activeTrade, iHigh, fPrice, followed, status, actualPnL, percentGain });
-            alert("Trade captured and saved to journal data!");
+            alert("Trade captured and saved!");
+        }
+
+        function downloadCSV() {
+            if (tradeLog.length === 0) { alert("No trades captured yet!"); return; }
+            let csv = "Date,Ticker,Brokerage,Entry,Intraday High,Flatten Price,Actual PnL,Percentage Gain/Loss (%),Strategy Followed,Strategy W/L/N\n";
+            tradeLog.forEach(t => {
+                csv += `${new Date().toLocaleDateString()},${t.ticker},${t.mode},${t.entry.toFixed(2)},${t.iHigh},${t.fPrice},${t.actualPnL.toFixed(2)},${t.percentGain.toFixed(2)}%,${t.followed},${t.status}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'trading_journal.csv');
+            a.click();
         }
     </script>
 </body>
