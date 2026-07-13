@@ -7,34 +7,46 @@
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
         .container { width: 100%; max-width: 450px; background: #1e293b; padding: 20px; border-radius: 12px; }
         input, select { width: 100%; padding: 10px; margin: 8px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; }
+        .checkbox-container { display: flex; justify-content: center; align-items: center; margin: 10px 0; padding: 10px; background: #0f172a; border-radius: 6px; }
         .btn { width: 100%; padding: 12px; background: #3b82f6; border: none; color: white; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: bold; }
-        .result { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 8px; }
-        .analysis-section { border-top: 2px solid #3b82f6; margin-top: 15px; padding-top: 15px; }
+        .download-btn { background: #10b981; margin-top: 20px; }
+        .result { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; font-size: 0.9em; }
+        .approved { color: #4ade80; font-weight: bold; }
+        .disqualified { color: #ef4444; font-weight: bold; }
+        .analysis-section { border-top: 2px solid #3b82f6; margin-top: 15px; padding-top: 15px; display: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Strategy Engine</h2>
         <input type="text" id="ticker" placeholder="Ticker Symbol" oninput="runEngine()">
-        <select id="brokerage" onchange="runEngine()"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
+        <select id="brokerage" onchange="runEngine()">
+            <option value="MT5">MT5</option>
+            <option value="ETRADE">E*TRADE</option>
+        </select>
         <input type="number" id="balance" placeholder="Start Balance" oninput="runEngine()">
         <input type="number" id="risk" placeholder="Risk Level (%)" oninput="runEngine()">
         <input type="number" id="atr" placeholder="Daily ATR" oninput="runEngine()">
         <input type="number" id="high" placeholder="15m High" oninput="runEngine()">
         <input type="number" id="low" placeholder="15m Low" oninput="runEngine()">
         
+        <div id="goldCheckbox" class="checkbox-container" style="display: none;">
+            <input type="checkbox" id="isGold" onchange="runEngine()"> <label>Trade XAUUSD (100x)</label>
+        </div>
+        
         <div id="output" class="result">Awaiting inputs...</div>
 
-        <div id="exitSection" class="analysis-section" style="display:none;">
-            <h3>Log Exit Results</h3>
+        <div id="analysisSection" class="analysis-section">
+            <h3>Log Results</h3>
+            <input type="checkbox" id="slHit"> <label>Stop Loss Hit</label>
             <input type="number" id="iHigh" placeholder="Intraday High">
             <input type="number" id="fPrice" placeholder="Flatten Price">
             <select id="followed"><option value="Y">Followed Strategy: Y</option><option value="N">Followed Strategy: N</option></select>
             <select id="status"><option value="W">Win</option><option value="L">Loss</option><option value="N">No Trade</option></select>
-            <button class="btn" onclick="logResults()">Update Trade Results</button>
+            <button class="btn" style="background:#f59e0b" onclick="logResults()">Update Trade Results</button>
         </div>
         
-        <button class="btn" style="background:#10b981" onclick="downloadCSV()">Download Journal</button>
+        <button class="btn download-btn" onclick="downloadCSV()">Download Journal as CSV</button>
     </div>
 
     <script>
@@ -42,28 +54,56 @@
         let currentTrade = null;
 
         function runEngine() {
-            // ... (Engine calculation logic remains identical to previous version) ...
-            // When Approved, show:
-            // "Entry, SL, TP1, TP2, TP3, Total, Body, Runner"
-            // AND the "Capture Trade" button
+            const mode = document.getElementById('brokerage').value;
+            document.getElementById('goldCheckbox').style.display = (mode === 'MT5') ? 'flex' : 'none';
+            const inputs = ['ticker', 'balance', 'risk', 'atr', 'high', 'low'];
+            if (inputs.some(id => !document.getElementById(id).value)) return;
+
+            const bal = parseFloat(document.getElementById('balance').value);
+            const risk = parseFloat(document.getElementById('risk').value);
+            const high = parseFloat(document.getElementById('high').value);
+            const low = parseFloat(document.getElementById('low').value);
+            const atr = parseFloat(document.getElementById('atr').value);
+            const entry = high + 0.02;
+            const sl = low - (atr * 0.10);
+            const stopDist = entry - sl;
+            const tp1 = entry + stopDist;
+            const tp2 = entry + (stopDist * 2);
+            const tp3 = entry + (stopDist * 3);
+            let total = (mode === 'MT5') ? (bal*(risk/100)/stopDist).toFixed(2) : Math.floor(bal*(risk/100)/stopDist);
+
+            currentTrade = { ticker: document.getElementById('ticker').value, mode, bal, risk, atr, high, low, entry, sl, tp1, tp2, tp3, total };
+            
+            document.getElementById('output').innerHTML = `<span class="approved">APPROVED</span><br>Entry: ${entry.toFixed(2)} | Stop: ${sl.toFixed(2)}<br>TPs: ${tp1.toFixed(2)}, ${tp2.toFixed(2)}, ${tp3.toFixed(2)}<br>Total: ${total}<br><button class="btn" onclick="captureTrade()">Capture Trade Plan</button>`;
         }
 
         function captureTrade() {
-            // Save initial trade plan to tradeLog. 
-            // This creates the record you copy into Excel immediately.
-            currentTrade = { ...planData, id: Date.now() }; 
-            tradeLog.push(currentTrade);
-            alert("Trade Plan Captured! You can now copy this to your spreadsheet.");
-            document.getElementById('exitSection').style.display = 'block';
+            tradeLog.push({ ...currentTrade, iHigh: '', fPrice: '', followed: '', status: '', slHit: false, actualPnL: 0, percentGain: 0 });
+            alert("Plan captured! Copy to spreadsheet now.");
+            document.getElementById('analysisSection').style.display = 'block';
         }
 
         function logResults() {
-            // Find the active trade and update it with the exit inputs
-            if(!currentTrade) return;
-            currentTrade.iHigh = document.getElementById('iHigh').value;
-            currentTrade.fPrice = document.getElementById('fPrice').value;
-            // ... (Calculate Actual PnL and % here) ...
-            alert("Results updated!");
+            let t = tradeLog[tradeLog.length - 1];
+            t.slHit = document.getElementById('slHit').checked;
+            t.iHigh = document.getElementById('iHigh').value;
+            t.fPrice = document.getElementById('fPrice').value;
+            t.followed = document.getElementById('followed').value;
+            t.status = document.getElementById('status').value;
+            t.actualPnL = (t.fPrice - t.entry) * t.total;
+            t.percentGain = (t.actualPnL / t.bal) * 100;
+            alert("Results updated for the trade!");
+        }
+
+        function downloadCSV() {
+            let csv = "Date,Ticker,Start Balance,Risk Level,Daily ATR,15m High,15m Low,Brokerage,Entry,SL,1:1 TP,1:2 TP,1:3 TP,Total,Intraday High,Flatten Price,Actual PnL,Percentage of Account,SL Hit,Strategy Followed,Strategy W/L/N\n";
+            tradeLog.forEach(t => {
+                csv += `${new Date().toLocaleDateString()},${t.ticker},${t.bal},${t.risk},${t.atr},${t.high},${t.low},${t.mode},${t.entry.toFixed(2)},${t.sl.toFixed(2)},${t.tp1.toFixed(2)},${t.tp2.toFixed(2)},${t.tp3.toFixed(2)},${t.total},${t.iHigh},${t.fPrice},${t.actualPnL.toFixed(2)},${t.percentGain.toFixed(2)}%,${t.slHit},${t.followed},${t.status}\n`;
+            });
+            const a = document.createElement('a');
+            a.href = window.URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+            a.download = 'trading_journal.csv';
+            a.click();
         }
     </script>
 </body>
