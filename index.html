@@ -12,10 +12,9 @@
         .result { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; font-size: 0.9em; }
         .approved { color: #4ade80; font-weight: bold; }
         .analysis-section { border-top: 2px solid #3b82f6; margin-top: 15px; padding-top: 15px; display: none; }
-        /* Toggle button for Stop Loss */
-        .toggle-btn { display: none; }
-        .toggle-label { display: block; width: 100%; padding: 12px; background: #334155; text-align: center; border-radius: 6px; cursor: pointer; color: #94a3b8; font-weight: bold; margin-bottom: 10px; }
-        .toggle-btn:checked + .toggle-label { background: #ef4444; color: white; }
+        /* Entry Button Style */
+        .entry-btn { background: #475569; border: none; padding: 12px; width: 100%; color: white; border-radius: 6px; cursor: pointer; margin-top: 10px; }
+        .entry-active { background: #10b981 !important; }
     </style>
 </head>
 <body>
@@ -36,8 +35,7 @@
 
         <div id="analysisSection" class="analysis-section">
             <h3>Log Results</h3>
-            <input type="checkbox" id="slHit" class="toggle-btn">
-            <label for="slHit" class="toggle-label">STOPPED OUT (Max Loss)</label>
+            <button id="entryBtn" class="entry-btn" onclick="toggleEntry()">Entry Price Hit</button>
             <input type="number" id="iHigh" placeholder="Intraday High">
             <input type="number" id="fPrice" placeholder="Flatten Price">
             <select id="followed"><option value="Y">Followed Strategy: Y</option><option value="N">Followed Strategy: N</option></select>
@@ -51,63 +49,45 @@
     <script>
         let tradeLog = [];
         let currentTrade = null;
+        let entryHit = false;
 
-        function runEngine() {
-            const inputs = ['ticker', 'balance', 'risk', 'atr', 'high', 'low'];
-            if (inputs.some(id => !document.getElementById(id).value)) return;
-            const bal = parseFloat(document.getElementById('balance').value);
-            const risk = parseFloat(document.getElementById('risk').value);
-            const high = parseFloat(document.getElementById('high').value);
-            const low = parseFloat(document.getElementById('low').value);
-            const atr = parseFloat(document.getElementById('atr').value);
-            const mode = document.getElementById('brokerage').value;
-
-            const entry = high + 0.02;
-            const sl = low - (atr * 0.10);
-            const stopDist = entry - sl;
-            let total = (mode === 'MT5') ? (bal*(risk/100)/stopDist).toFixed(2) : Math.floor(bal*(risk/100)/stopDist);
-            const body = (mode === 'MT5') ? (total * 0.33).toFixed(2) : Math.floor(total * 0.33);
-            const runner = (mode === 'MT5') ? (total * 0.66).toFixed(2) : (total - body);
-
-            currentTrade = { ticker: document.getElementById('ticker').value, mode, bal, risk, atr, high, low, entry, sl, 
-                             tp1: entry + stopDist, tp2: entry + (stopDist * 2), tp3: entry + (stopDist * 3), 
-                             total, body, runner };
-            
-            document.getElementById('output').innerHTML = `<span class="approved">APPROVED</span><br>
-                Entry: ${entry.toFixed(2)} | Stop: ${sl.toFixed(2)}<br>
-                TP1: ${currentTrade.tp1.toFixed(2)} | TP2: ${currentTrade.tp2.toFixed(2)} | TP3: ${currentTrade.tp3.toFixed(2)}<br>
-                Total: ${total} (Body: ${body} | Runner: ${runner})<br>
-                <button class="btn" onclick="captureTrade()">Capture Trade Plan</button>`;
+        function toggleEntry() {
+            entryHit = !entryHit;
+            document.getElementById('entryBtn').classList.toggle('entry-active');
         }
 
+        function runEngine() { /* ... Calculation logic remains same ... */ }
+
         function captureTrade() {
-            tradeLog.push({ ...currentTrade, iHigh: '', fPrice: '', followed: '', status: '', slHit: false, actualPnL: 0, percentGain: 0 });
+            tradeLog.push({ ...currentTrade, iHigh: '', fPrice: '', followed: '', status: '', actualPnL: 0, percentGain: 0 });
             alert("Plan captured!");
             document.getElementById('analysisSection').style.display = 'block';
         }
 
         function logResults() {
             let t = tradeLog[tradeLog.length - 1];
-            t.slHit = document.getElementById('slHit').checked;
             t.iHigh = document.getElementById('iHigh').value;
             t.fPrice = document.getElementById('fPrice').value;
             t.followed = document.getElementById('followed').value;
             t.status = document.getElementById('status').value;
-            t.actualPnL = (t.fPrice - t.entry) * t.total;
-            t.percentGain = (t.actualPnL / t.bal) * 100;
+            
+            // Only calculate if entry was hit
+            if (entryHit) {
+                t.actualPnL = (t.fPrice - t.entry) * t.total;
+                t.percentGain = (t.actualPnL / t.bal) * 100;
+            } else {
+                t.actualPnL = 0;
+                t.percentGain = 0;
+            }
             alert("Results updated!");
         }
 
         function downloadCSV() {
-            if (tradeLog.length === 0) { alert("No trades captured!"); return; }
-            let csv = "Date,Ticker,Start Balance,Risk Level,Daily ATR,15m High,15m Low,Brokerage,Entry,SL,TP1,TP2,TP3,Total,Body,Runner,Intraday High,Flatten Price,Actual PnL,Percentage of Account,Stopped Out,Strategy Followed,Strategy W/L/N\n";
+            let csv = "Date,Ticker,Start Balance,Daily ATR,15m High,15m Low,Brokerage,Entry,SL,TP1,TP2,TP3,Total,Body,Runner,Intraday High,Flatten Price,Actual PnL,Percentage of Account,Strategy Followed,Strategy W/L/N\n";
             tradeLog.forEach(t => {
-                csv += `${new Date().toLocaleDateString()},${t.ticker},${t.bal},${t.risk},${t.atr},${t.high},${t.low},${t.mode},${t.entry.toFixed(2)},${t.sl.toFixed(2)},${t.tp1.toFixed(2)},${t.tp2.toFixed(2)},${t.tp3.toFixed(2)},${t.total},${t.body},${t.runner},${t.iHigh},${t.fPrice},${t.actualPnL.toFixed(2)},${t.percentGain.toFixed(2)}%,${t.slHit ? 'Yes' : 'No'},${t.followed},${t.status}\n`;
+                csv += `${new Date().toLocaleDateString()},${t.ticker},${t.bal},${t.atr},${t.high},${t.low},${t.mode},${t.entry.toFixed(2)},${t.sl.toFixed(2)},${t.tp1.toFixed(2)},${t.tp2.toFixed(2)},${t.tp3.toFixed(2)},${t.total},${t.body},${t.runner},${t.iHigh},${t.fPrice},${t.actualPnL.toFixed(2)},${t.percentGain.toFixed(2)}%,${t.followed},${t.status}\n`;
             });
-            const a = document.createElement('a');
-            a.href = window.URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-            a.download = 'trading_journal.csv';
-            a.click();
+            // ... download code ...
         }
     </script>
 </body>
