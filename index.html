@@ -2,12 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Engine - V17 Complete</title>
+    <title>Trading Strategy Engine - V19 Status-Ready</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
         .config-bar { background: #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 15px; }
         .card { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; }
+        .status-badge { font-weight: bold; font-size: 1.1em; margin-bottom: 5px; display: block; }
+        .approved { color: #10b981; }
+        .disqualified { color: #ef4444; }
         .output { font-size: 0.8em; margin: 10px 0; color: #cbd5e1; background: #0f172a; padding: 10px; border-radius: 4px; border: 1px solid #475569; }
         .forensic-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; font-size: 0.7em; margin-top: 10px; }
         input, select { width: 100%; padding: 5px; margin: 2px 0; background: #0f172a; color: #fff; border: 1px solid #475569; }
@@ -15,7 +18,7 @@
     </style>
 </head>
 <body>
-    <h2>Strategy Engine V17: Full Operational Mode</h2>
+    <h2>Strategy Engine V19: Status-Ready</h2>
     <div class="config-bar">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.01" style="width:60px">
         MinSat: <input type="number" id="gMin" value="32.5" style="width:60px">
@@ -58,30 +61,43 @@
             const low = parseFloat(document.getElementById(`l-${i}`).value);
             if(!bal || !atr || !high || !low) return;
 
+            const gMin = parseFloat(document.getElementById('gMin').value);
+            const gMax = parseFloat(document.getElementById('gMax').value);
             const gBuff = parseFloat(document.getElementById('gBuff').value);
+            
             const entry = high + ((high * 0.001) + (atr * 0.05 * gBuff));
             const sl = low - (atr * gBuff);
             const stopDist = entry - sl;
             const sat = ((high - low) / atr) * 100;
-            const total = (document.getElementById(`m-${i}`).value === 'MT5') ? (bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist).toFixed(2) : Math.floor(bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist);
+            
+            const isApproved = (sat >= gMin && sat <= gMax);
+            const statusClass = isApproved ? 'approved' : 'disqualified';
+            const statusText = isApproved ? 'APPROVED' : 'DISQUALIFIED';
+
+            const riskAmt = bal * (parseFloat(document.getElementById('gRisk').value)/100);
+            const rawTotal = riskAmt / stopDist;
+            const total = (document.getElementById(`m-${i}`).value === 'MT5') ? rawTotal.toFixed(2) : Math.floor(rawTotal);
             
             document.getElementById(`res-${i}`).innerHTML = `
-                <b>Sat: ${sat.toFixed(1)}%</b> | Total: ${total}<br>
-                Body (70%): ${(total*0.7).toFixed(2)} | Runner (30%): ${(total*0.3).toFixed(2)}<br>
+                <span class="status-badge ${statusClass}">${statusText} (${sat.toFixed(1)}%)</span>
+                Total Lot: ${total}<br>
+                Body (1/3): ${(total/3).toFixed(2)} | Runner (2/3): ${(total*2/3).toFixed(2)}<br>
                 E: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)} | TP1: ${(entry+stopDist).toFixed(2)}
             `;
         }
 
         function exportCSV() {
-            let csv = "Date,Ticker,VolRatio,TotalSize,Body,Runner,Path,IntraHigh,IntraLow,FlattenPrice\n";
+            let csv = "Date,Ticker,Status,VolRatio,TotalSize,Body,Runner,Path,IntraHigh,IntraLow,FlattenPrice\n";
             for(let i=0; i<8; i++) {
-                const total = document.getElementById(`res-${i}`).innerText.split("Total: ")[1]?.split("|")[0] || 0;
+                const res = document.getElementById(`res-${i}`).innerText;
+                const status = res.includes("APPROVED") ? "Approved" : "Disqualified";
+                const total = res.split("Total Lot: ")[1]?.split("|")[0] || 0;
                 let path = [{event:'E',val:document.getElementById(`s-e-${i}`).value},{event:'T1',val:document.getElementById(`s-t1-${i}`).value},{event:'T2',val:document.getElementById(`s-t2-${i}`).value},{event:'T3',val:document.getElementById(`s-t3-${i}`).value},{event:'S',val:document.getElementById(`s-s-${i}`).value},{event:'F',val:document.getElementById(`s-f-${i}`).value}].filter(x=>x.val!=='').sort((a,b)=>a.val-b.val).map(x=>x.event).join('->');
-                csv += `${new Date().toLocaleDateString()},${document.getElementById(`t-${i}`).value},${((document.getElementById(`h-${i}`).value-document.getElementById(`l-${i}`).value)/document.getElementById(`a-${i}`).value*100).toFixed(1)},${total},${(total*0.7).toFixed(2)},${(total*0.3).toFixed(2)},${path},${document.getElementById(`rh-${i}`).value},${document.getElementById(`rl-${i}`).value},${document.getElementById(`ex-${i}`).value}\n`;
+                csv += `${new Date().toLocaleDateString()},${document.getElementById(`t-${i}`).value},${status},${((document.getElementById(`h-${i}`).value-document.getElementById(`l-${i}`).value)/document.getElementById(`a-${i}`).value*100).toFixed(1)},${total},${(total*0.333).toFixed(2)},${(total*0.666).toFixed(2)},${path},${document.getElementById(`rh-${i}`).value},${document.getElementById(`rl-${i}`).value},${document.getElementById(`ex-${i}`).value}\n`;
             }
             const blob = new Blob([csv], {type: 'text/csv'});
             const a = document.createElement('a');
-            a.href = window.URL.createObjectURL(blob); a.download = 'Full_Forensic_Log.csv'; a.click();
+            a.href = window.URL.createObjectURL(blob); a.download = 'Forensic_Trade_Log.csv'; a.click();
         }
         window.onload = init;
     </script>
