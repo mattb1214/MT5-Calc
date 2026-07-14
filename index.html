@@ -2,102 +2,71 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Engine</title>
+    <title>Trading Strategy Engine - V2</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 400px; background: #1e293b; padding: 20px; border-radius: 12px; }
-        input, select { width: 100%; padding: 10px; margin: 8px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; }
-        .result { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; font-size: 0.9em; }
-        .approved { color: #4ade80; font-weight: bold; }
-        .disqualified { color: #ef4444; font-weight: bold; }
+        .container { width: 100%; max-width: 450px; background: #1e293b; padding: 20px; border-radius: 12px; }
+        .config-section { background: #334155; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.8em; }
+        input, select { width: 100%; padding: 8px; margin: 4px 0; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: #fff; box-sizing: border-box; }
         .btn { width: 100%; padding: 12px; background: #3b82f6; border: none; color: white; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: bold; }
-        .download-btn { background: #10b981; }
+        .result { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; font-size: 0.9em; }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Strategy Engine</h2>
-        <input type="text" id="ticker" placeholder="Ticker Symbol" oninput="runEngine()">
-        <select id="mode" onchange="runEngine()">
-            <option value="MT5">MT5 (Lots)</option>
-            <option value="ETRADE">E*TRADE (Shares)</option>
-        </select>
-        <input type="number" id="balance" placeholder="Balance ($)" oninput="runEngine()">
-        <input type="number" id="risk" placeholder="Risk (%)" oninput="runEngine()">
-        <input type="number" id="atr" placeholder="14-Day ATR" oninput="runEngine()">
-        <input type="number" id="high" placeholder="Bracket High" oninput="runEngine()">
-        <input type="number" id="low" placeholder="Bracket Low" oninput="runEngine()">
+        
+        <div class="config-section">
+            <strong>Global Settings</strong>
+            <input type="number" id="cfgRisk" value="0.75" step="0.01" placeholder="Risk %">
+            <input type="number" id="cfgMinSat" value="32.5" step="0.1" placeholder="Min Saturation">
+            <input type="number" id="cfgMaxSat" value="52.5" step="0.1" placeholder="Max Saturation">
+            <input type="number" id="cfgBuffer" value="0.10" step="0.01" placeholder="SL Buffer">
+        </div>
+
+        <input type="text" id="ticker" placeholder="Ticker" oninput="runEngine()">
+        <select id="mode" onchange="runEngine()"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
+        <input type="number" id="balance" placeholder="Balance" oninput="runEngine()">
+        <input type="number" id="atr" placeholder="ATR" oninput="runEngine()">
+        <input type="number" id="high" placeholder="High" oninput="runEngine()">
+        <input type="number" id="low" placeholder="Low" oninput="runEngine()">
         
         <div id="output" class="result">Awaiting inputs...</div>
-        <button class="btn download-btn" onclick="downloadCSV()">Download Journal as CSV</button>
     </div>
 
     <script>
-        let currentTrade = null;
-        let tradeLog = [];
-
         function runEngine() {
-            const ticker = document.getElementById('ticker').value;
-            const mode = document.getElementById('mode').value;
+            const risk = parseFloat(document.getElementById('cfgRisk').value);
+            const minSat = parseFloat(document.getElementById('cfgMinSat').value);
+            const maxSat = parseFloat(document.getElementById('cfgMaxSat').value);
+            const buffer = parseFloat(document.getElementById('cfgBuffer').value);
+            
             const bal = parseFloat(document.getElementById('balance').value);
-            const risk = parseFloat(document.getElementById('risk').value);
             const atr = parseFloat(document.getElementById('atr').value);
             const high = parseFloat(document.getElementById('high').value);
             const low = parseFloat(document.getElementById('low').value);
 
-            if (!ticker || !bal || !risk || !atr || !high || !low) {
-                document.getElementById('output').innerHTML = "Awaiting inputs...";
-                return;
-            }
+            if (!bal || !atr || !high || !low) return;
 
             const saturation = ((high - low) / atr) * 100;
             const entry = high + 0.02;
-            const sl = low - (atr * 0.10);
+            const sl = low - (atr * buffer);
             const stopDist = entry - sl;
             const cashRisk = bal * (risk / 100);
             
+            const total = (document.getElementById('mode').value === 'MT5') ? (cashRisk / stopDist).toFixed(2) : Math.floor(cashRisk / stopDist);
             const tp1 = entry + stopDist;
             const tp2 = entry + (stopDist * 2);
             const tp3 = entry + (stopDist * 3);
 
-            let html = `<strong>Saturation: ${saturation.toFixed(1)}%</strong><br>`;
-
-            // Gatekeeper logic
-            if (saturation < 32.5 || saturation > 52.5) {
-                html += `<span class="disqualified">DISQUALIFIED: Outside Sweet Spot</span>`;
-                currentTrade = null;
-            } else {
-                let total = (mode === 'MT5') ? (cashRisk / stopDist).toFixed(2) : Math.floor(cashRisk / stopDist);
-                let body = (mode === 'MT5') ? (total * 0.33).toFixed(2) : Math.floor(total * 0.33);
-                let runner = (mode === 'MT5') ? (total * 0.66).toFixed(2) : (total - body);
-
-                currentTrade = { date: new Date().toLocaleString(), ticker, mode, entry, sl, tp1, tp2, tp3, total, body, runner };
-                
-                html += `<span class="approved">APPROVED</span><br>
-                         Entry: ${entry.toFixed(2)} | Stop: ${sl.toFixed(2)}<br>
-                         TP1: ${tp1.toFixed(2)} | TP2: ${tp2.toFixed(2)} | TP3: ${tp3.toFixed(2)}<br>
-                         Total: ${total} | Body: ${body} | Runner: ${runner}<br>
-                         <button class="btn" onclick="captureTrade()">Capture Trade</button>`;
-            }
-            document.getElementById('output').innerHTML = html;
-        }
-
-        function captureTrade() {
-            if (!currentTrade) return;
-            tradeLog.push(currentTrade);
-            alert("Trade captured for " + currentTrade.ticker);
-        }
-
-        function downloadCSV() {
-            if (tradeLog.length === 0) { alert("No trades captured!"); return; }
-            let csv = "Date,Ticker,Mode,Entry,Stop,TP1,TP2,TP3,Total,Body,Runner\n";
-            tradeLog.forEach(t => {
-                csv += `"${t.date}",${t.ticker},${t.mode},${t.entry.toFixed(2)},${t.sl.toFixed(2)},${t.tp1.toFixed(2)},${t.tp2.toFixed(2)},${t.tp3.toFixed(2)},${t.total},${t.body},${t.runner}\n`;
-            });
-            const a = document.createElement('a');
-            a.href = window.URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-            a.download = 'trading_journal.csv';
-            a.click();
+            let status = (saturation >= minSat && saturation <= maxSat) ? "APPROVED" : "DISQUALIFIED";
+            
+            document.getElementById('output').innerHTML = `
+                <strong>Saturation: ${saturation.toFixed(1)}% (${status})</strong><br>
+                Entry: ${entry.toFixed(2)} | Stop: ${sl.toFixed(2)}<br>
+                TP1 (1x): ${tp1.toFixed(2)} | TP2 (2x): ${tp2.toFixed(2)} | TP3 (3x): ${tp3.toFixed(2)}<br>
+                Size: ${total}
+            `;
         }
     </script>
 </body>
