@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Engine - V3</title>
+    <title>Trading Strategy Engine - V4</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
         .container { width: 100%; max-width: 450px; background: #1e293b; padding: 20px; border-radius: 12px; }
@@ -10,8 +10,9 @@
         input, select { width: 100%; padding: 8px; margin: 4px 0; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: #fff; box-sizing: border-box; }
         .btn { width: 100%; padding: 12px; background: #3b82f6; border: none; color: white; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: bold; }
         .btn-capture { background: #10b981; }
+        .btn-clear { background: #ef4444; font-size: 0.7em; margin-top: 20px; opacity: 0.6; }
         .result { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; font-size: 0.9em; }
-        .queue-item { background: #334155; padding: 10px; margin-top: 10px; border-radius: 6px; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
+        .queue-item { background: #334155; padding: 10px; margin-top: 10px; border-radius: 6px; font-size: 0.85em; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
@@ -37,6 +38,7 @@
 
         <h3>Pending Queue</h3>
         <div id="queue"></div>
+        <button class="btn btn-clear" onclick="clearQueue()">Clear Entire Queue</button>
     </div>
 
     <script>
@@ -59,7 +61,11 @@
             const sl = low - (atr * buffer);
             const stopDist = entry - sl;
             const cashRisk = bal * (risk / 100);
-            const total = (document.getElementById('mode').value === 'MT5') ? (cashRisk / stopDist).toFixed(2) : Math.floor(cashRisk / stopDist);
+            
+            const total = (document.getElementById('mode').value === 'MT5') ? (cashRisk / stopDist).toFixed(0) : Math.floor(cashRisk / stopDist);
+            const body = Math.floor(total / 3);
+            const runner = total - body;
+            
             const tp1 = entry + stopDist;
             const tp2 = entry + (stopDist * 2);
             const tp3 = entry + (stopDist * 3);
@@ -69,7 +75,7 @@
                 <strong>${status} (${saturation.toFixed(1)}%)</strong><br>
                 Entry: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
                 TP1: ${tp1.toFixed(2)} | TP2: ${tp2.toFixed(2)} | TP3: ${tp3.toFixed(2)}<br>
-                Size: ${total}
+                <strong>Split: ${body} Body / ${runner} Runner</strong>
             `;
         }
 
@@ -87,6 +93,20 @@
             renderQueue();
         }
 
+        function deleteTrade(i) {
+            trades.splice(i, 1);
+            localStorage.setItem('tradeQueue', JSON.stringify(trades));
+            renderQueue();
+        }
+
+        function clearQueue() {
+            if(confirm("Are you sure you want to clear all trades?")) {
+                trades = [];
+                localStorage.setItem('tradeQueue', JSON.stringify(trades));
+                renderQueue();
+            }
+        }
+
         function viewTrade(i) {
             const t = trades[i];
             document.getElementById('ticker').value = t.ticker;
@@ -101,11 +121,13 @@
             document.getElementById('queue').innerHTML = trades.map((t, i) => `
                 <div class="queue-item">
                     ${t.ticker} (${t.timestamp})
-                    <button onclick="viewTrade(${i})">View</button>
+                    <div>
+                        <button onclick="viewTrade(${i})">View</button>
+                        <button onclick="deleteTrade(${i})" style="color:red">X</button>
+                    </div>
                 </div>
             `).join('');
         }
-
         renderQueue();
     </script>
 </body>
