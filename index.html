@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Dashboard - Final Proportional</title>
+    <title>Trading Strategy Dashboard - P&L Manual Input</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
         .config-bar { background: #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; }
@@ -17,6 +17,7 @@
         .resolve-btn { background: #8b5cf6; width: 100%; margin-top: 10px; border: none; padding: 8px; color: white; border-radius: 4px; cursor: pointer; }
         .res-fields { display: none; margin-top: 10px; padding: 10px; background: #0f172a; border-radius: 5px; font-size: 0.7em; }
         .export-btn { margin-top: 20px; padding: 15px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
+        .reset-btn { background: #ef4444; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -30,6 +31,7 @@
 
     <div class="grid" id="grid"></div>
     <button class="export-btn" onclick="exportCSV()">Export Full Data to CSV</button>
+    <button class="reset-btn" onclick="resetDashboard()">Reset Dashboard</button>
 
     <script>
         const grid = document.getElementById('grid');
@@ -55,6 +57,8 @@
                         Intraday High: <input type="number" id="rh-${i}">
                         Intraday Low: <input type="number" id="rl-${i}">
                         Flatten: <input type="number" id="ex-${i}">
+                        Starting Bal ($): <input type="number" id="sb-${i}">
+                        Trade P&L ($): <input type="number" id="tpnl-${i}">
                         Strategy Followed: <select id="sf-${i}"><option value="No">No</option><option value="Yes">Yes</option></select>
                         Outcome: <select id="oc-${i}"><option value="No Trade">No Trade</option><option value="Win">Win</option><option value="Loss">Loss</option></select>
                         <input type="text" placeholder="Trade Notes" id="tn-${i}">
@@ -90,25 +94,23 @@
         function calcAll() { for(let i=0; i<8; i++) calc(i); }
 
         function exportCSV() {
-            let csv = "Date,Brokerage,Ticker,Risk%,ATR,High,Low,VolRatio%,Entry,SL,TP1,TP2,TP3,IntraHigh,IntraLow,Flatten,GainLoss%,WinLoss,StrategyFollowed,TradeNotes,DailyNotes,SystemEdits\n";
+            let csv = "Date,Brokerage,Ticker,Risk%,ATR,High,Low,VolRatio%,Entry,SL,TP1,TP2,TP3,IntraHigh,IntraLow,Flatten,StartBal,PnL,GainLoss%,WinLoss,StrategyFollowed,TradeNotes,DailyNotes,SystemEdits\n";
             for(let i=0; i<8; i++) {
                 const t = document.getElementById(`t-${i}`).value;
                 if(!t) continue;
-                const bal = parseFloat(document.getElementById(`b-${i}`).value);
                 const h = parseFloat(document.getElementById(`h-${i}`).value);
                 const l = parseFloat(document.getElementById(`l-${i}`).value);
                 const a = parseFloat(document.getElementById(`a-${i}`).value);
                 const gBuff = parseFloat(document.getElementById('gBuff').value);
                 const entry = h + ((h * 0.001) + (a * 0.05 * gBuff));
                 const sl = l - (a * gBuff);
-                const stopDist = entry - sl;
-                const total = (document.getElementById(`m-${i}`).value === 'MT5') ? (bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist) : Math.floor(bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist);
-                const exit = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
-                const pnl = (exit - entry) * total;
-                const pctGain = exit ? ((pnl / bal) * 100).toFixed(2) : 0;
+                
+                const startBal = parseFloat(document.getElementById(`sb-${i}`).value) || 0;
+                const pnl = parseFloat(document.getElementById(`tpnl-${i}`).value) || 0;
+                const pctGain = startBal ? ((pnl / startBal) * 100).toFixed(2) : 0;
                 
                 const btns = document.getElementById(`btns-${i}`).getElementsByTagName('button');
-                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${t},${document.getElementById('gRisk').value},${a},${h},${l},${((h-l)/a*100).toFixed(1)},${entry.toFixed(2)},${sl.toFixed(2)},${btns[2].style.backgroundColor==='green'?'Yes':'No'},${btns[3].style.backgroundColor==='green'?'Yes':'No'},${btns[4].style.backgroundColor==='green'?'Yes':'No'},${document.getElementById(`rh-${i}`).value},${document.getElementById(`rl-${i}`).value},${exit},${pctGain},${document.getElementById(`oc-${i}`).value},${document.getElementById(`sf-${i}`).value},${document.getElementById(`tn-${i}`).value},, \n`;
+                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${t},${document.getElementById('gRisk').value},${a},${h},${l},${((h-l)/a*100).toFixed(1)},${entry.toFixed(2)},${sl.toFixed(2)},${btns[2].style.backgroundColor==='green'?'Yes':'No'},${btns[3].style.backgroundColor==='green'?'Yes':'No'},${btns[4].style.backgroundColor==='green'?'Yes':'No'},${document.getElementById(`rh-${i}`).value},${document.getElementById(`rl-${i}`).value},${document.getElementById(`ex-${i}`).value},${startBal},${pnl},${pctGain},${document.getElementById(`oc-${i}`).value},${document.getElementById(`sf-${i}`).value},${document.getElementById(`tn-${i}`).value},, \n`;
             }
             const blob = new Blob([csv], {type: 'text/csv'});
             const url = window.URL.createObjectURL(blob);
@@ -116,6 +118,19 @@
             a.setAttribute('href', url);
             a.setAttribute('download', 'Full_Trade_Log.csv');
             a.click();
+        }
+
+        function resetDashboard() {
+            if (confirm("Are you sure you want to clear all data and start a fresh session?")) {
+                const inputs = document.querySelectorAll('input');
+                inputs.forEach(input => { if(input.type === 'number' || input.type === 'text') input.value = ''; });
+                const outputs = document.querySelectorAll('.output');
+                outputs.forEach(out => out.innerHTML = '...');
+                const buttons = document.querySelectorAll('.btn');
+                buttons.forEach(btn => btn.style.backgroundColor = 'transparent');
+                const resFields = document.querySelectorAll('.res-fields');
+                resFields.forEach(field => field.style.display = 'none');
+            }
         }
     </script>
 </body>
