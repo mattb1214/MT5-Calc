@@ -2,19 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Engine - V15 Forensic</title>
+    <title>Trading Strategy Engine - V16 Fixed</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
         .config-bar { background: #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 15px; }
         .card { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; }
-        .seq-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; font-size: 0.75em; margin-top: 10px; }
+        .output { font-size: 0.75em; margin: 10px 0; color: #cbd5e1; background: #0f172a; padding: 8px; border-radius: 4px; }
+        .seq-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; font-size: 0.7em; margin-top: 10px; }
         input, select { width: 100%; padding: 5px; margin: 2px 0; background: #0f172a; color: #fff; border: 1px solid #475569; }
         .export-btn { margin-top: 20px; padding: 15px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h2>Strategy Engine V15: Forensic Pathing</h2>
+    <h2>Strategy Engine V16: Fixed & Forensic</h2>
     <div class="config-bar">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.01" style="width:60px">
         MinSat: <input type="number" id="gMin" value="32.5" style="width:60px">
@@ -23,7 +24,7 @@
     </div>
 
     <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export Data with Path Analysis</button>
+    <button class="export-btn" onclick="exportCSV()">Export Data</button>
 
     <script>
         function init() {
@@ -32,8 +33,9 @@
                 grid.innerHTML += `
                     <div class="card">
                         <input type="text" placeholder="Ticker" id="t-${i}">
-                        <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}"><input type="number" placeholder="ATR" id="a-${i}"></div>
-                        <div style="display:flex; gap:5px;"><input type="number" placeholder="High" id="h-${i}"><input type="number" placeholder="Low" id="l-${i}"></div>
+                        <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
+                        <div style="display:flex; gap:5px;"><input type="number" placeholder="High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="Low" id="l-${i}" oninput="calc(${i})"></div>
+                        <div class="output" id="res-${i}">Entry/SL/TP levels will appear here...</div>
                         <div class="seq-grid">
                             <span>Entry(1):<input type="number" id="s-e-${i}"></span>
                             <span>TP1:<input type="number" id="s-t1-${i}"></span>
@@ -48,20 +50,26 @@
             }
         }
 
+        function calc(i) {
+            const bal = parseFloat(document.getElementById(`b-${i}`).value);
+            const atr = parseFloat(document.getElementById(`a-${i}`).value);
+            const high = parseFloat(document.getElementById(`h-${i}`).value);
+            const low = parseFloat(document.getElementById(`l-${i}`).value);
+            if(!bal || !atr || !high || !low) return;
+
+            const gBuff = parseFloat(document.getElementById('gBuff').value);
+            const entry = high + ((high * 0.001) + (atr * 0.05 * gBuff));
+            const sl = low - (atr * gBuff);
+            const stopDist = entry - sl;
+            
+            document.getElementById(`res-${i}`).innerHTML = `E: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)}<br>TP1: ${(entry+stopDist).toFixed(2)} | TP2: ${(entry+(stopDist*2)).toFixed(2)} | TP3: ${(entry+(stopDist*3)).toFixed(2)}`;
+        }
+
         function exportCSV() {
             let csv = "Date,Ticker,Sequence_Path,FlattenPrice\n";
             for(let i=0; i<8; i++) {
-                let path = [
-                    {event: 'E', val: document.getElementById(`s-e-${i}`).value},
-                    {event: 'T1', val: document.getElementById(`s-t1-${i}`).value},
-                    {event: 'T2', val: document.getElementById(`s-t2-${i}`).value},
-                    {event: 'T3', val: document.getElementById(`s-t3-${i}`).value},
-                    {event: 'S', val: document.getElementById(`s-s-${i}`).value},
-                    {event: 'F', val: document.getElementById(`s-f-${i}`).value}
-                ].filter(x => x.val !== '').sort((a,b) => a.val - b.val).map(x => x.event).join('->');
-                
-                const fPrice = document.getElementById(`ex-${i}`).value;
-                csv += `${new Date().toLocaleDateString()},${document.getElementById(`t-${i}`).value},${path},${fPrice}\n`;
+                let path = [{event:'E',val:document.getElementById(`s-e-${i}`).value},{event:'T1',val:document.getElementById(`s-t1-${i}`).value},{event:'T2',val:document.getElementById(`s-t2-${i}`).value},{event:'T3',val:document.getElementById(`s-t3-${i}`).value},{event:'S',val:document.getElementById(`s-s-${i}`).value},{event:'F',val:document.getElementById(`s-f-${i}`).value}].filter(x=>x.val!=='').sort((a,b)=>a.val-b.val).map(x=>x.event).join('->');
+                csv += `${new Date().toLocaleDateString()},${document.getElementById(`t-${i}`).value},${path},${document.getElementById(`ex-${i}`).value}\n`;
             }
             const blob = new Blob([csv], {type: 'text/csv'});
             const url = window.URL.createObjectURL(blob);
