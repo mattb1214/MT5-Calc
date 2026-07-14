@@ -2,30 +2,30 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Dashboard</title>
+    <title>Trading Strategy Dashboard - Final Edition</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
-        .config-bar { background: #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; }
+        .config-bar { background: #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
         .card { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; }
         input, select { width: 100%; padding: 5px; margin: 3px 0; background: #0f172a; color: #fff; border: 1px solid #475569; }
-        .output { font-size: 0.75em; margin-top: 10px; color: #cbd5e1; line-height: 1.4; }
+        .output { font-size: 0.75em; margin-top: 10px; color: #cbd5e1; line-height: 1.6; }
         .milestones { display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap; }
         .btn { padding: 6px; font-size: 0.7em; cursor: pointer; border: 2px solid #475569; background: transparent; color: white; width: 35px; border-radius: 3px; }
         .btn-stop { border-color: #ef4444; }
         .btn-flat { border-color: #f59e0b; }
         .resolve-btn { background: #8b5cf6; width: 100%; margin-top: 10px; border: none; padding: 8px; color: white; border-radius: 4px; cursor: pointer; }
-        .res-fields { display: none; margin-top: 10px; padding: 10px; background: #0f172a; border-radius: 5px; font-size: 0.75em; }
+        .res-fields { display: none; margin-top: 10px; padding: 10px; background: #0f172a; border-radius: 5px; font-size: 0.7em; }
         .export-btn { margin-top: 20px; padding: 15px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
     </style>
 </head>
 <body>
     <h2>Strategy Dashboard</h2>
     <div class="config-bar">
-        Risk%: <input type="number" id="gRisk" value="0.75" step="0.01" oninput="calcAll()">
-        MinSat: <input type="number" id="gMin" value="32.5" oninput="calcAll()">
-        MaxSat: <input type="number" id="gMax" value="52.5" oninput="calcAll()">
-        SL Buff: <input type="number" id="gBuff" value="0.10" step="0.01" oninput="calcAll()">
+        Risk%: <input type="number" id="gRisk" value="0.75" step="0.01" style="width:60px" oninput="calcAll()">
+        MinSat: <input type="number" id="gMin" value="32.5" style="width:60px" oninput="calcAll()">
+        MaxSat: <input type="number" id="gMax" value="52.5" style="width:60px" oninput="calcAll()">
+        SL Buff: <input type="number" id="gBuff" value="0.10" step="0.01" style="width:60px" oninput="calcAll()">
     </div>
 
     <div class="grid" id="grid"></div>
@@ -35,36 +35,37 @@
         const grid = document.getElementById('grid');
         for(let i=0; i<8; i++) {
             grid.innerHTML += `
-                <div class="card" id="card-${i}">
+                <div class="card">
                     <input type="text" placeholder="Ticker" id="t-${i}">
                     <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
                     <div style="display:flex; gap:5px;"><input type="number" placeholder="High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="Low" id="l-${i}" oninput="calc(${i})"></div>
                     <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
                     <div class="output" id="res-${i}">...</div>
-                    <div class="milestones">
-                        <button class="btn" onclick="toggle(this, 'green')">P</button>
-                        <button class="btn" onclick="toggle(this, 'green')">E</button>
-                        <button class="btn" onclick="toggle(this, 'green')">T1</button>
-                        <button class="btn" onclick="toggle(this, 'green')">T2</button>
-                        <button class="btn" onclick="toggle(this, 'green')">T3</button>
-                        <button class="btn btn-stop" onclick="toggle(this, '#ef4444')">S</button>
-                        <button class="btn btn-flat" onclick="toggle(this, '#f59e0b')">F</button>
+                    <div class="milestones" id="btns-${i}">
+                        <button class="btn" onclick="toggle(this)">P</button>
+                        <button class="btn" onclick="toggle(this)">E</button>
+                        <button class="btn" onclick="toggle(this)">T1</button>
+                        <button class="btn" onclick="toggle(this)">T2</button>
+                        <button class="btn" onclick="toggle(this)">T3</button>
+                        <button class="btn btn-stop" onclick="toggle(this)">S</button>
+                        <button class="btn btn-flat" onclick="toggle(this)">F</button>
                     </div>
                     <button class="resolve-btn" onclick="showResolve(${i})">Resolve Trade</button>
                     <div class="res-fields" id="res-fields-${i}">
                         Intraday High: <input type="number" id="rh-${i}">
                         Intraday Low: <input type="number" id="rl-${i}">
-                        Final Exit: <input type="number" id="ex-${i}">
-                        Strategy Followed: <select id="sf-${i}"><option>Yes</option><option>No</option></select>
-                        Outcome: <select id="oc-${i}"><option>No Trade</option><option>Win</option><option>Loss</option></select>
+                        Flatten: <input type="number" id="ex-${i}">
+                        Strategy Followed: <select id="sf-${i}"><option value="No">No</option><option value="Yes">Yes</option></select>
+                        Outcome: <select id="oc-${i}"><option value="No Trade">No Trade</option><option value="Win">Win</option><option value="Loss">Loss</option></select>
+                        <input type="text" placeholder="Trade Notes" id="tn-${i}">
                     </div>
                 </div>
             `;
         }
 
-        function toggle(el, color) { el.style.backgroundColor = (el.style.backgroundColor === color) ? 'transparent' : color; }
+        function toggle(el) { el.style.backgroundColor = (el.style.backgroundColor === 'green' || el.style.backgroundColor === 'red' || el.style.backgroundColor === 'orange') ? 'transparent' : (el.classList.contains('btn-stop') ? 'red' : (el.classList.contains('btn-flat') ? 'orange' : 'green')); }
         function showResolve(i) { const el = document.getElementById(`res-fields-${i}`); el.style.display = (el.style.display === 'block') ? 'none' : 'block'; }
-
+        
         function calc(i) {
             const bal = parseFloat(document.getElementById(`b-${i}`).value);
             const atr = parseFloat(document.getElementById(`a-${i}`).value);
@@ -79,23 +80,22 @@
             const tp1 = entry + stopDist;
             const tp2 = entry + (stopDist * 2);
             const tp3 = entry + (stopDist * 3);
-            
             const total = (mode === 'MT5') ? (bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist).toFixed(2) : Math.floor(bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist);
             const sat = ((high - low) / atr) * 100;
             const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? 'APPROVED' : 'DISQUALIFIED';
             
-            document.getElementById(`res-${i}`).innerHTML = `<b>${status} (${sat.toFixed(1)}%)</b><br>E:${entry.toFixed(2)} | SL:${sl.toFixed(2)}<br>TP1:${tp1.toFixed(2)} | TP2:${tp2.toFixed(2)} | TP3:${tp3.toFixed(2)}<br>Total:${total}`;
+            document.getElementById(`res-${i}`).innerHTML = `<b>${status} (${sat.toFixed(1)}%)</b><br>E: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)}<br>TP1: ${tp1.toFixed(2)} | TP2: ${tp2.toFixed(2)} | TP3: ${tp3.toFixed(2)}<br>Total: ${total}`;
         }
 
         function calcAll() { for(let i=0; i<8; i++) calc(i); }
 
         function exportCSV() {
-            let csv = "Date,Brokerage,Ticker,Risk%,ATR,High,Low,VolRatio%,Entry,SL,TP1,TP2,TP3,IntraHigh,IntraLow,ExitPrice,%GainLoss,StrategyFollowed,Outcome,TradeNotes,DailyNotes,SystemEdits\n";
+            let csv = "Date,Brokerage,Ticker,Risk%,ATR,High,Low,VolRatio%,Entry,SL,TP1,TP2,TP3,IntraHigh,IntraLow,Flatten,WinLoss,StrategyFollowed,TradeNotes,DailyNotes,SystemEdits\n";
             for(let i=0; i<8; i++) {
                 const t = document.getElementById(`t-${i}`).value;
                 if(!t) continue;
-                // Add mapping logic for all requested columns here...
-                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${t},${document.getElementById('gRisk').value},${document.getElementById(`a-${i}`).value},${document.getElementById(`h-${i}`).value},${document.getElementById(`l-${i}`).value},,,,${document.getElementById(`sf-${i}`).value},${document.getElementById(`oc-${i}`).value},,, \n`;
+                const btns = document.getElementById(`btns-${i}`).getElementsByTagName('button');
+                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${t},${document.getElementById('gRisk').value},${document.getElementById(`a-${i}`).value},${document.getElementById(`h-${i}`).value},${document.getElementById(`l-${i}`).value},${((document.getElementById(`h-${i}`).value-document.getElementById(`l-${i}`).value)/document.getElementById(`a-${i}`).value*100).toFixed(1)},${(parseFloat(document.getElementById(`h-${i}`).value)+0.02).toFixed(2)},${(parseFloat(document.getElementById(`l-${i}`).value)-(document.getElementById(`a-${i}`).value*document.getElementById('gBuff').value)).toFixed(2)},${btns[2].style.backgroundColor==='green'?'Yes':'No'},${btns[3].style.backgroundColor==='green'?'Yes':'No'},${btns[4].style.backgroundColor==='green'?'Yes':'No'},${document.getElementById(`rh-${i}`).value},${document.getElementById(`rl-${i}`).value},${document.getElementById(`ex-${i}`).value},${document.getElementById(`oc-${i}`).value},${document.getElementById(`sf-${i}`).value},${document.getElementById(`tn-${i}`).value},, \n`;
             }
             const blob = new Blob([csv], {type: 'text/csv'});
             const url = window.URL.createObjectURL(blob);
