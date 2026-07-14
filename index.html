@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Engine - V4</title>
+    <title>Trading Strategy Engine - V5</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
         .container { width: 100%; max-width: 450px; background: #1e293b; padding: 20px; border-radius: 12px; }
@@ -20,10 +20,10 @@
         <h2>Strategy Engine</h2>
         <div class="config-section">
             <strong>Global Settings</strong>
-            <input type="number" id="cfgRisk" value="0.75" step="0.01" placeholder="Risk %">
-            <input type="number" id="cfgMinSat" value="32.5" step="0.1" placeholder="Min Sat">
-            <input type="number" id="cfgMaxSat" value="52.5" step="0.1" placeholder="Max Sat">
-            <input type="number" id="cfgBuffer" value="0.10" step="0.01" placeholder="SL Buffer">
+            <input type="number" id="cfgRisk" value="0.75" step="0.01" placeholder="Risk %" oninput="runEngine()">
+            <input type="number" id="cfgMinSat" value="32.5" step="0.1" placeholder="Min Sat" oninput="runEngine()">
+            <input type="number" id="cfgMaxSat" value="52.5" step="0.1" placeholder="Max Sat" oninput="runEngine()">
+            <input type="number" id="cfgBuffer" value="0.10" step="0.01" placeholder="SL Buffer" oninput="runEngine()">
         </div>
 
         <input type="text" id="ticker" placeholder="Ticker" oninput="runEngine()">
@@ -82,6 +82,7 @@
         function captureTrade() {
             const trade = {
                 ticker: document.getElementById('ticker').value,
+                mode: document.getElementById('mode').value,
                 bal: document.getElementById('balance').value,
                 atr: document.getElementById('atr').value,
                 high: document.getElementById('high').value,
@@ -110,6 +111,7 @@
         function viewTrade(i) {
             const t = trades[i];
             document.getElementById('ticker').value = t.ticker;
+            document.getElementById('mode').value = t.mode;
             document.getElementById('balance').value = t.bal;
             document.getElementById('atr').value = t.atr;
             document.getElementById('high').value = t.high;
