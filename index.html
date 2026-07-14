@@ -7,9 +7,11 @@
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
         .container { width: 100%; max-width: 400px; background: #1e293b; padding: 20px; border-radius: 12px; }
         input, select { width: 100%; padding: 10px; margin: 8px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; }
-        .btn { width: 100%; padding: 12px; background: #3b82f6; border: none; color: white; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: bold; }
         .result { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; font-size: 0.9em; }
         .approved { color: #4ade80; font-weight: bold; }
+        .disqualified { color: #ef4444; font-weight: bold; }
+        .btn { width: 100%; padding: 12px; background: #3b82f6; border: none; color: white; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: bold; }
+        .download-btn { background: #10b981; }
     </style>
 </head>
 <body>
@@ -27,7 +29,7 @@
         <input type="number" id="low" placeholder="Bracket Low" oninput="runEngine()">
         
         <div id="output" class="result">Awaiting inputs...</div>
-        <button class="btn" style="background:#10b981" onclick="downloadCSV()">Download Journal as CSV</button>
+        <button class="btn download-btn" onclick="downloadCSV()">Download Journal as CSV</button>
     </div>
 
     <script>
@@ -43,23 +45,41 @@
             const high = parseFloat(document.getElementById('high').value);
             const low = parseFloat(document.getElementById('low').value);
 
-            if (!ticker || !bal || !risk || !atr || !high || !low) return;
+            if (!ticker || !bal || !risk || !atr || !high || !low) {
+                document.getElementById('output').innerHTML = "Awaiting inputs...";
+                return;
+            }
 
+            const saturation = ((high - low) / atr) * 100;
             const entry = high + 0.02;
             const sl = low - (atr * 0.10);
             const stopDist = entry - sl;
             const cashRisk = bal * (risk / 100);
-
-            let total = (mode === 'MT5') ? (cashRisk / stopDist).toFixed(2) : Math.floor(cashRisk / stopDist);
-            let body = (mode === 'MT5') ? (total * 0.33).toFixed(2) : Math.floor(total * 0.33);
-            let runner = (mode === 'MT5') ? (total * 0.66).toFixed(2) : (total - body);
-
-            currentTrade = { date: new Date().toLocaleString(), ticker, mode, entry, sl, total, body, runner };
             
-            document.getElementById('output').innerHTML = `<span class="approved">APPROVED</span><br>
-                Entry: ${entry.toFixed(2)} | Stop: ${sl.toFixed(2)}<br>
-                Total: ${total} | Body: ${body} | Runner: ${runner}<br>
-                <button class="btn" onclick="captureTrade()">Capture Trade</button>`;
+            const tp1 = entry + stopDist;
+            const tp2 = entry + (stopDist * 2);
+            const tp3 = entry + (stopDist * 3);
+
+            let html = `<strong>Saturation: ${saturation.toFixed(1)}%</strong><br>`;
+
+            // Gatekeeper logic
+            if (saturation < 32.5 || saturation > 52.5) {
+                html += `<span class="disqualified">DISQUALIFIED: Outside Sweet Spot</span>`;
+                currentTrade = null;
+            } else {
+                let total = (mode === 'MT5') ? (cashRisk / stopDist).toFixed(2) : Math.floor(cashRisk / stopDist);
+                let body = (mode === 'MT5') ? (total * 0.33).toFixed(2) : Math.floor(total * 0.33);
+                let runner = (mode === 'MT5') ? (total * 0.66).toFixed(2) : (total - body);
+
+                currentTrade = { date: new Date().toLocaleString(), ticker, mode, entry, sl, tp1, tp2, tp3, total, body, runner };
+                
+                html += `<span class="approved">APPROVED</span><br>
+                         Entry: ${entry.toFixed(2)} | Stop: ${sl.toFixed(2)}<br>
+                         TP1: ${tp1.toFixed(2)} | TP2: ${tp2.toFixed(2)} | TP3: ${tp3.toFixed(2)}<br>
+                         Total: ${total} | Body: ${body} | Runner: ${runner}<br>
+                         <button class="btn" onclick="captureTrade()">Capture Trade</button>`;
+            }
+            document.getElementById('output').innerHTML = html;
         }
 
         function captureTrade() {
@@ -69,9 +89,10 @@
         }
 
         function downloadCSV() {
-            let csv = "Date,Ticker,Mode,Entry,Stop,Total,Body,Runner\n";
+            if (tradeLog.length === 0) { alert("No trades captured!"); return; }
+            let csv = "Date,Ticker,Mode,Entry,Stop,TP1,TP2,TP3,Total,Body,Runner\n";
             tradeLog.forEach(t => {
-                csv += `"${t.date}",${t.ticker},${t.mode},${t.entry.toFixed(2)},${t.sl.toFixed(2)},${t.total},${t.body},${t.runner}\n`;
+                csv += `"${t.date}",${t.ticker},${t.mode},${t.entry.toFixed(2)},${t.sl.toFixed(2)},${t.tp1.toFixed(2)},${t.tp2.toFixed(2)},${t.tp3.toFixed(2)},${t.total},${t.body},${t.runner}\n`;
             });
             const a = document.createElement('a');
             a.href = window.URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
