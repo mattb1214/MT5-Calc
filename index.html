@@ -8,11 +8,10 @@
         .container { width: 100%; max-width: 450px; background: #1e293b; padding: 20px; border-radius: 12px; }
         input, select { width: 100%; padding: 10px; margin: 8px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; }
         .btn { width: 100%; padding: 12px; background: #3b82f6; border: none; color: white; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: bold; }
-        .download-btn { background: #10b981; margin-top: 20px; }
+        .run-btn { background: #f59e0b; }
         .result { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; font-size: 0.9em; }
         .approved { color: #4ade80; font-weight: bold; }
         .analysis-section { border-top: 2px solid #3b82f6; margin-top: 15px; padding-top: 15px; display: none; }
-        /* Entry Button Style */
         .entry-btn { background: #475569; border: none; padding: 12px; width: 100%; color: white; border-radius: 6px; cursor: pointer; margin-top: 10px; }
         .entry-active { background: #10b981 !important; }
     </style>
@@ -20,18 +19,20 @@
 <body>
     <div class="container">
         <h2>Strategy Engine</h2>
-        <input type="text" id="ticker" placeholder="Ticker Symbol" oninput="runEngine()">
-        <select id="brokerage" onchange="runEngine()">
+        <input type="text" id="ticker" placeholder="Ticker Symbol">
+        <select id="brokerage">
             <option value="MT5">MT5</option>
             <option value="ETRADE">E*TRADE</option>
         </select>
-        <input type="number" id="balance" placeholder="Start Balance" oninput="runEngine()">
-        <input type="number" id="risk" placeholder="Risk Level (%)" oninput="runEngine()">
-        <input type="number" id="atr" placeholder="Daily ATR" oninput="runEngine()">
-        <input type="number" id="high" placeholder="15m High" oninput="runEngine()">
-        <input type="number" id="low" placeholder="15m Low" oninput="runEngine()">
+        <input type="number" id="balance" placeholder="Start Balance ($)">
+        <input type="number" id="risk" placeholder="Risk Level (%)">
+        <input type="number" id="atr" placeholder="Daily ATR">
+        <input type="number" id="high" placeholder="15m High">
+        <input type="number" id="low" placeholder="15m Low">
         
-        <div id="output" class="result">Awaiting inputs...</div>
+        <button class="btn run-btn" onclick="runEngine()">Run Strategy Engine</button>
+        
+        <div id="output" class="result">Enter data and click Run Strategy...</div>
 
         <div id="analysisSection" class="analysis-section">
             <h3>Log Results</h3>
@@ -43,7 +44,7 @@
             <button class="btn" style="background:#f59e0b" onclick="logResults()">Update Trade Results</button>
         </div>
         
-        <button class="btn download-btn" onclick="downloadCSV()">Download Journal as CSV</button>
+        <button class="btn" style="background:#10b981; margin-top:10px" onclick="downloadCSV()">Download Journal as CSV</button>
     </div>
 
     <script>
@@ -56,7 +57,37 @@
             document.getElementById('entryBtn').classList.toggle('entry-active');
         }
 
-        function runEngine() { /* ... Calculation logic remains same ... */ }
+        function runEngine() {
+            const ticker = document.getElementById('ticker').value;
+            const bal = parseFloat(document.getElementById('balance').value);
+            const risk = parseFloat(document.getElementById('risk').value);
+            const high = parseFloat(document.getElementById('high').value);
+            const low = parseFloat(document.getElementById('low').value);
+            const atr = parseFloat(document.getElementById('atr').value);
+            
+            if(!ticker || !bal || !risk || !atr || !high || !low) {
+                alert("Please fill in all fields.");
+                return;
+            }
+
+            const mode = document.getElementById('brokerage').value;
+            const entry = high + 0.02;
+            const sl = low - (atr * 0.10);
+            const stopDist = entry - sl;
+            let total = (mode === 'MT5') ? (bal*(risk/100)/stopDist).toFixed(2) : Math.floor(bal*(risk/100)/stopDist);
+            const body = (mode === 'MT5') ? (total * 0.33).toFixed(2) : Math.floor(total * 0.33);
+            const runner = (mode === 'MT5') ? (total * 0.66).toFixed(2) : (total - body);
+
+            currentTrade = { ticker, mode, bal, atr, high, low, entry, sl, 
+                             tp1: entry + stopDist, tp2: entry + (stopDist * 2), tp3: entry + (stopDist * 3), 
+                             total, body, runner };
+            
+            document.getElementById('output').innerHTML = `<span class="approved">APPROVED</span><br>
+                Entry: ${entry.toFixed(2)} | Stop: ${sl.toFixed(2)}<br>
+                TPs: ${currentTrade.tp1.toFixed(2)}, ${currentTrade.tp2.toFixed(2)}, ${currentTrade.tp3.toFixed(2)}<br>
+                Total: ${total} (Body: ${body} | Runner: ${runner})<br>
+                <button class="btn" onclick="captureTrade()">Capture Trade Plan</button>`;
+        }
 
         function captureTrade() {
             tradeLog.push({ ...currentTrade, iHigh: '', fPrice: '', followed: '', status: '', actualPnL: 0, percentGain: 0 });
@@ -70,15 +101,8 @@
             t.fPrice = document.getElementById('fPrice').value;
             t.followed = document.getElementById('followed').value;
             t.status = document.getElementById('status').value;
-            
-            // Only calculate if entry was hit
-            if (entryHit) {
-                t.actualPnL = (t.fPrice - t.entry) * t.total;
-                t.percentGain = (t.actualPnL / t.bal) * 100;
-            } else {
-                t.actualPnL = 0;
-                t.percentGain = 0;
-            }
+            t.actualPnL = entryHit ? (t.fPrice - t.entry) * t.total : 0;
+            t.percentGain = entryHit ? (t.actualPnL / t.bal) * 100 : 0;
             alert("Results updated!");
         }
 
@@ -87,7 +111,10 @@
             tradeLog.forEach(t => {
                 csv += `${new Date().toLocaleDateString()},${t.ticker},${t.bal},${t.atr},${t.high},${t.low},${t.mode},${t.entry.toFixed(2)},${t.sl.toFixed(2)},${t.tp1.toFixed(2)},${t.tp2.toFixed(2)},${t.tp3.toFixed(2)},${t.total},${t.body},${t.runner},${t.iHigh},${t.fPrice},${t.actualPnL.toFixed(2)},${t.percentGain.toFixed(2)}%,${t.followed},${t.status}\n`;
             });
-            // ... download code ...
+            const a = document.createElement('a');
+            a.href = window.URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+            a.download = 'trading_journal.csv';
+            a.click();
         }
     </script>
 </body>
