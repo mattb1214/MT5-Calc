@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Dashboard - Final Persistent</title>
+    <title>Trading Strategy Dashboard</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
         .config-bar { background: #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
-        .card { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; }
+        .card { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 10px; }
         input, select { width: 100%; padding: 5px; margin: 3px 0; background: #0f172a; color: #fff; border: 1px solid #475569; }
         .output { font-size: 0.75em; margin-top: 10px; color: #cbd5e1; line-height: 1.6; }
         .milestones { display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap; }
@@ -29,21 +29,126 @@
         SL Buff: <input type="number" id="gBuff" value="0.10" step="0.01" style="width:60px" oninput="saveAndCalc()">
     </div>
 
-    <div class="grid" id="grid"></div>
+    <div id="grid" class="grid"></div>
+    
     <button class="export-btn" onclick="exportCSV()">Export Full Data to CSV</button>
     <button class="reset-btn" onclick="resetDashboard()">Reset Dashboard</button>
 
     <script>
-        const grid = document.getElementById('grid');
-        for(let i=0; i<8; i++) {
-            grid.innerHTML += `
-                <div class="card">
-                    <input type="text" placeholder="Ticker" id="t-${i}">
-                    <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
-                    <div style="display:flex; gap:5px;"><input type="number" placeholder="High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="Low" id="l-${i}" oninput="calc(${i})"></div>
-                    <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
-                    <div class="output" id="res-${i}">...</div>
-                    <div class="milestones" id="btns-${i}">
-                        <button class="btn" onclick="toggle(this)">P</button>
-                        <button class="btn" onclick="toggle(this)">E</button>
-                        <button class="btn" onclick="toggle(this)">T1</button>
+        function init() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = ''; // Clear existing
+            for(let i=0; i<8; i++) {
+                grid.innerHTML += `
+                    <div class="card">
+                        <input type="text" placeholder="Ticker" id="t-${i}">
+                        <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
+                        <div style="display:flex; gap:5px;"><input type="number" placeholder="High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="Low" id="l-${i}" oninput="calc(${i})"></div>
+                        <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
+                        <div class="output" id="res-${i}">...</div>
+                        <div class="milestones" id="btns-${i}">
+                            <button class="btn" onclick="toggle(this)">P</button>
+                            <button class="btn" onclick="toggle(this)">E</button>
+                            <button class="btn" onclick="toggle(this)">T1</button>
+                            <button class="btn" onclick="toggle(this)">T2</button>
+                            <button class="btn" onclick="toggle(this)">T3</button>
+                            <button class="btn btn-stop" onclick="toggle(this)">S</button>
+                            <button class="btn btn-flat" onclick="toggle(this)">F</button>
+                        </div>
+                        <button class="resolve-btn" onclick="showResolve(${i})">Resolve Trade</button>
+                        <div class="res-fields" id="res-fields-${i}">
+                            Intraday High: <input type="number" id="rh-${i}">
+                            Intraday Low: <input type="number" id="rl-${i}">
+                            Flatten: <input type="number" id="ex-${i}">
+                            Starting Bal ($): <input type="number" id="sb-${i}">
+                            Trade P&L ($): <input type="number" id="tpnl-${i}">
+                            Strategy Followed: <select id="sf-${i}"><option value="No">No</option><option value="Yes">Yes</option></select>
+                            Outcome: <select id="oc-${i}"><option value="No Trade">No Trade</option><option value="Win">Win</option><option value="Loss">Loss</option></select>
+                            <input type="text" placeholder="Trade Notes" id="tn-${i}">
+                        </div>
+                    </div>
+                `;
+            }
+            // Load saved config
+            const configInputs = document.querySelectorAll('.config-bar input');
+            configInputs.forEach(input => {
+                const saved = localStorage.getItem(input.id);
+                if (saved) input.value = saved;
+            });
+            calcAll();
+        }
+
+        function saveAndCalc() {
+            const configInputs = document.querySelectorAll('.config-bar input');
+            configInputs.forEach(input => localStorage.setItem(input.id, input.value));
+            calcAll();
+        }
+
+        function toggle(el) { el.style.backgroundColor = (el.style.backgroundColor === 'green' || el.style.backgroundColor === 'red' || el.style.backgroundColor === 'orange') ? 'transparent' : (el.classList.contains('btn-stop') ? 'red' : (el.classList.contains('btn-flat') ? 'orange' : 'green')); }
+        function showResolve(i) { const el = document.getElementById(`res-fields-${i}`); el.style.display = (el.style.display === 'block') ? 'none' : 'block'; }
+        
+        function calc(i) {
+            const bal = parseFloat(document.getElementById(`b-${i}`).value);
+            const atr = parseFloat(document.getElementById(`a-${i}`).value);
+            const high = parseFloat(document.getElementById(`h-${i}`).value);
+            const low = parseFloat(document.getElementById(`l-${i}`).value);
+            if(!bal || !atr || !high || !low) return;
+
+            const gBuff = parseFloat(document.getElementById('gBuff').value);
+            const entry = high + ((high * 0.001) + (atr * 0.05 * gBuff));
+            const sl = low - (atr * gBuff);
+            const stopDist = entry - sl;
+            const tp1 = entry + stopDist;
+            const tp2 = entry + (stopDist * 2);
+            const tp3 = entry + (stopDist * 3);
+            const total = (document.getElementById(`m-${i}`).value === 'MT5') ? (bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist).toFixed(2) : Math.floor(bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist);
+            const sat = ((high - low) / atr) * 100;
+            const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? 'APPROVED' : 'DISQUALIFIED';
+            
+            document.getElementById(`res-${i}`).innerHTML = `<b>${status} (${sat.toFixed(1)}%)</b><br>E: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)}<br>TP1: ${tp1.toFixed(2)} | TP2: ${tp2.toFixed(2)} | TP3: ${tp3.toFixed(2)}<br>Total: ${total}`;
+        }
+
+        function calcAll() { for(let i=0; i<8; i++) calc(i); }
+
+        function exportCSV() {
+            let csv = "Date,Brokerage,Ticker,Risk%,ATR,High,Low,VolRatio%,Entry,SL,TP1,TP2,TP3,IntraHigh,IntraLow,Flatten,StartBal,PnL,GainLoss%,WinLoss,StrategyFollowed,TradeNotes,DailyNotes,SystemEdits\n";
+            for(let i=0; i<8; i++) {
+                const t = document.getElementById(`t-${i}`).value;
+                if(!t) continue;
+                const h = parseFloat(document.getElementById(`h-${i}`).value);
+                const l = parseFloat(document.getElementById(`l-${i}`).value);
+                const a = parseFloat(document.getElementById(`a-${i}`).value);
+                const gBuff = parseFloat(document.getElementById('gBuff').value);
+                const entry = h + ((h * 0.001) + (a * 0.05 * gBuff));
+                const sl = l - (a * gBuff);
+                const startBal = parseFloat(document.getElementById(`sb-${i}`).value) || 0;
+                const pnl = parseFloat(document.getElementById(`tpnl-${i}`).value) || 0;
+                const pctGain = startBal ? ((pnl / startBal) * 100).toFixed(2) : 0;
+                const btns = document.getElementById(`btns-${i}`).getElementsByTagName('button');
+                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${t},${document.getElementById('gRisk').value},${a},${h},${l},${((h-l)/a*100).toFixed(1)},${entry.toFixed(2)},${sl.toFixed(2)},${btns[2].style.backgroundColor==='green'?'Yes':'No'},${btns[3].style.backgroundColor==='green'?'Yes':'No'},${btns[4].style.backgroundColor==='green'?'Yes':'No'},${document.getElementById(`rh-${i}`).value},${document.getElementById(`rl-${i}`).value},${document.getElementById(`ex-${i}`).value},${startBal},${pnl},${pctGain},${document.getElementById(`oc-${i}`).value},${document.getElementById(`sf-${i}`).value},${document.getElementById(`tn-${i}`).value},, \n`;
+            }
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'Full_Trade_Log.csv');
+            a.click();
+        }
+
+        function resetDashboard() {
+            if (confirm("Are you sure you want to clear trade data?")) {
+                const inputs = document.querySelectorAll('#grid input, #grid select, #grid textarea');
+                inputs.forEach(input => { if(input.type !== 'select-one') input.value = ''; });
+                const outputs = document.querySelectorAll('.output');
+                outputs.forEach(out => out.innerHTML = '...');
+                const buttons = document.querySelectorAll('.btn');
+                buttons.forEach(btn => btn.style.backgroundColor = 'transparent');
+                const resFields = document.querySelectorAll('.res-fields');
+                resFields.forEach(field => field.style.display = 'none');
+            }
+        }
+        
+        window.onload = init;
+    </script>
+</body>
+</html>
