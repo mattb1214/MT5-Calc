@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Dashboard - Final Edition</title>
+    <title>Trading Strategy Dashboard - Proportional</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
         .config-bar { background: #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; }
@@ -73,14 +73,17 @@
             const low = parseFloat(document.getElementById(`l-${i}`).value);
             if(!bal || !atr || !high || !low) return;
 
-            const mode = document.getElementById(`m-${i}`).value;
-            const entry = high + 0.02;
-            const sl = low - (atr * parseFloat(document.getElementById('gBuff').value));
+            const gBuff = parseFloat(document.getElementById('gBuff').value);
+            const dynamicEntryBuffer = (high * 0.001) + (atr * 0.05 * gBuff);
+            const entry = high + dynamicEntryBuffer;
+            const sl = low - (atr * gBuff);
             const stopDist = entry - sl;
+            
             const tp1 = entry + stopDist;
             const tp2 = entry + (stopDist * 2);
             const tp3 = entry + (stopDist * 3);
-            const total = (mode === 'MT5') ? (bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist).toFixed(2) : Math.floor(bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist);
+            
+            const total = (document.getElementById(`m-${i}`).value === 'MT5') ? (bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist).toFixed(2) : Math.floor(bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist);
             const sat = ((high - low) / atr) * 100;
             const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? 'APPROVED' : 'DISQUALIFIED';
             
@@ -94,8 +97,14 @@
             for(let i=0; i<8; i++) {
                 const t = document.getElementById(`t-${i}`).value;
                 if(!t) continue;
+                const h = parseFloat(document.getElementById(`h-${i}`).value);
+                const l = parseFloat(document.getElementById(`l-${i}`).value);
+                const a = parseFloat(document.getElementById(`a-${i}`).value);
+                const gBuff = parseFloat(document.getElementById('gBuff').value);
+                const entry = h + ((h * 0.001) + (a * 0.05 * gBuff));
+                const sl = l - (a * gBuff);
                 const btns = document.getElementById(`btns-${i}`).getElementsByTagName('button');
-                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${t},${document.getElementById('gRisk').value},${document.getElementById(`a-${i}`).value},${document.getElementById(`h-${i}`).value},${document.getElementById(`l-${i}`).value},${((document.getElementById(`h-${i}`).value-document.getElementById(`l-${i}`).value)/document.getElementById(`a-${i}`).value*100).toFixed(1)},${(parseFloat(document.getElementById(`h-${i}`).value)+0.02).toFixed(2)},${(parseFloat(document.getElementById(`l-${i}`).value)-(document.getElementById(`a-${i}`).value*document.getElementById('gBuff').value)).toFixed(2)},${btns[2].style.backgroundColor==='green'?'Yes':'No'},${btns[3].style.backgroundColor==='green'?'Yes':'No'},${btns[4].style.backgroundColor==='green'?'Yes':'No'},${document.getElementById(`rh-${i}`).value},${document.getElementById(`rl-${i}`).value},${document.getElementById(`ex-${i}`).value},${document.getElementById(`oc-${i}`).value},${document.getElementById(`sf-${i}`).value},${document.getElementById(`tn-${i}`).value},, \n`;
+                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${t},${document.getElementById('gRisk').value},${a},${h},${l},${((h-l)/a*100).toFixed(1)},${entry.toFixed(2)},${sl.toFixed(2)},${btns[2].style.backgroundColor==='green'?'Yes':'No'},${btns[3].style.backgroundColor==='green'?'Yes':'No'},${btns[4].style.backgroundColor==='green'?'Yes':'No'},${document.getElementById(`rh-${i}`).value},${document.getElementById(`rl-${i}`).value},${document.getElementById(`ex-${i}`).value},${document.getElementById(`oc-${i}`).value},${document.getElementById(`sf-${i}`).value},${document.getElementById(`tn-${i}`).value},, \n`;
             }
             const blob = new Blob([csv], {type: 'text/csv'});
             const url = window.URL.createObjectURL(blob);
