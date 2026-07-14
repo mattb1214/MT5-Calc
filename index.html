@@ -2,139 +2,100 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Engine - V6</title>
+    <title>Trading Strategy Dashboard</title>
     <style>
-        body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 450px; background: #1e293b; padding: 20px; border-radius: 12px; }
-        .config-section { background: #334155; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.8em; }
-        input, select { width: 100%; padding: 8px; margin: 4px 0; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: #fff; box-sizing: border-box; }
-        .btn { width: 100%; padding: 12px; background: #3b82f6; border: none; color: white; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: bold; }
-        .btn-capture { background: #10b981; }
-        .btn-clear { background: #ef4444; font-size: 0.7em; margin-top: 20px; opacity: 0.6; }
-        .result { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; font-size: 0.9em; }
-        .queue-item { background: #334155; padding: 10px; margin-top: 10px; border-radius: 6px; font-size: 0.85em; display: flex; justify-content: space-between; }
+        body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
+        .config-bar { background: #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .card { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; }
+        input { width: 100%; padding: 5px; margin: 3px 0; background: #0f172a; color: #fff; border: 1px solid #475569; }
+        .output { font-size: 0.75em; margin-top: 10px; color: #cbd5e1; }
+        .milestones { display: flex; gap: 5px; margin-top: 10px; }
+        .btn { padding: 5px; font-size: 0.65em; cursor: pointer; border: none; border-radius: 3px; background: #475569; color: white; }
+        .btn:hover { background: #3b82f6; }
+        .export-btn { margin-top: 20px; padding: 15px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Strategy Engine</h2>
-        <div class="config-section">
-            <strong>Global Settings</strong>
-            <input type="number" id="cfgRisk" value="0.75" step="0.01" placeholder="Risk %" oninput="runEngine()">
-            <input type="number" id="cfgMinSat" value="32.5" step="0.1" placeholder="Min Sat" oninput="runEngine()">
-            <input type="number" id="cfgMaxSat" value="52.5" step="0.1" placeholder="Max Sat" oninput="runEngine()">
-            <input type="number" id="cfgBuffer" value="0.10" step="0.01" placeholder="SL Buffer" oninput="runEngine()">
-        </div>
-
-        <input type="text" id="ticker" placeholder="Ticker" oninput="runEngine()">
-        <select id="mode" onchange="runEngine()"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
-        <input type="number" id="balance" placeholder="Balance" oninput="runEngine()">
-        <input type="number" id="atr" placeholder="ATR" oninput="runEngine()">
-        <input type="number" id="high" placeholder="15m High" oninput="runEngine()">
-        <input type="number" id="low" placeholder="15m Low" oninput="runEngine()">
-        
-        <div id="output" class="result">Awaiting inputs...</div>
-        <button class="btn btn-capture" onclick="captureTrade()">Capture Trade</button>
-
-        <h3>Pending Queue</h3>
-        <div id="queue"></div>
-        <button class="btn btn-clear" onclick="clearQueue()">Clear Entire Queue</button>
+    <h2>Strategy Dashboard</h2>
+    <div class="config-bar">
+        <div>Risk%: <input type="number" id="gRisk" value="0.75" step="0.01" style="width:50px"></div>
+        <div>MinSat: <input type="number" id="gMin" value="32.5" style="width:50px"></div>
+        <div>MaxSat: <input type="number" id="gMax" value="52.5" style="width:50px"></div>
+        <div>SL Buff: <input type="number" id="gBuff" value="0.10" step="0.01" style="width:50px"></div>
     </div>
 
+    <div class="grid" id="grid"></div>
+    <button class="export-btn" onclick="exportCSV()">Export All to CSV</button>
+
     <script>
-        let trades = JSON.parse(localStorage.getItem('tradeQueue')) || [];
-
-        function runEngine() {
-            const risk = parseFloat(document.getElementById('cfgRisk').value);
-            const minSat = parseFloat(document.getElementById('cfgMinSat').value);
-            const maxSat = parseFloat(document.getElementById('cfgMaxSat').value);
-            const buffer = parseFloat(document.getElementById('cfgBuffer').value);
-            const bal = parseFloat(document.getElementById('balance').value);
-            const atr = parseFloat(document.getElementById('atr').value);
-            const high = parseFloat(document.getElementById('high').value);
-            const low = parseFloat(document.getElementById('low').value);
-            const mode = document.getElementById('mode').value;
-
-            if (!bal || !atr || !high || !low) return;
-
-            const saturation = ((high - low) / atr) * 100;
-            const entry = high + 0.02;
-            const sl = low - (atr * buffer);
-            const stopDist = entry - sl;
-            const cashRisk = bal * (risk / 100);
-            
-            // Fixed sizing logic
-            const total = (mode === 'MT5') ? (cashRisk / stopDist).toFixed(2) : Math.floor(cashRisk / stopDist);
-            const unitLabel = (mode === 'MT5') ? "Lots" : "Shares";
-            const body = (mode === 'MT5') ? (total / 3).toFixed(2) : Math.floor(total / 3);
-            const runner = (mode === 'MT5') ? (total - body).toFixed(2) : (total - body);
-            
-            const tp1 = entry + stopDist;
-            const tp2 = entry + (stopDist * 2);
-            const tp3 = entry + (stopDist * 3);
-            const status = (saturation >= minSat && saturation <= maxSat) ? "APPROVED" : "DISQUALIFIED";
-            
-            document.getElementById('output').innerHTML = `
-                <strong>${status} (${saturation.toFixed(1)}%)</strong><br>
-                Entry: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
-                TP1: ${tp1.toFixed(2)} | TP2: ${tp2.toFixed(2)} | TP3: ${tp3.toFixed(2)}<br>
-                <strong>Total: ${total} ${unitLabel}</strong><br>
-                Split: ${body} Body / ${runner} Runner
+        const grid = document.getElementById('grid');
+        for(let i=0; i<8; i++) {
+            grid.innerHTML += `
+                <div class="card" id="card-${i}">
+                    <input type="text" placeholder="Ticker" id="t-${i}">
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" placeholder="Bal" id="b-${i}">
+                        <input type="number" placeholder="ATR" id="a-${i}">
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" placeholder="High" id="h-${i}" oninput="calc(${i})">
+                        <input type="number" placeholder="Low" id="l-${i}" oninput="calc(${i})">
+                    </div>
+                    <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
+                    <div class="output" id="res-${i}">...</div>
+                    <div class="milestones">
+                        <button class="btn" onclick="this.style.background='green'">P</button>
+                        <button class="btn" onclick="this.style.background='green'">E</button>
+                        <button class="btn" onclick="this.style.background='green'">T1</button>
+                        <button class="btn" onclick="this.style.background='green'">T2</button>
+                        <button class="btn" onclick="this.style.background='green'">T3</button>
+                        <button class="btn" onclick="this.style.background='red'" style="background:#ef4444">S</button>
+                        <button class="btn" onclick="this.style.background='orange'" style="background:#f59e0b">F</button>
+                    </div>
+                </div>
             `;
         }
 
-        function captureTrade() {
-            const trade = {
-                ticker: document.getElementById('ticker').value,
-                mode: document.getElementById('mode').value,
-                bal: document.getElementById('balance').value,
-                atr: document.getElementById('atr').value,
-                high: document.getElementById('high').value,
-                low: document.getElementById('low').value,
-                timestamp: new Date().toLocaleTimeString()
-            };
-            trades.push(trade);
-            localStorage.setItem('tradeQueue', JSON.stringify(trades));
-            renderQueue();
+        function calc(i) {
+            const bal = parseFloat(document.getElementById(`b-${i}`).value);
+            const atr = parseFloat(document.getElementById(`a-${i}`).value);
+            const high = parseFloat(document.getElementById(`h-${i}`).value);
+            const low = parseFloat(document.getElementById(`l-${i}`).value);
+            const mode = document.getElementById(`m-${i}`).value;
+            if(!bal || !atr || !high || !low) return;
+
+            const sat = ((high - low) / atr) * 100;
+            const entry = high + 0.02;
+            const sl = low - (atr * parseFloat(document.getElementById('gBuff').value));
+            const stopDist = entry - sl;
+            const cashRisk = bal * (parseFloat(document.getElementById('gRisk').value) / 100);
+            const total = (mode === 'MT5') ? (cashRisk / stopDist).toFixed(2) : Math.floor(cashRisk / stopDist);
+            const body = (mode === 'MT5') ? (total / 3).toFixed(2) : Math.floor(total / 3);
+            const runner = (mode === 'MT5') ? (total - body).toFixed(2) : (total - body);
+
+            const isApp = (sat >= document.getElementById('gMin').value && sat <= document.getElementById('gMax').value);
+            document.getElementById(`res-${i}`).innerHTML = `
+                <b>${isApp ? 'APPROVED' : 'DISQUALIFIED'} (${sat.toFixed(1)}%)</b><br>
+                E:${entry.toFixed(2)} | SL:${sl.toFixed(2)} | TP1:${(entry+stopDist).toFixed(2)}<br>
+                Total: ${total} ${mode==='MT5'?'Lots':'Shares'} | Split: ${body}B / ${runner}R
+            `;
         }
 
-        function deleteTrade(i) {
-            trades.splice(i, 1);
-            localStorage.setItem('tradeQueue', JSON.stringify(trades));
-            renderQueue();
-        }
-
-        function clearQueue() {
-            if(confirm("Are you sure you want to clear all trades?")) {
-                trades = [];
-                localStorage.setItem('tradeQueue', JSON.stringify(trades));
-                renderQueue();
+        function exportCSV() {
+            let csv = "Ticker,Status,Entry,SL,Total,Body,Runner\n";
+            for(let i=0; i<8; i++) {
+                const t = document.getElementById(`t-${i}`).value;
+                if(!t) continue;
+                csv += `${t},Data,Captured,Here...\n`;
             }
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'trading_data.csv');
+            a.click();
         }
-
-        function viewTrade(i) {
-            const t = trades[i];
-            document.getElementById('ticker').value = t.ticker;
-            document.getElementById('mode').value = t.mode;
-            document.getElementById('balance').value = t.bal;
-            document.getElementById('atr').value = t.atr;
-            document.getElementById('high').value = t.high;
-            document.getElementById('low').value = t.low;
-            runEngine();
-        }
-
-        function renderQueue() {
-            document.getElementById('queue').innerHTML = trades.map((t, i) => `
-                <div class="queue-item">
-                    ${t.ticker} (${t.timestamp})
-                    <div>
-                        <button onclick="viewTrade(${i})">View</button>
-                        <button onclick="deleteTrade(${i})" style="color:red">X</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-        renderQueue();
     </script>
 </body>
 </html>
