@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Engine - V5</title>
+    <title>Trading Strategy Engine - V6</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
         .container { width: 100%; max-width: 450px; background: #1e293b; padding: 20px; border-radius: 12px; }
@@ -53,6 +53,7 @@
             const atr = parseFloat(document.getElementById('atr').value);
             const high = parseFloat(document.getElementById('high').value);
             const low = parseFloat(document.getElementById('low').value);
+            const mode = document.getElementById('mode').value;
 
             if (!bal || !atr || !high || !low) return;
 
@@ -62,9 +63,11 @@
             const stopDist = entry - sl;
             const cashRisk = bal * (risk / 100);
             
-            const total = (document.getElementById('mode').value === 'MT5') ? (cashRisk / stopDist).toFixed(0) : Math.floor(cashRisk / stopDist);
-            const body = Math.floor(total / 3);
-            const runner = total - body;
+            // Fixed sizing logic
+            const total = (mode === 'MT5') ? (cashRisk / stopDist).toFixed(2) : Math.floor(cashRisk / stopDist);
+            const unitLabel = (mode === 'MT5') ? "Lots" : "Shares";
+            const body = (mode === 'MT5') ? (total / 3).toFixed(2) : Math.floor(total / 3);
+            const runner = (mode === 'MT5') ? (total - body).toFixed(2) : (total - body);
             
             const tp1 = entry + stopDist;
             const tp2 = entry + (stopDist * 2);
@@ -75,7 +78,8 @@
                 <strong>${status} (${saturation.toFixed(1)}%)</strong><br>
                 Entry: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
                 TP1: ${tp1.toFixed(2)} | TP2: ${tp2.toFixed(2)} | TP3: ${tp3.toFixed(2)}<br>
-                <strong>Split: ${body} Body / ${runner} Runner</strong>
+                <strong>Total: ${total} ${unitLabel}</strong><br>
+                Split: ${body} Body / ${runner} Runner
             `;
         }
 
