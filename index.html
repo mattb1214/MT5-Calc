@@ -2,31 +2,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Dashboard</title>
+    <title>Robust Trading Dashboard</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
         .config-bar { background: #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
         .card { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; }
-        input { width: 100%; padding: 5px; margin: 3px 0; background: #0f172a; color: #fff; border: 1px solid #475569; }
+        input, select { width: 100%; padding: 5px; margin: 3px 0; background: #0f172a; color: #fff; border: 1px solid #475569; }
         .output { font-size: 0.75em; margin-top: 10px; color: #cbd5e1; }
-        .milestones { display: flex; gap: 5px; margin-top: 10px; }
-        .btn { padding: 5px; font-size: 0.65em; cursor: pointer; border: none; border-radius: 3px; background: #475569; color: white; }
-        .btn:hover { background: #3b82f6; }
-        .export-btn { margin-top: 20px; padding: 15px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; }
+        .milestones { display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap; }
+        .btn { padding: 6px; font-size: 0.7em; cursor: pointer; border: 2px solid #475569; border-radius: 3px; background: transparent; color: white; width: 35px; }
+        .btn-stop { border-color: #ef4444; }
+        .btn-flat { border-color: #f59e0b; }
+        .resolve-btn { background: #8b5cf6; width: 100%; margin-top: 10px; border: none; padding: 8px; color: white; border-radius: 4px; cursor: pointer; }
+        .res-fields { display: none; margin-top: 10px; padding: 10px; background: #0f172a; border-radius: 5px; font-size: 0.75em; }
+        .export-btn { margin-top: 20px; padding: 15px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
     </style>
 </head>
 <body>
     <h2>Strategy Dashboard</h2>
     <div class="config-bar">
-        <div>Risk%: <input type="number" id="gRisk" value="0.75" step="0.01" style="width:50px"></div>
-        <div>MinSat: <input type="number" id="gMin" value="32.5" style="width:50px"></div>
-        <div>MaxSat: <input type="number" id="gMax" value="52.5" style="width:50px"></div>
-        <div>SL Buff: <input type="number" id="gBuff" value="0.10" step="0.01" style="width:50px"></div>
+        Risk%: <input type="number" id="gRisk" value="0.75" step="0.01" oninput="calcAll()">
+        MinSat: <input type="number" id="gMin" value="32.5" oninput="calcAll()">
+        MaxSat: <input type="number" id="gMax" value="52.5" oninput="calcAll()">
+        SL Buff: <input type="number" id="gBuff" value="0.10" step="0.01" oninput="calcAll()">
     </div>
 
     <div class="grid" id="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export All to CSV</button>
+    <button class="export-btn" onclick="exportCSV()">Export Full Data to CSV</button>
 
     <script>
         const grid = document.getElementById('grid');
@@ -34,66 +37,71 @@
             grid.innerHTML += `
                 <div class="card" id="card-${i}">
                     <input type="text" placeholder="Ticker" id="t-${i}">
-                    <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Bal" id="b-${i}">
-                        <input type="number" placeholder="ATR" id="a-${i}">
-                    </div>
-                    <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="High" id="h-${i}" oninput="calc(${i})">
-                        <input type="number" placeholder="Low" id="l-${i}" oninput="calc(${i})">
-                    </div>
+                    <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
+                    <div style="display:flex; gap:5px;"><input type="number" placeholder="High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="Low" id="l-${i}" oninput="calc(${i})"></div>
                     <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
                     <div class="output" id="res-${i}">...</div>
                     <div class="milestones">
-                        <button class="btn" onclick="this.style.background='green'">P</button>
-                        <button class="btn" onclick="this.style.background='green'">E</button>
-                        <button class="btn" onclick="this.style.background='green'">T1</button>
-                        <button class="btn" onclick="this.style.background='green'">T2</button>
-                        <button class="btn" onclick="this.style.background='green'">T3</button>
-                        <button class="btn" onclick="this.style.background='red'" style="background:#ef4444">S</button>
-                        <button class="btn" onclick="this.style.background='orange'" style="background:#f59e0b">F</button>
+                        <button class="btn" onclick="toggle(this, 'green')">P</button>
+                        <button class="btn" onclick="toggle(this, 'green')">E</button>
+                        <button class="btn" onclick="toggle(this, 'green')">T1</button>
+                        <button class="btn" onclick="toggle(this, 'green')">T2</button>
+                        <button class="btn" onclick="toggle(this, 'green')">T3</button>
+                        <button class="btn btn-stop" onclick="toggle(this, '#ef4444')">S</button>
+                        <button class="btn btn-flat" onclick="toggle(this, '#f59e0b')">F</button>
+                    </div>
+                    <button class="resolve-btn" onclick="showResolve(${i})">Resolve Trade</button>
+                    <div class="res-fields" id="res-fields-${i}">
+                        Intraday High: <input type="number" id="rh-${i}">
+                        Intraday Low: <input type="number" id="rl-${i}">
+                        Final Exit: <input type="number" id="ex-${i}">
                     </div>
                 </div>
             `;
         }
+
+        function toggle(el, color) { el.style.backgroundColor = (el.style.backgroundColor === color) ? 'transparent' : color; }
+        function showResolve(i) { const el = document.getElementById(`res-fields-${i}`); el.style.display = (el.style.display === 'block') ? 'none' : 'block'; }
 
         function calc(i) {
             const bal = parseFloat(document.getElementById(`b-${i}`).value);
             const atr = parseFloat(document.getElementById(`a-${i}`).value);
             const high = parseFloat(document.getElementById(`h-${i}`).value);
             const low = parseFloat(document.getElementById(`l-${i}`).value);
-            const mode = document.getElementById(`m-${i}`).value;
             if(!bal || !atr || !high || !low) return;
 
-            const sat = ((high - low) / atr) * 100;
+            const mode = document.getElementById(`m-${i}`).value;
             const entry = high + 0.02;
             const sl = low - (atr * parseFloat(document.getElementById('gBuff').value));
             const stopDist = entry - sl;
-            const cashRisk = bal * (parseFloat(document.getElementById('gRisk').value) / 100);
-            const total = (mode === 'MT5') ? (cashRisk / stopDist).toFixed(2) : Math.floor(cashRisk / stopDist);
+            const total = (mode === 'MT5') ? (bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist).toFixed(2) : Math.floor(bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist);
             const body = (mode === 'MT5') ? (total / 3).toFixed(2) : Math.floor(total / 3);
             const runner = (mode === 'MT5') ? (total - body).toFixed(2) : (total - body);
 
-            const isApp = (sat >= document.getElementById('gMin').value && sat <= document.getElementById('gMax').value);
-            document.getElementById(`res-${i}`).innerHTML = `
-                <b>${isApp ? 'APPROVED' : 'DISQUALIFIED'} (${sat.toFixed(1)}%)</b><br>
-                E:${entry.toFixed(2)} | SL:${sl.toFixed(2)} | TP1:${(entry+stopDist).toFixed(2)}<br>
-                Total: ${total} ${mode==='MT5'?'Lots':'Shares'} | Split: ${body}B / ${runner}R
-            `;
+            const sat = ((high - low) / atr) * 100;
+            const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? 'APPROVED' : 'DISQUALIFIED';
+            
+            document.getElementById(`res-${i}`).innerHTML = `<b>${status} (${sat.toFixed(1)}%)</b><br>E:${entry.toFixed(2)} | SL:${sl.toFixed(2)}<br>Total: ${total} | Split: ${body}B / ${runner}R`;
         }
 
+        function calcAll() { for(let i=0; i<8; i++) calc(i); }
+
         function exportCSV() {
-            let csv = "Ticker,Status,Entry,SL,Total,Body,Runner\n";
+            let csv = "Ticker,Status,Entry,SL,Total,Body,Runner,IntradayHigh,IntradayLow,FinalExit\n";
             for(let i=0; i<8; i++) {
                 const t = document.getElementById(`t-${i}`).value;
                 if(!t) continue;
-                csv += `${t},Data,Captured,Here...\n`;
+                const resText = document.getElementById(`res-${i}`).innerText;
+                const rh = document.getElementById(`rh-${i}`).value;
+                const rl = document.getElementById(`rl-${i}`).value;
+                const ex = document.getElementById(`ex-${i}`).value;
+                csv += `${t},"${resText}",,,,,,${rh},${rl},${ex}\n`;
             }
             const blob = new Blob([csv], {type: 'text/csv'});
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.setAttribute('href', url);
-            a.setAttribute('download', 'trading_data.csv');
+            a.setAttribute('download', 'Daily_Trade_Log.csv');
             a.click();
         }
     </script>
