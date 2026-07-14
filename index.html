@@ -2,20 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Strategy Engine - V16 Fixed</title>
+    <title>Trading Strategy Engine - V17 Complete</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
         .config-bar { background: #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 15px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 15px; }
         .card { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; }
-        .output { font-size: 0.75em; margin: 10px 0; color: #cbd5e1; background: #0f172a; padding: 8px; border-radius: 4px; }
-        .seq-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; font-size: 0.7em; margin-top: 10px; }
+        .output { font-size: 0.8em; margin: 10px 0; color: #cbd5e1; background: #0f172a; padding: 10px; border-radius: 4px; border: 1px solid #475569; }
+        .forensic-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; font-size: 0.7em; margin-top: 10px; }
         input, select { width: 100%; padding: 5px; margin: 2px 0; background: #0f172a; color: #fff; border: 1px solid #475569; }
         .export-btn { margin-top: 20px; padding: 15px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h2>Strategy Engine V16: Fixed & Forensic</h2>
+    <h2>Strategy Engine V17: Full Operational Mode</h2>
     <div class="config-bar">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.01" style="width:60px">
         MinSat: <input type="number" id="gMin" value="32.5" style="width:60px">
@@ -24,7 +24,7 @@
     </div>
 
     <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export Data</button>
+    <button class="export-btn" onclick="exportCSV()">Export Full Forensic Data</button>
 
     <script>
         function init() {
@@ -35,16 +35,17 @@
                         <input type="text" placeholder="Ticker" id="t-${i}">
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="Low" id="l-${i}" oninput="calc(${i})"></div>
-                        <div class="output" id="res-${i}">Entry/SL/TP levels will appear here...</div>
-                        <div class="seq-grid">
-                            <span>Entry(1):<input type="number" id="s-e-${i}"></span>
-                            <span>TP1:<input type="number" id="s-t1-${i}"></span>
-                            <span>TP2:<input type="number" id="s-t2-${i}"></span>
-                            <span>TP3:<input type="number" id="s-t3-${i}"></span>
-                            <span>Stop:<input type="number" id="s-s-${i}"></span>
-                            <span>Flatten:<input type="number" id="s-f-${i}"></span>
+                        <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
+                        <div class="output" id="res-${i}">Calculations...</div>
+                        <div class="forensic-grid">
+                            <span>E(1):<input type="number" id="s-e-${i}"></span><span>T1:<input type="number" id="s-t1-${i}"></span><span>T2:<input type="number" id="s-t2-${i}"></span>
+                            <span>T3:<input type="number" id="s-t3-${i}"></span><span>S:<input type="number" id="s-s-${i}"></span><span>F:<input type="number" id="s-f-${i}"></span>
                         </div>
-                        <input type="number" placeholder="Flatten Price ($)" id="ex-${i}">
+                        <div style="display:flex; gap:5px; margin-top:5px;">
+                            <input type="number" placeholder="Intra High" id="rh-${i}">
+                            <input type="number" placeholder="Intra Low" id="rl-${i}">
+                            <input type="number" placeholder="Flatten Price" id="ex-${i}">
+                        </div>
                     </div>
                 `;
             }
@@ -61,20 +62,26 @@
             const entry = high + ((high * 0.001) + (atr * 0.05 * gBuff));
             const sl = low - (atr * gBuff);
             const stopDist = entry - sl;
+            const sat = ((high - low) / atr) * 100;
+            const total = (document.getElementById(`m-${i}`).value === 'MT5') ? (bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist).toFixed(2) : Math.floor(bal * (parseFloat(document.getElementById('gRisk').value)/100) / stopDist);
             
-            document.getElementById(`res-${i}`).innerHTML = `E: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)}<br>TP1: ${(entry+stopDist).toFixed(2)} | TP2: ${(entry+(stopDist*2)).toFixed(2)} | TP3: ${(entry+(stopDist*3)).toFixed(2)}`;
+            document.getElementById(`res-${i}`).innerHTML = `
+                <b>Sat: ${sat.toFixed(1)}%</b> | Total: ${total}<br>
+                Body (70%): ${(total*0.7).toFixed(2)} | Runner (30%): ${(total*0.3).toFixed(2)}<br>
+                E: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)} | TP1: ${(entry+stopDist).toFixed(2)}
+            `;
         }
 
         function exportCSV() {
-            let csv = "Date,Ticker,Sequence_Path,FlattenPrice\n";
+            let csv = "Date,Ticker,VolRatio,TotalSize,Body,Runner,Path,IntraHigh,IntraLow,FlattenPrice\n";
             for(let i=0; i<8; i++) {
+                const total = document.getElementById(`res-${i}`).innerText.split("Total: ")[1]?.split("|")[0] || 0;
                 let path = [{event:'E',val:document.getElementById(`s-e-${i}`).value},{event:'T1',val:document.getElementById(`s-t1-${i}`).value},{event:'T2',val:document.getElementById(`s-t2-${i}`).value},{event:'T3',val:document.getElementById(`s-t3-${i}`).value},{event:'S',val:document.getElementById(`s-s-${i}`).value},{event:'F',val:document.getElementById(`s-f-${i}`).value}].filter(x=>x.val!=='').sort((a,b)=>a.val-b.val).map(x=>x.event).join('->');
-                csv += `${new Date().toLocaleDateString()},${document.getElementById(`t-${i}`).value},${path},${document.getElementById(`ex-${i}`).value}\n`;
+                csv += `${new Date().toLocaleDateString()},${document.getElementById(`t-${i}`).value},${((document.getElementById(`h-${i}`).value-document.getElementById(`l-${i}`).value)/document.getElementById(`a-${i}`).value*100).toFixed(1)},${total},${(total*0.7).toFixed(2)},${(total*0.3).toFixed(2)},${path},${document.getElementById(`rh-${i}`).value},${document.getElementById(`rl-${i}`).value},${document.getElementById(`ex-${i}`).value}\n`;
             }
             const blob = new Blob([csv], {type: 'text/csv'});
-            const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = 'Forensic_Trade_Log.csv'; a.click();
+            a.href = window.URL.createObjectURL(blob); a.download = 'Full_Forensic_Log.csv'; a.click();
         }
         window.onload = init;
     </script>
