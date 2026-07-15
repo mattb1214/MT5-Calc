@@ -2,21 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Engine V37</title>
+    <title>Trading Engine V38</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; }
         .card { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid #334155; }
+        .output { font-family: monospace; font-size: 0.85em; margin: 10px 0; background: #020617; padding: 10px; border-left: 4px solid var(--accent); }
+        .approved { color: #22c55e; font-weight: bold; }
+        .disqualified { color: #ef4444; font-weight: bold; }
         .seq-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; margin: 10px 0; }
         input, select, textarea { width: 100%; padding: 5px; margin: 2px 0; background: #334155; color: #fff; border: 1px solid #475569; }
         .export-btn { margin-top: 20px; padding: 15px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h2>Strategy Engine V37</h2>
+    <h2>Strategy Engine V38</h2>
     <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export Full Forensic CSV</button>
+    <button class="export-btn" onclick="exportCSV()">Export Corrected Forensic CSV</button>
 
     <script>
         function init() {
@@ -26,8 +29,9 @@
                     <div class="card">
                         <input type="text" placeholder="Ticker" id="t-${i}">
                         <select id="m-${i}"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
-                        <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}"><input type="number" placeholder="ATR" id="a-${i}"></div>
-                        <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-${i}"><input type="number" placeholder="15m Low" id="l-${i}"></div>
+                        <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
+                        <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="15m Low" id="l-${i}" oninput="calc(${i})"></div>
+                        <div class="output" id="res-${i}">Calculations...</div>
                         <div class="seq-row">
                             <input placeholder="E" id="s-e-${i}"><input placeholder="T1" id="s-t1-${i}"><input placeholder="T2" id="s-t2-${i}"><input placeholder="T3" id="s-t3-${i}"><input placeholder="S" id="s-s-${i}"><input placeholder="F" id="s-f-${i}">
                         </div>
@@ -37,6 +41,25 @@
                     </div>
                 `;
             }
+        }
+
+        function calc(i) {
+            const b = parseFloat(document.getElementById(`b-${i}`).value);
+            const a = parseFloat(document.getElementById(`a-${i}`).value);
+            const h = parseFloat(document.getElementById(`h-${i}`).value);
+            const l = parseFloat(document.getElementById(`l-${i}`).value);
+            if(!b || !a || !h || !l) return;
+            const entry = h + ((h * 0.001) + (a * 0.05 * 0.1));
+            const sl = l - (a * 0.1);
+            const dist = entry - sl;
+            const volRatio = ((h - l) / a) * 100;
+            const status = (volRatio >= 32.5 && volRatio <= 52.5) ? "APPROVED" : "DISQUALIFIED";
+            
+            document.getElementById(`res-${i}`).innerHTML = `
+                <b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${volRatio.toFixed(1)}%)</b><br>
+                E: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
+                TP1: ${(entry+dist).toFixed(2)} | TP2: ${(entry+dist*2).toFixed(2)} | TP3: ${(entry+dist*3).toFixed(2)}
+            `;
         }
 
         function exportCSV() {
@@ -49,15 +72,14 @@
                 const entry = h + ((h * 0.001) + (a * 0.05 * 0.1));
                 const sl = l - (a * 0.1);
                 const dist = entry - sl;
-                const volRatio = ((h - l) / a) * 100;
                 const flat = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
-                const exitType = document.getElementById(`exit-type-${i}`).value;
-                const risk = 0.0075;
-                const shares = (b * risk) / dist;
+                const shares = (b * 0.0075) / dist;
+                
+                // Actual Math: (Total PnL / Balance) * 100
                 const pnl = flat > 0 ? ((shares/3) * ((entry+dist) - entry)) + ((shares*(2/3)) * (flat - entry)) : 0;
                 const pct = b > 0 ? ((pnl / b) * 100).toFixed(2) : 0;
                 
-                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value},0.75%,${a},${h},${l},${volRatio.toFixed(2)}%,${entry.toFixed(2)},${sl.toFixed(2)},${(entry+dist).toFixed(2)},${(entry+dist*2).toFixed(2)},${(entry+dist*3).toFixed(2)},${document.getElementById(`ih-${i}`).value},${document.getElementById(`il-${i}`).value},${flat},${flat > entry ? "Win" : "Loss"},${exitType},${pct}%,${document.getElementById(`n1-${i}`).value}\n`;
+                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value},0.75%,${a},${h},${l},${(((h-l)/a)*100).toFixed(2)}%,${entry.toFixed(2)},${sl.toFixed(2)},${(entry+dist).toFixed(2)},${(entry+dist*2).toFixed(2)},${(entry+dist*3).toFixed(2)},${document.getElementById(`ih-${i}`).value},${document.getElementById(`il-${i}`).value},${flat},${flat >= entry ? "Win" : "Loss"},${document.getElementById(`exit-type-${i}`).value},${pct}%,${document.getElementById(`n1-${i}`).value}\n`;
             }
             const a = document.createElement('a');
             a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Forensic_Log.csv'; a.click();
