@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Engine V40</title>
+    <title>Trading Engine V41</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
@@ -10,20 +10,22 @@
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; }
         .card { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid #334155; }
         .output { font-family: monospace; font-size: 0.85em; margin: 10px 0; background: #020617; padding: 10px; border-left: 4px solid var(--accent); }
+        .approved { color: #22c55e; font-weight: bold; }
+        .disqualified { color: #ef4444; font-weight: bold; }
         .seq-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; margin: 10px 0; }
         input, select, textarea { width: 100%; padding: 5px; margin: 2px 0; background: #334155; color: #fff; border: 1px solid #475569; }
         .export-btn { margin-top: 20px; padding: 15px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h2>Strategy Engine V40</h2>
+    <h2>Strategy Engine V41</h2>
     <div class="dashboard">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
         Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
         Max Sat: <input type="number" id="gMax" value="52.5" style="width:60px">
     </div>
     <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export Deterministic Forensic CSV</button>
+    <button class="export-btn" onclick="exportCSV()">Export Full Forensic CSV</button>
 
     <script>
         function init() {
@@ -48,21 +50,23 @@
         }
 
         function calc(i) {
-            // UI Logic unchanged - preserves current functionality
             const b = parseFloat(document.getElementById(`b-${i}`).value);
             const a = parseFloat(document.getElementById(`a-${i}`).value);
             const h = parseFloat(document.getElementById(`h-${i}`).value);
             const l = parseFloat(document.getElementById(`l-${i}`).value);
-            const r = parseFloat(document.getElementById('gRisk').value)/100;
+            const minS = parseFloat(document.getElementById('gMin').value);
+            const maxS = parseFloat(document.getElementById('gMax').value);
             if(!b || !a || !h || !l) return;
             const e = h + (h*0.001 + a*0.05*0.1);
             const sl = l - (a*0.1);
             const d = e - sl;
-            document.getElementById(`res-${i}`).innerHTML = `E: ${e.toFixed(2)} | SL: ${sl.toFixed(2)}<br>TP1: ${(e+d).toFixed(2)} | TP2: ${(e+d*2).toFixed(2)} | TP3: ${(e+d*3).toFixed(2)}`;
+            const sat = ((h - l) / a) * 100;
+            const status = (sat >= minS && sat <= maxS) ? "APPROVED" : "DISQUALIFIED";
+            document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>E: ${e.toFixed(2)} | SL: ${sl.toFixed(2)}<br>TP1: ${(e+d).toFixed(2)} | TP2: ${(e+d*2).toFixed(2)} | TP3: ${(e+d*3).toFixed(2)}`;
         }
 
         function exportCSV() {
-            let csv = "Date,Ticker,Outcome,ExitType,GainLoss%,TradeNotes\n";
+            let csv = "Date,Brokerage,Ticker,Risk%,ATR,15mHigh,15mLow,VolRatio%,Entry,SL,TP1,TP2,TP3,IntraHigh,IntraLow,Flatten,WinLoss,ExitType,GainLoss%,TradeNotes\n";
             for(let i=0; i<8; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
                 const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
@@ -71,28 +75,25 @@
                 const r = parseFloat(document.getElementById('gRisk').value)/100;
                 const e = h + (h*0.001 + a*0.05*0.1);
                 const sl = l - (a*0.1);
-                const totalShares = (b * r) / (e - sl);
+                const dist = e - sl;
+                const totalShares = (b * r) / dist;
                 const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
                 const exitType = document.getElementById(`exit-type-${i}`).value;
+                const sat = ((h - l) / a) * 100;
 
                 let pnl = 0;
                 if(exitType === "Stopped" || exitType === "BE") {
                     pnl = totalShares * (flatP - e);
                 } else {
-                    let remainingShares = totalShares;
-                    // Check buttons T1, T2, T3
-                    ['t1', 't2', 't3'].forEach((t, idx) => {
+                    let remaining = totalShares;
+                    ['t1', 't2', 't3'].forEach(t => {
                         let price = parseFloat(document.getElementById(`s-${t}-${i}`).value);
-                        if(price > 0) {
-                            pnl += (totalShares/3) * (price - e);
-                            remainingShares -= (totalShares/3);
-                        }
+                        if(price > 0) { pnl += (totalShares/3) * (price - e); remaining -= (totalShares/3); }
                     });
-                    pnl += remainingShares * (flatP - e);
+                    pnl += remaining * (flatP - e);
                 }
-
                 const pct = ((pnl / b) * 100).toFixed(2);
-                csv += `${new Date().toLocaleDateString()},${document.getElementById(`t-${i}`).value},${flatP > e ? "Win" : "Loss"},${exitType},${pct}%,${document.getElementById(`n1-${i}`).value}\n`;
+                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+dist).toFixed(2)},${(e+dist*2).toFixed(2)},${(e+dist*3).toFixed(2)},${document.getElementById(`ih-${i}`).value},${document.getElementById(`il-${i}`).value},${flatP},${flatP >= e ? "Win" : "Loss"},${exitType},${pct}%,${document.getElementById(`n1-${i}`).value}\n`;
             }
             const a = document.createElement('a');
             a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Forensic_Log.csv'; a.click();
