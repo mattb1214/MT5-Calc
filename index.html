@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Engine - V22 Data Fix</title>
+    <title>Trading Engine - V23 Full Sizing & Data</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 15px; }
@@ -14,7 +14,7 @@
     </style>
 </head>
 <body>
-    <h2>Strategy Engine V22: Fixed Headers & Real-time Math</h2>
+    <h2>Strategy Engine V23: Restored Sizing & Data</h2>
     <div id="grid" class="grid"></div>
     <button class="export-btn" onclick="exportCSV()">Export Corrected Data Log</button>
 
@@ -28,7 +28,7 @@
                         <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="Low" id="l-${i}" oninput="calc(${i})"></div>
-                        <div class="output" id="res-${i}">Entry/SL/TP values will calculate here...</div>
+                        <div class="output" id="res-${i}">Calculations...</div>
                         <div class="forensic-grid">
                             <span>E(1):<input type="number" id="s-e-${i}"></span><span>T1:<input type="number" id="s-t1-${i}"></span><span>T2:<input type="number" id="s-t2-${i}"></span>
                             <span>T3:<input type="number" id="s-t3-${i}"></span><span>S:<input type="number" id="s-s-${i}"></span><span>F:<input type="number" id="s-f-${i}"></span>
@@ -56,32 +56,36 @@
             const dist = entry - sl;
             const sat = ((high - low) / atr) * 100;
             
-            // Display Results
+            const rawTotal = (bal * 0.0075) / dist;
+            const isMT5 = document.getElementById(`m-${i}`).value === 'MT5';
+            const total = isMT5 ? rawTotal.toFixed(2) : Math.round(rawTotal);
+            const body = isMT5 ? (total/3).toFixed(2) : Math.round(total/3);
+            const runner = isMT5 ? (total*2/3).toFixed(2) : Math.round(total*2/3);
+
             document.getElementById(`res-${i}`).innerHTML = `
                 <b>${sat >= 32.5 && sat <= 52.5 ? 'APPROVED' : 'DISQUALIFIED'} (${sat.toFixed(1)}%)</b><br>
-                E: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
-                TP1: ${(entry+dist).toFixed(2)} | TP2: ${(entry+dist*2).toFixed(2)} | TP3: ${(entry+dist*3).toFixed(2)}
+                Total: ${total} | Body: ${body} | Runner: ${runner}<br>
+                E: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)} | TP1: ${(entry+dist).toFixed(2)}
             `;
         }
 
         function exportCSV() {
             let csv = "Date,Brokerage,Ticker,Risk%,ATR,High,Low,VolRatio%,Entry,SL,TP1,TP2,TP3,IntraHigh,IntraLow,Flatten,Sequence,TradeNotes,DayNotes,SystemEdits\n";
             for(let i=0; i<8; i++) {
-                const bal = parseFloat(document.getElementById(`b-${i}`).value) || 0;
-                const atr = parseFloat(document.getElementById(`a-${i}`).value) || 0;
+                const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
+                const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
                 const h = parseFloat(document.getElementById(`h-${i}`).value) || 0;
                 const l = parseFloat(document.getElementById(`l-${i}`).value) || 0;
-                
-                const entry = h + ((h * 0.001) + (atr * 0.05 * 0.1));
-                const sl = l - (atr * 0.1);
+                const entry = h + ((h * 0.001) + (a * 0.05 * 0.1));
+                const sl = l - (a * 0.1);
                 const dist = entry - sl;
                 
                 let p = [{e:'E',v:document.getElementById(`s-e-${i}`).value},{e:'T1',v:document.getElementById(`s-t1-${i}`).value},{e:'T2',v:document.getElementById(`s-t2-${i}`).value},{e:'T3',v:document.getElementById(`s-t3-${i}`).value},{e:'S',v:document.getElementById(`s-s-${i}`).value},{e:'F',v:document.getElementById(`s-f-${i}`).value}].filter(x=>x.v!=='').sort((a,b)=>a.v-b.v).map(x=>x.e).join('->');
                 
-                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value},0.75,${atr},${h},${l},${((h-l)/atr*100).toFixed(1)},${entry.toFixed(2)},${sl.toFixed(2)},${(entry+dist).toFixed(2)},${(entry+dist*2).toFixed(2)},${(entry+dist*3).toFixed(2)},${document.getElementById(`rh-${i}`).value},${document.getElementById(`rl-${i}`).value},${document.getElementById(`ex-${i}`).value},${p},"${document.getElementById(`n1-${i}`).value}","${document.getElementById(`n2-${i}`).value}","${document.getElementById(`n3-${i}`).value}"\n`;
+                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value},0.75,${a},${h},${l},${((h-l)/a*100).toFixed(1)},${entry.toFixed(2)},${sl.toFixed(2)},${(entry+dist).toFixed(2)},${(entry+dist*2).toFixed(2)},${(entry+dist*3).toFixed(2)},${document.getElementById(`rh-${i}`).value},${document.getElementById(`rl-${i}`).value},${document.getElementById(`ex-${i}`).value},${p},"${document.getElementById(`n1-${i}`).value}","${document.getElementById(`n2-${i}`).value}","${document.getElementById(`n3-${i}`).value}"\n`;
             }
             const a = document.createElement('a');
-            a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Corrected_Data_Log.csv'; a.click();
+            a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Data_Log.csv'; a.click();
         }
         window.onload = init;
     </script>
