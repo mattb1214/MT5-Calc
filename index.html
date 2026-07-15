@@ -2,24 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Engine V26</title>
+    <title>Trading Engine V31</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+        .dashboard { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--accent); margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #334155; }
         .output { font-family: monospace; font-size: 0.85em; margin: 15px 0; background: #020617; padding: 12px; border-left: 4px solid var(--accent); }
-        .approved { color: #22c55e; font-weight: bold; }
-        .disqualified { color: #ef4444; font-weight: bold; }
-        .forensic-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+        .forensic-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; margin: 10px 0; }
         input, select, textarea { width: 100%; padding: 8px; margin: 4px 0; background: #334155; color: #fff; border: 1px solid #475569; border-radius: 4px; }
         .export-btn { margin-top: 30px; padding: 18px; background: linear-gradient(135deg, #4f46e5, #6366f1); color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h2>Strategy Engine V26</h2>
+    <h2>Strategy Engine V31</h2>
+    <div class="dashboard">
+        Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:70px">
+        Min Sat: <input type="number" id="gMin" value="32.5" style="width:70px">
+        Max Sat: <input type="number" id="gMax" value="52.5" style="width:70px">
+        SL Buff: <input type="number" id="gBuff" value="0.10" step="0.01" style="width:70px">
+    </div>
     <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export Analytics Log</button>
+    <button class="export-btn" onclick="exportCSV()">Export Final Analytics Log</button>
 
     <script>
         function init() {
@@ -33,15 +38,13 @@
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="Low" id="l-${i}" oninput="calc(${i})"></div>
                         <div class="output" id="res-${i}">Calculations...</div>
                         <div class="forensic-grid">
-                            <span>E(1):<input type="number" id="s-e-${i}"></span><span>T1:<input type="number" id="s-t1-${i}"></span><span>T2:<input type="number" id="s-t2-${i}"></span>
-                            <span>T3:<input type="number" id="s-t3-${i}"></span><span>S:<input type="number" id="s-s-${i}"></span><span>F:<input type="number" id="s-f-${i}"></span>
+                            <input placeholder="E" id="s-e-${i}"><input placeholder="T1" id="s-t1-${i}"><input placeholder="T2" id="s-t2-${i}"><input placeholder="T3" id="s-t3-${i}"><input placeholder="S" id="s-s-${i}"><input placeholder="F" id="s-f-${i}">
                         </div>
-                        <input type="number" placeholder="Intra High" id="rh-${i}">
-                        <input type="number" placeholder="Intra Low" id="rl-${i}">
-                        <input type="number" placeholder="Flatten Price" id="ex-${i}" oninput="calc(${i})">
+                        <div style="display:flex; gap:5px;">
+                            <input type="number" placeholder="Flatten Price" id="ex-${i}" oninput="calc(${i})">
+                            <select id="exit-type-${i}"><option value="Normal">Normal</option><option value="BE">BE (Break Even)</option><option value="Stopped Out">Stopped Out</option></select>
+                        </div>
                         <textarea placeholder="Trade Notes" id="n1-${i}"></textarea>
-                        <textarea placeholder="Day Notes" id="n2-${i}"></textarea>
-                        <textarea placeholder="System Edits" id="n3-${i}"></textarea>
                     </div>
                 `;
             }
@@ -52,48 +55,51 @@
             const atr = parseFloat(document.getElementById(`a-${i}`).value);
             const high = parseFloat(document.getElementById(`h-${i}`).value);
             const low = parseFloat(document.getElementById(`l-${i}`).value);
+            const risk = parseFloat(document.getElementById('gRisk').value) / 100;
+            const buff = parseFloat(document.getElementById('gBuff').value);
             if(!bal || !atr || !high || !low) return;
 
-            const entry = high + ((high * 0.001) + (atr * 0.05 * 0.1));
-            const sl = low - (atr * 0.1);
+            const entry = high + ((high * 0.001) + (atr * 0.05 * buff));
+            const sl = low - (atr * buff);
             const dist = entry - sl;
-            const sat = ((high - low) / atr) * 100;
+            const total = (bal * risk) / dist;
             const isMT5 = document.getElementById(`m-${i}`).value === 'MT5';
-            
-            const rawTotal = (bal * 0.0075) / dist;
-            const total = isMT5 ? rawTotal.toFixed(2) : Math.round(rawTotal);
-            const body = isMT5 ? (total/3).toFixed(2) : Math.round(total/3);
-            const runner = isMT5 ? (total*2/3).toFixed(2) : Math.round(total*2/3);
+            const count = isMT5 ? total.toFixed(2) : Math.round(total);
 
             document.getElementById(`res-${i}`).innerHTML = `
-                <b class="${sat >= 32.5 && sat <= 52.5 ? 'approved' : 'disqualified'}">${sat >= 32.5 && sat <= 52.5 ? 'APPROVED' : 'DISQUALIFIED'} (${sat.toFixed(1)}%)</b><br>
-                Total: ${total} | Body: ${body} | Runner: ${runner}<br>
-                E: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
-                TP1: ${(entry+dist).toFixed(2)} | TP2: ${(entry+dist*2).toFixed(2)} | TP3: ${(entry+dist*3).toFixed(2)}
+                Total: ${count} | Body: ${isMT5 ? (count/3).toFixed(2) : Math.round(count/3)} | Runner: ${isMT5 ? (count*2/3).toFixed(2) : Math.round(count*2/3)}<br>
+                E: ${entry.toFixed(2)} | SL: ${sl.toFixed(2)} | TP1: ${(entry+dist).toFixed(2)}
             `;
         }
 
         function exportCSV() {
-            let csv = "Date,Brokerage,Ticker,Risk%,ATR,High,Low,VolRatio%,Entry,SL,TP1,TP2,TP3,IntraHigh,IntraLow,Flatten,Sequence,Outcome,GainLoss%,TradeNotes,DayNotes,SystemEdits\n";
+            let csv = "Date,Ticker,Outcome,ExitType,GainLoss%,TradeNotes\n";
             for(let i=0; i<8; i++) {
+                const bal = parseFloat(document.getElementById(`b-${i}`).value) || 0;
                 const h = parseFloat(document.getElementById(`h-${i}`).value) || 0;
                 const l = parseFloat(document.getElementById(`l-${i}`).value) || 0;
                 const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
-                const entry = h + ((h * 0.001) + (a * 0.05 * 0.1));
-                const sl = l - (a * 0.1);
+                const risk = parseFloat(document.getElementById('gRisk').value) / 100;
+                const buff = parseFloat(document.getElementById('gBuff').value);
+                const entry = h + ((h * 0.001) + (a * 0.05 * buff));
+                const sl = l - (a * buff);
+                const tp1 = entry + (entry - sl);
                 const flatPrice = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
+                const exitType = document.getElementById(`exit-type-${i}`).value;
                 
-                let p = [{e:'E',v:document.getElementById(`s-e-${i}`).value},{e:'T1',v:document.getElementById(`s-t1-${i}`).value},{e:'T2',v:document.getElementById(`s-t2-${i}`).value},{e:'T3',v:document.getElementById(`s-t3-${i}`).value},{e:'S',v:document.getElementById(`s-s-${i}`).value},{e:'F',v:document.getElementById(`s-f-${i}`).value}].filter(x=>x.v!=='').sort((a,b)=>a.v-b.v).map(x=>x.e).join('->');
+                const totalShares = (bal * risk) / (entry - sl);
+                let p = [document.getElementById(`s-e-${i}`).value, document.getElementById(`s-t1-${i}`).value].filter(x=>x!=='');
                 
-                // Logic: Win if sequence includes T1/2/3, Loss if price dropped below entry at flatten or sequence includes S
-                const outcome = (p.includes('T1') || p.includes('T2') || p.includes('T3')) ? "Win" : ((p.includes('S') || (flatPrice > 0 && flatPrice < entry)) ? "Loss" : "No Trade");
-                // Calc GainLoss: If loss, normalized to risk (0.75), else actual move.
-                const pct = flatPrice > 0 ? (outcome === "Loss" ? -0.75 : (((flatPrice - entry) / entry) * 100)).toFixed(2) : 0;
+                let dollarPnL = p.includes(document.getElementById(`s-t1-${i}`).value) && document.getElementById(`s-t1-${i}`).value !== "" 
+                    ? ((totalShares/3) * (tp1 - entry)) + ((totalShares*(2/3)) * (flatPrice - entry))
+                    : (totalShares * (flatPrice - entry));
 
-                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value},0.75,${a},${h},${l},${((h-l)/a*100).toFixed(1)},${entry.toFixed(2)},${sl.toFixed(2)},${(entry+(entry-sl)).toFixed(2)},${(entry+(entry-sl)*2).toFixed(2)},${(entry+(entry-sl)*3).toFixed(2)},${document.getElementById(`rh-${i}`).value},${document.getElementById(`rl-${i}`).value},${flatPrice},${p},${outcome},${pct},"${document.getElementById(`n1-${i}`).value}","${document.getElementById(`n2-${i}`).value}","${document.getElementById(`n3-${i}`).value}"\n`;
+                const pct = bal > 0 ? ((dollarPnL / bal) * 100).toFixed(2) : 0;
+                const outcome = flatPrice > entry ? "Win" : (flatPrice > 0 ? "Loss" : "No Trade");
+                csv += `${new Date().toLocaleDateString()},${document.getElementById(`t-${i}`).value},${outcome},${exitType},${pct}%,${document.getElementById(`n1-${i}`).value}\n`;
             }
             const a = document.createElement('a');
-            a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Data_Log_V26.csv'; a.click();
+            a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Performance_Log.csv'; a.click();
         }
         window.onload = init;
     </script>
