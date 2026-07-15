@@ -71,3 +71,29 @@
                 TP1: ${(entry+dist).toFixed(2)} | TP2: ${(entry+dist*2).toFixed(2)} | TP3: ${(entry+dist*3).toFixed(2)}
             `;
         }
+
+        function exportCSV() {
+            let csv = "Date,Brokerage,Ticker,Risk%,ATR,15mHigh,15mLow,VolRatio%,Entry,SL,TP1,TP2,TP3,IntraHigh,IntraLow,Flatten,WinLoss,ExitType,GainLoss%,TradeNotes\n";
+            for(let i=0; i<8; i++) {
+                const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
+                const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
+                const h = parseFloat(document.getElementById(`h-${i}`).value) || 0;
+                const l = parseFloat(document.getElementById(`l-${i}`).value) || 0;
+                const risk = parseFloat(document.getElementById('gRisk').value) / 100;
+                const entry = h + ((h * 0.001) + (a * 0.05 * 0.1));
+                const sl = l - (a * 0.1);
+                const dist = entry - sl;
+                const flat = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
+                const shares = (b * risk) / dist;
+                const pnl = flat > 0 ? ((shares/3) * ((entry+dist) - entry)) + ((shares*(2/3)) * (flat - entry)) : 0;
+                const pct = b > 0 ? ((pnl / b) * 100).toFixed(2) : 0;
+                
+                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value},${(risk*100).toFixed(2)}%,${a},${h},${l},${(((h-l)/a)*100).toFixed(2)}%,${entry.toFixed(2)},${sl.toFixed(2)},${(entry+dist).toFixed(2)},${(entry+dist*2).toFixed(2)},${(entry+dist*3).toFixed(2)},${document.getElementById(`ih-${i}`).value},${document.getElementById(`il-${i}`).value},${flat},${flat >= entry ? "Win" : "Loss"},${document.getElementById(`exit-type-${i}`).value},${pct}%,${document.getElementById(`n1-${i}`).value}\n`;
+            }
+            const a = document.createElement('a');
+            a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Forensic_Log.csv'; a.click();
+        }
+        window.onload = init;
+    </script>
+</body>
+</html>
