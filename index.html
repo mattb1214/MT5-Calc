@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 45</title>
+    <title>Engine 46</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
@@ -18,7 +18,7 @@
     </style>
 </head>
 <body>
-    <h2>Engine 45</h2>
+    <h2>Engine 46</h2>
     <div class="dashboard">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
         Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
@@ -74,7 +74,6 @@
             const total = getUnitCount(b, r, d, brokerage);
             const unitLabel = (brokerage === "MT5") ? "Lots" : "Shares";
             
-            // Calculate split
             const body = (brokerage === "ETRADE") ? Math.floor(total / 3) : (total / 3).toFixed(2);
             const runner = (brokerage === "ETRADE") ? (total - body) : (total - parseFloat(body)).toFixed(2);
             
@@ -87,7 +86,8 @@
         }
 
         function exportCSV() {
-            let csv = "Date,Brokerage,Ticker,Risk%,ATR,15mHigh,15mLow,VolRatio%,Entry,SL,TP1,TP2,TP3,IntraHigh,IntraLow,Flatten,WinLoss,ExitType,GainLoss%,TradeNotes\n";
+            // Updated Header to include Balance and full Sequence
+            let csv = "Date,Brokerage,Ticker,Balance,Risk%,ATR,15mHigh,15mLow,VolRatio%,Entry,SL,TP1,TP2,TP3,SeqE,SeqT1,SeqT2,SeqT3,SeqS,SeqF,IntraHigh,IntraLow,Flatten,WinLoss,ExitType,GainLoss%,TradeNotes\n";
             for(let i=0; i<8; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
                 const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
@@ -102,6 +102,14 @@
                 const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
                 const exitType = document.getElementById(`exit-type-${i}`).value;
                 const sat = ((h - l) / a) * 100;
+                
+                // Captured Sequences
+                const se = document.getElementById(`s-e-${i}`).value;
+                const st1 = document.getElementById(`s-t1-${i}`).value;
+                const st2 = document.getElementById(`s-t2-${i}`).value;
+                const st3 = document.getElementById(`s-t3-${i}`).value;
+                const ss = document.getElementById(`s-s-${i}`).value;
+                const sf = document.getElementById(`s-f-${i}`).value;
 
                 let pnl = 0;
                 if(exitType === "Stopped" || exitType === "BE") {
@@ -115,7 +123,7 @@
                     pnl += remaining * (flatP - e);
                 }
                 const pct = ((pnl / b) * 100).toFixed(2);
-                csv += `${new Date().toLocaleDateString()},${brokerage},${document.getElementById(`t-${i}`).value},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+dist).toFixed(2)},${(e+dist*2).toFixed(2)},${(e+dist*3).toFixed(2)},${document.getElementById(`ih-${i}`).value},${document.getElementById(`il-${i}`).value},${flatP},${flatP >= e ? "Win" : "Loss"},${exitType},${pct}%,${document.getElementById(`n1-${i}`).value}\n`;
+                csv += `${new Date().toLocaleDateString()},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+dist).toFixed(2)},${(e+dist*2).toFixed(2)},${(e+dist*3).toFixed(2)},${se},${st1},${st2},${st3},${ss},${sf},${document.getElementById(`ih-${i}`).value},${document.getElementById(`il-${i}`).value},${flatP},${flatP >= e ? "Win" : "Loss"},${exitType},${pct}%,${document.getElementById(`n1-${i}`).value}\n`;
             }
             const a = document.createElement('a');
             a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Forensic_Log.csv'; a.click();
