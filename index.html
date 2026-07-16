@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 58</title>
+    <title>Engine 59</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
-        .dashboard { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--accent); margin-bottom: 20px; display: flex; gap: 15px; align-items: center; }
+        .dashboard { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--accent); margin-bottom: 20px; display: flex; gap: 15px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; }
         .card { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid #334155; }
         .output { font-family: monospace; font-size: 0.9em; margin: 10px 0; background: #020617; padding: 12px; border-left: 4px solid var(--accent); color: #e2e8f0; }
@@ -15,14 +15,14 @@
     </style>
 </head>
 <body>
-    <h2>Engine 58</h2>
+    <h2>Engine 59</h2>
     <div class="dashboard">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
         Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
         Max Sat: <input type="number" id="gMax" value="52.5" style="width:60px">
     </div>
     <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export Forensic CSV</button>
+    <button class="export-btn" onclick="exportCSV()">Export CSV</button>
 
     <script>
         function init() {
@@ -30,22 +30,20 @@
             for(let i=0; i<8; i++) {
                 grid.innerHTML += `
                     <div class="card">
-                        <div style="display:flex; gap:5px;">
-                            <input type="text" placeholder="Ticker" id="t-${i}">
-                            <select id="m-${i}" style="width:100px"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
-                        </div>
+                        <input type="text" placeholder="Ticker" id="t-${i}">
+                        <select id="m-${i}"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="15m Low" id="l-${i}" oninput="calc(${i})"></div>
                         <div class="output" id="res-${i}">Waiting for data...</div>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="Manual P/L $" id="mpl-${i}"><input type="number" placeholder="Max Price" id="mp-${i}"></div>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="IntraHigh" id="ih-${i}"><input type="number" placeholder="IntraLow" id="il-${i}"></div>
+                        <input type="number" placeholder="Flatten Price" id="fp-${i}">
                         <select id="et-${i}"><option value="Normal">Normal</option><option value="BE">BE</option><option value="Stopped">Stopped</option></select>
-                        <textarea placeholder="Notes" id="n1-${i}"></textarea>
+                        <textarea placeholder="Trade Notes" id="n1-${i}"></textarea>
                     </div>
                 `;
             }
         }
-
         function calc(i) {
             const b = parseFloat(document.getElementById(`b-${i}`).value);
             const a = parseFloat(document.getElementById(`a-${i}`).value);
@@ -58,19 +56,17 @@
             const status = (sat >= gMin && sat <= gMax) ? "APPROVED" : "DISQUALIFIED";
             document.getElementById(`res-${i}`).innerHTML = `<b>${status}</b> | Ratio: ${sat.toFixed(1)}%`;
         }
-
         function exportCSV() {
-            let csv = "Ticker,Brokerage,Balance,ManualPL$,MaxPrice,IntraHigh,IntraLow,GainLoss%,ExitType,Notes\n";
+            let csv = "Ticker,Brokerage,Balance,ManualPL$,MaxPrice,IntraHigh,IntraLow,FlattenPrice,ExitType,Notes\n";
             for(let i=0; i<8; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
                 const mpl = parseFloat(document.getElementById(`mpl-${i}`).value) || 0;
-                const gl = b !== 0 ? ((mpl / b) * 100).toFixed(2) + "%" : "0%";
-                csv += `${document.getElementById(`t-${i}`).value || 'N/A'},${document.getElementById(`m-${i}`).value},${b},${mpl},${document.getElementById(`mp-${i}`).value || 0},${document.getElementById(`ih-${i}`).value || 0},${document.getElementById(`il-${i}`).value || 0},${gl},${document.getElementById(`et-${i}`).value},"${document.getElementById(`n1-${i}`).value}"\n`;
+                csv += `${document.getElementById(`t-${i}`).value},${document.getElementById(`m-${i}`).value},${b},${mpl},${document.getElementById(`mp-${i}`).value},${document.getElementById(`ih-${i}`).value},${document.getElementById(`il-${i}`).value},${document.getElementById(`fp-${i}`).value},${document.getElementById(`et-${i}`).value},"${document.getElementById(`n1-${i}`).value}"\n`;
             }
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = 'Forensic_Log.csv'; a.click();
+            a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv);
+            a.download = 'Log.csv';
+            a.click();
         }
         window.onload = init;
     </script>
