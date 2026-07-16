@@ -2,27 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 64</title>
+    <title>Engine 42 - Stable Baseline</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
         .dashboard { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--accent); margin-bottom: 20px; display: flex; gap: 15px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; }
         .card { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid #334155; }
-        .output { font-family: monospace; font-size: 0.85em; margin: 10px 0; background: #020617; padding: 12px; border-left: 4px solid var(--accent); color: #e2e8f0; }
+        .output { font-family: monospace; font-size: 0.9em; margin: 10px 0; background: #020617; padding: 12px; border-left: 4px solid var(--accent); color: #e2e8f0; }
         input, select, textarea { width: 100%; padding: 6px; margin: 2px 0; background: #334155; color: #fff; border: 1px solid #475569; }
         .export-btn { margin-top: 20px; padding: 15px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h2>Engine 64</h2>
+    <h2>Engine 42</h2>
     <div class="dashboard">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
         Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
         Max Sat: <input type="number" id="gMax" value="52.5" style="width:60px">
     </div>
     <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export Full Forensic CSV</button>
+    <button class="export-btn" onclick="exportCSV()">Export CSV</button>
 
     <script>
         function init() {
@@ -52,15 +52,18 @@
             const risk = parseFloat(document.getElementById('gRisk').value) / 100;
             const m = document.getElementById(`m-${i}`).value;
             if(isNaN(b) || isNaN(a) || isNaN(h) || isNaN(l)) return;
+            
+            // Engine 42 Sizing Logic
             const stopDist = h - l;
-            const rawTotal = (b * risk) / stopDist;
-            const total = m === "MT5" ? (rawTotal / 100) : rawTotal;
-            const body = Math.floor(total * (1/3));
-            const runner = Math.ceil(total * (2/3));
+            const total = m === "MT5" ? ((b * risk) / (stopDist * 100)) : ((b * risk) / stopDist);
+            const body = Math.floor(total * 0.333);
+            const runner = Math.ceil(total * 0.666);
+            
             const sat = (stopDist / a) * 100;
             const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
             const tp1 = h + a; const tp2 = h + (a * 2); const tp3 = h + (a * 3);
-            document.getElementById(`res-${i}`).innerHTML = `<b>${status}</b> | Sat: ${sat.toFixed(1)}%<br>${m === "MT5" ? "Lots" : "Shares"}: Total ${total.toFixed(2)} | Body ${body} / Runner ${runner}<br>Entry: ${h} | SL: ${l}<br>TPs: ${tp1.toFixed(2)} / ${tp2.toFixed(2)} / ${tp3.toFixed(2)}`;
+            
+            document.getElementById(`res-${i}`).innerHTML = `<b>${status}</b> | Sat: ${sat.toFixed(1)}%<br>${m === "MT5" ? "Lots" : "Shares"}: Total ${total.toFixed(2)} | Body ${body} / Runner ${runner}<br>Entry: ${h} | SL: ${l}<br>TP1: ${tp1.toFixed(2)} | TP2: ${tp2.toFixed(2)} | TP3: ${tp3.toFixed(2)}`;
             return { total, body, runner, tp1, tp2, tp3 };
         }
         function exportCSV() {
@@ -72,8 +75,8 @@
                 const l = parseFloat(document.getElementById(`l-${i}`).value) || 0;
                 const mpl = parseFloat(document.getElementById(`mpl-${i}`).value) || 0;
                 const gl = b !== 0 ? ((mpl / b) * 100).toFixed(2) + "%" : "0%";
-                const vals = calc(i) || {total:0, body:0, runner:0, tp1:0, tp2:0, tp3:0};
-                csv += `${new Date().toLocaleDateString()},Active,${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value || 'N/A'},${b},${document.getElementById('gRisk').value},${a},${h},${l},${a > 0 ? ((h - l) / a * 100).toFixed(2) : 0},${h},${l},${vals.tp1.toFixed(2)},${vals.tp2.toFixed(2)},${vals.tp3.toFixed(2)},0,0,0,0,0,0,${document.getElementById(`fp-${i}`).value || 0},${document.getElementById(`mp-${i}`).value || 0},${mpl},${gl},${document.getElementById(`et-${i}`).value},"${document.getElementById(`n1-${i}`).value}"\n`;
+                const v = calc(i) || {tp1:0, tp2:0, tp3:0};
+                csv += `${new Date().toLocaleDateString()},Active,${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value || 'N/A'},${b},${document.getElementById('gRisk').value},${a},${h},${l},${a > 0 ? ((h - l) / a * 100).toFixed(2) : 0},${h},${l},${v.tp1.toFixed(2)},${v.tp2.toFixed(2)},${v.tp3.toFixed(2)},0,0,0,0,0,0,${document.getElementById(`fp-${i}`).value || 0},${document.getElementById(`mp-${i}`).value || 0},${mpl},${gl},${document.getElementById(`et-${i}`).value},"${document.getElementById(`n1-${i}`).value}"\n`;
             }
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
