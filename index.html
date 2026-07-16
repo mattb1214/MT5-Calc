@@ -62,6 +62,8 @@
             const l = parseFloat(document.getElementById(`l-${i}`).value);
             const brokerage = document.getElementById(`m-${i}`).value;
             const r = parseFloat(document.getElementById('gRisk').value)/100;
+            const minS = parseFloat(document.getElementById('gMin').value);
+            const maxS = parseFloat(document.getElementById('gMax').value);
             
             if(!b || !a || !h || !l) return;
             
@@ -69,10 +71,17 @@
             const sl = l - (a*0.1);
             const d = e - sl;
             const total = getUnitCount(b, r, d, brokerage);
+            const unitLabel = (brokerage === "MT5") ? "Lots" : "Shares";
+            
+            const body = (brokerage === "ETRADE") ? Math.floor(total / 3) : (total / 3).toFixed(2);
+            const runner = (brokerage === "ETRADE") ? (total - body) : (total - parseFloat(body)).toFixed(2);
+            
             const sat = ((h - l) / a) * 100;
-            const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
+            const status = (sat >= minS && sat <= maxS) ? "APPROVED" : "DISQUALIFIED";
 
-            document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>Total: ${total} ${(brokerage === "MT5") ? "Lots" : "Shares"}`;
+            document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
+            Total: ${total} ${unitLabel} | Body: ${body} | Runner: ${runner}<br>
+            E: ${e.toFixed(2)} | SL: ${sl.toFixed(2)}<br>TP1: ${(e+d).toFixed(2)} | TP2: ${(e+d*2).toFixed(2)} | TP3: ${(e+d*3).toFixed(2)}`;
         }
 
         function exportCSV() {
@@ -90,13 +99,10 @@
                 const totalUnits = parseFloat(getUnitCount(b, r, dist, brokerage));
                 const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
                 const maxP = parseFloat(document.getElementById(`mp-${i}`).value) || 0;
-                const sat = ((h - l) / a) * 100;
-                const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
-                
-                // Efficiency = (Exit - Entry) / (Max - Entry)
-                const eff = (maxP > e) ? (((flatP - e) / (maxP - e)) * 100).toFixed(2) : "N/A";
+                const status = ( ((h-l)/a)*100 >= parseFloat(document.getElementById('gMin').value) && ((h-l)/a)*100 <= parseFloat(document.getElementById('gMax').value) ) ? "APPROVED" : "DISQUALIFIED";
+                const eff = (maxP > e && flatP > e) ? (((flatP - e) / (maxP - e)) * 100).toFixed(2) : "N/A";
 
-                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+dist).toFixed(2)},${(e+dist*2).toFixed(2)},${(e+dist*3).toFixed(2)},${document.getElementById(`s-e-${i}`).value},${document.getElementById(`s-t1-${i}`).value},${document.getElementById(`s-t2-${i}`).value},${document.getElementById(`s-t3-${i}`).value},${document.getElementById(`s-s-${i}`).value},${document.getElementById(`s-f-${i}`).value},${flatP},${maxP},${eff}%,${((((flatP - e) * totalUnits) / b) * 100).toFixed(2)}%,${document.getElementById(`n1-${i}`).value}\n`;
+                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${(((h-l)/a)*100).toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+dist).toFixed(2)},${(e+dist*2).toFixed(2)},${(e+dist*3).toFixed(2)},${document.getElementById(`s-e-${i}`).value},${document.getElementById(`s-t1-${i}`).value},${document.getElementById(`s-t2-${i}`).value},${document.getElementById(`s-t3-${i}`).value},${document.getElementById(`s-s-${i}`).value},${document.getElementById(`s-f-${i}`).value},${flatP},${maxP},${eff}%,${((((flatP - e) * totalUnits) / b) * 100).toFixed(2)}%,${document.getElementById(`n1-${i}`).value}\n`;
             }
             const a = document.createElement('a');
             a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Forensic_Log.csv'; a.click();
