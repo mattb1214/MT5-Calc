@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 60 - Full Forensic Suite</title>
+    <title>Engine 63</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
@@ -15,7 +15,7 @@
     </style>
 </head>
 <body>
-    <h2>Engine 60</h2>
+    <h2>Engine 63</h2>
     <div class="dashboard">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
         Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
@@ -31,7 +31,7 @@
                 grid.innerHTML += `
                     <div class="card">
                         <input type="text" placeholder="Ticker" id="t-${i}">
-                        <select id="m-${i}"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
+                        <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="15m Low" id="l-${i}" oninput="calc(${i})"></div>
                         <div class="output" id="res-${i}">Waiting for data...</div>
@@ -55,19 +55,24 @@
             const sat = ((h - l) / a) * 100;
             const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
             const riskAmt = b * risk;
-            const shares = m === "MT5" ? Math.floor(riskAmt / a) : Math.floor(riskAmt / (a * 2));
-            const entry = h; 
-            const sl = l;
-            const tp1 = entry + (a * 1); const tp2 = entry + (a * 2); const tp3 = entry + (a * 3);
-            document.getElementById(`res-${i}`).innerHTML = `<b>${status}</b> | Sat: ${sat.toFixed(1)}%<br>Shares: ${shares} | Entry: ${entry}<br>SL: ${sl} | TPs: ${tp1.toFixed(2)} / ${tp2.toFixed(2)} / ${tp3.toFixed(2)}`;
+            const total = m === "MT5" ? (riskAmt / (a * 100)) : (riskAmt / a);
+            const body = Math.floor(total * (1/3));
+            const runner = Math.ceil(total * (2/3));
+            const label = m === "MT5" ? "Lots" : "Shares";
+            const tp1 = h + a; const tp2 = h + (a * 2); const tp3 = h + (a * 3);
+            document.getElementById(`res-${i}`).innerHTML = `<b>${status}</b> | Sat: ${sat.toFixed(1)}%<br>${label}: Total ${total.toFixed(2)} | Body ${body} / Runner ${runner}<br>Entry: ${h} | SL: ${l}<br>TPs: ${tp1.toFixed(2)} / ${tp2.toFixed(2)} / ${tp3.toFixed(2)}`;
+            return { tp1, tp2, tp3 };
         }
         function exportCSV() {
             let csv = "Date,Status,Brokerage,Ticker,Balance,Risk%,ATR,15mHigh,15mLow,VolRatio,Entry,StopLoss,TP1,TP2,TP3,SeqE,SeqT1,SeqT2,SeqT3,SeqS,SeqF,Flatten,MaxPrice,ManualPL,GainLoss%,ExitType,Notes\n";
             for(let i=0; i<8; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
+                const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
+                const h = parseFloat(document.getElementById(`h-${i}`).value) || 0;
                 const mpl = parseFloat(document.getElementById(`mpl-${i}`).value) || 0;
                 const gl = b !== 0 ? ((mpl / b) * 100).toFixed(2) + "%" : "0%";
-                csv += `${new Date().toLocaleDateString()},Active,${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value || 'N/A'},${b},${document.getElementById('gRisk').value},${document.getElementById(`a-${i}`).value || 0},${document.getElementById(`h-${i}`).value || 0},${document.getElementById(`l-${i}`).value || 0},${((parseFloat(document.getElementById(`h-${i}`).value) - parseFloat(document.getElementById(`l-${i}`).value)) / parseFloat(document.getElementById(`a-${i}`).value) * 100).toFixed(2)},${document.getElementById(`h-${i}`).value || 0},${document.getElementById(`l-${i}`).value || 0},0,0,0,0,0,0,0,0,0,${document.getElementById(`fp-${i}`).value || 0},${document.getElementById(`mp-${i}`).value || 0},${mpl},${gl},${document.getElementById(`et-${i}`).value},"${document.getElementById(`n1-${i}`).value}"\n`;
+                const tps = calc(i) || {tp1:0, tp2:0, tp3:0};
+                csv += `${new Date().toLocaleDateString()},Active,${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value || 'N/A'},${b},${document.getElementById('gRisk').value},${a},${h},${document.getElementById(`l-${i}`).value || 0},${a > 0 ? ((h - parseFloat(document.getElementById(`l-${i}`).value)) / a * 100).toFixed(2) : 0},${h},${document.getElementById(`l-${i}`).value || 0},${tps.tp1.toFixed(2)},${tps.tp2.toFixed(2)},${tps.tp3.toFixed(2)},0,0,0,0,0,0,${document.getElementById(`fp-${i}`).value || 0},${document.getElementById(`mp-${i}`).value || 0},${mpl},${gl},${document.getElementById(`et-${i}`).value},"${document.getElementById(`n1-${i}`).value}"\n`;
             }
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
