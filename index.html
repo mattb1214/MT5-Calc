@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 56 - Corrected</title>
+    <title>Engine 57</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
@@ -14,7 +14,7 @@
     </style>
 </head>
 <body>
-    <h2>Engine 56</h2>
+    <h2>Engine 57</h2>
     <div id="grid" class="grid"></div>
     <button class="export-btn" onclick="exportCSV()">Export Forensic CSV</button>
 
@@ -28,7 +28,8 @@
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="15m Low" id="l-${i}" oninput="calc(${i})"></div>
                         <div class="output" id="res-${i}">Waiting for data...</div>
-                        <input type="number" placeholder="Manual P/L $" id="mpl-${i}">
+                        <div style="display:flex; gap:5px;"><input type="number" placeholder="Manual P/L $" id="mpl-${i}"><input type="number" placeholder="Max Price" id="mp-${i}"></div>
+                        <div style="display:flex; gap:5px;"><input type="number" placeholder="IntraHigh" id="ih-${i}"><input type="number" placeholder="IntraLow" id="il-${i}"></div>
                         <select id="et-${i}"><option value="Normal">Normal</option><option value="BE">BE</option><option value="Stopped">Stopped</option></select>
                         <textarea placeholder="Notes" id="n1-${i}"></textarea>
                     </div>
@@ -48,12 +49,12 @@
         }
 
         function exportCSV() {
-            let csv = "Ticker,Balance,ManualPL$,GainLoss%,ExitType,Notes\n";
+            let csv = "Ticker,Balance,ManualPL$,MaxPrice,IntraHigh,IntraLow,GainLoss%,ExitType,Notes\n";
             for(let i=0; i<8; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
                 const mpl = parseFloat(document.getElementById(`mpl-${i}`).value) || 0;
                 const gl = b !== 0 ? ((mpl / b) * 100).toFixed(2) + "%" : "0%";
-                csv += `${document.getElementById(`t-${i}`).value || 'N/A'},${b},${mpl},${gl},${document.getElementById(`et-${i}`).value},"${document.getElementById(`n1-${i}`).value}"\n`;
+                csv += `${document.getElementById(`t-${i}`).value || 'N/A'},${b},${mpl},${document.getElementById(`mp-${i}`).value || 0},${document.getElementById(`ih-${i}`).value || 0},${document.getElementById(`il-${i}`).value || 0},${gl},${document.getElementById(`et-${i}`).value},"${document.getElementById(`n1-${i}`).value}"\n`;
             }
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
