@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 52</title>
+    <title>Engine 53</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
@@ -18,7 +18,7 @@
     </style>
 </head>
 <body>
-    <h2>Engine 52</h2>
+    <h2>Engine 53</h2>
     <div class="dashboard">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
         Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
@@ -62,8 +62,6 @@
             const e = h + (h * 0.001) + (a * 0.05);
             const sl = l - (a * 0.1);
             const stopDist = e - sl;
-            
-            // Back to the proven sizing formula
             const total = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
             
             const unitLabel = (brokerage === "MT5") ? "Lots" : "Shares";
@@ -94,10 +92,13 @@
                 const totalUnits = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
                 const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
                 const maxP = parseFloat(document.getElementById(`mp-${i}`).value) || 0;
-                const status = ( ((h-l)/a)*100 >= parseFloat(document.getElementById('gMin').value) && ((h-l)/a)*100 <= parseFloat(document.getElementById('gMax').value) ) ? "APPROVED" : "DISQUALIFIED";
+                const sat = ((h - l) / a) * 100;
+                const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
                 const eff = (maxP > e && flatP > e) ? (((flatP - e) / (maxP - e)) * 100).toFixed(2) : "N/A";
+                // CALCULATE ACTUAL P/L %
+                const gainLoss = (flatP > 0) ? (((flatP - e) * totalUnits) / b) * 100 : 0;
 
-                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${(((h-l)/a)*100).toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+stopDist).toFixed(2)},${(e+stopDist*2).toFixed(2)},${(e+stopDist*3).toFixed(2)},${document.getElementById(`s-e-${i}`).value},${document.getElementById(`s-t1-${i}`).value},${document.getElementById(`s-t2-${i}`).value},${document.getElementById(`s-t3-${i}`).value},${document.getElementById(`s-s-${i}`).value},${document.getElementById(`s-f-${i}`).value},${flatP},${maxP},${eff}%,${((((flatP - e) * totalUnits) / b) * 100).toFixed(2)}%,${document.getElementById(`n1-${i}`).value}\n`;
+                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+stopDist).toFixed(2)},${(e+stopDist*2).toFixed(2)},${(e+stopDist*3).toFixed(2)},${document.getElementById(`s-e-${i}`).value},${document.getElementById(`s-t1-${i}`).value},${document.getElementById(`s-t2-${i}`).value},${document.getElementById(`s-t3-${i}`).value},${document.getElementById(`s-s-${i}`).value},${document.getElementById(`s-f-${i}`).value},${flatP},${maxP},${eff}%,${gainLoss.toFixed(2)}%,${document.getElementById(`n1-${i}`).value}\n`;
             }
             const a = document.createElement('a');
             a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Forensic_Log.csv'; a.click();
