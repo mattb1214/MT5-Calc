@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 58</title>
+    <title>Engine 53 (Stable Logic)</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
@@ -15,14 +15,14 @@
     </style>
 </head>
 <body>
-    <h2>Engine 58</h2>
+    <h2>Engine 53 (Stable Logic)</h2>
     <div class="dashboard">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
         Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
         Max Sat: <input type="number" id="gMax" value="52.5" style="width:60px">
     </div>
     <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export 26-Column Forensic CSV</button>
+    <button class="export-btn" onclick="exportCSV()">Export CSV</button>
 
     <script>
         function init() {
@@ -54,6 +54,7 @@
             if(isNaN(b) || isNaN(a) || isNaN(h) || isNaN(l)) return;
             
             const stopDist = h - l;
+            // Engine 53 logic: exact sizing formula
             const total = m === "MT5" ? ((b * risk) / (stopDist * 100)) : ((b * risk) / stopDist);
             const body = Math.floor(total * 0.333);
             const runner = Math.ceil(total * 0.666);
