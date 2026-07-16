@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 49</title>
+    <title>Engine 50</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
@@ -18,7 +18,7 @@
     </style>
 </head>
 <body>
-    <h2>Engine 49</h2>
+    <h2>Engine 50</h2>
     <div class="dashboard">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
         Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
@@ -63,7 +63,6 @@
             const sl = l - (a * 0.1);
             const stopDist = e - sl;
             
-            // CORRECTED MATH: (Balance * Risk%) / (Entry - Stop)
             const riskAmount = b * r;
             const total = (brokerage === "ETRADE") ? Math.floor(riskAmount / stopDist) : parseFloat((riskAmount / stopDist).toFixed(2));
             
@@ -76,7 +75,8 @@
 
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
             Total: ${total} ${unitLabel} | Body: ${body} | Runner: ${runner}<br>
-            E: ${e.toFixed(3)} | SL: ${sl.toFixed(3)} | StopDist: ${stopDist.toFixed(3)}`;
+            E: ${e.toFixed(3)} | SL: ${sl.toFixed(3)}<br>
+            TP1: ${(e+stopDist).toFixed(2)} | TP2: ${(e+stopDist*2).toFixed(2)} | TP3: ${(e+stopDist*3).toFixed(2)}`;
         }
 
         function exportCSV() {
