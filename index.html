@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Engine V42</title>
+    <title>Engine 42.1</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
@@ -18,7 +18,7 @@
     </style>
 </head>
 <body>
-    <h2>Strategy Engine V42</h2>
+    <h2>Engine 42.1</h2>
     <div class="dashboard">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
         Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
@@ -28,13 +28,20 @@
     <button class="export-btn" onclick="exportCSV()">Export Full Forensic CSV</button>
 
     <script>
+        // Platform-aware unit calculation
+        function getUnitCount(b, r, d, brokerage) {
+            const raw = (b * r) / d;
+            // ETRADE: Shares (Rounded down) | MT5: Lots (Decimal)
+            return (brokerage === "ETRADE") ? Math.floor(raw) : (raw / 100).toFixed(2);
+        }
+
         function init() {
             const grid = document.getElementById('grid');
             for(let i=0; i<8; i++) {
                 grid.innerHTML += `
                     <div class="card">
                         <input type="text" placeholder="Ticker" id="t-${i}">
-                        <select id="m-${i}"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
+                        <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="15m Low" id="l-${i}" oninput="calc(${i})"></div>
                         <div class="output" id="res-${i}">Calculations...</div>
@@ -65,15 +72,13 @@
             const sl = l - (a*0.1);
             const d = e - sl;
             
-            // Logic: Use instance-specific balance and apply floor() to enforce risk cap
-            let total = Math.floor((b * r) / d);
-            
+            const total = getUnitCount(b, r, d, brokerage);
             const sat = ((h - l) / a) * 100;
             const status = (sat >= minS && sat <= maxS) ? "APPROVED" : "DISQUALIFIED";
             const unitLabel = (brokerage === "MT5") ? "Lots" : "Shares";
 
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
-            Total: ${total} ${unitLabel} | Body: ${Math.floor(total/3)} | Runner: ${Math.floor(total*2/3)}<br>
+            Total: ${total} ${unitLabel}<br>
             E: ${e.toFixed(2)} | SL: ${sl.toFixed(2)}<br>TP1: ${(e+d).toFixed(2)} | TP2: ${(e+d*2).toFixed(2)} | TP3: ${(e+d*3).toFixed(2)}`;
         }
 
@@ -85,27 +90,28 @@
                 const h = parseFloat(document.getElementById(`h-${i}`).value) || 0;
                 const l = parseFloat(document.getElementById(`l-${i}`).value) || 0;
                 const r = parseFloat(document.getElementById('gRisk').value)/100;
+                const brokerage = document.getElementById(`m-${i}`).value;
                 const e = h + (h*0.001 + a*0.05*0.1);
                 const sl = l - (a*0.1);
                 const dist = e - sl;
-                const totalShares = Math.floor((b * r) / dist);
+                const totalUnits = parseFloat(getUnitCount(b, r, dist, brokerage));
                 const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
                 const exitType = document.getElementById(`exit-type-${i}`).value;
                 const sat = ((h - l) / a) * 100;
 
                 let pnl = 0;
                 if(exitType === "Stopped" || exitType === "BE") {
-                    pnl = totalShares * (flatP - e);
+                    pnl = totalUnits * (flatP - e);
                 } else {
-                    let remaining = totalShares;
+                    let remaining = totalUnits;
                     ['t1', 't2', 't3'].forEach(t => {
                         let price = parseFloat(document.getElementById(`s-${t}-${i}`).value);
-                        if(price > 0) { pnl += (totalShares/3) * (price - e); remaining -= (totalShares/3); }
+                        if(price > 0) { pnl += (totalUnits/3) * (price - e); remaining -= (totalUnits/3); }
                     });
                     pnl += remaining * (flatP - e);
                 }
                 const pct = ((pnl / b) * 100).toFixed(2);
-                csv += `${new Date().toLocaleDateString()},${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+dist).toFixed(2)},${(e+dist*2).toFixed(2)},${(e+dist*3).toFixed(2)},${document.getElementById(`ih-${i}`).value},${document.getElementById(`il-${i}`).value},${flatP},${flatP >= e ? "Win" : "Loss"},${exitType},${pct}%,${document.getElementById(`n1-${i}`).value}\n`;
+                csv += `${new Date().toLocaleDateString()},${brokerage},${document.getElementById(`t-${i}`).value},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+dist).toFixed(2)},${(e+dist*2).toFixed(2)},${(e+dist*3).toFixed(2)},${document.getElementById(`ih-${i}`).value},${document.getElementById(`il-${i}`).value},${flatP},${flatP >= e ? "Win" : "Loss"},${exitType},${pct}%,${document.getElementById(`n1-${i}`).value}\n`;
             }
             const a = document.createElement('a');
             a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Forensic_Log.csv'; a.click();
