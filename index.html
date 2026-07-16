@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 52</title>
+    <title>Engine 60 (Modified)</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
@@ -18,14 +18,14 @@
     </style>
 </head>
 <body>
-    <h2>Engine 52</h2>
+    <h2>Engine 52 (Modified)</h2>
     <div class="dashboard">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
         Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
         Max Sat: <input type="number" id="gMax" value="52.5" style="width:60px">
     </div>
     <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export Full Forensic CSV</button>
+    <button class="export-btn" onclick="exportCSV()">Export 27-Column Forensic CSV</button>
 
     <script>
         function init() {
@@ -63,9 +63,7 @@
             const sl = l - (a * 0.1);
             const stopDist = e - sl;
             
-            // Back to the proven sizing formula
             const total = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
-            
             const unitLabel = (brokerage === "MT5") ? "Lots" : "Shares";
             const body = (brokerage === "ETRADE") ? Math.floor(total / 3) : (total / 3).toFixed(2);
             const runner = (brokerage === "ETRADE") ? (total - body) : (total - parseFloat(body)).toFixed(2);
@@ -80,7 +78,7 @@
         }
 
         function exportCSV() {
-            let csv = "Date,Status,Brokerage,Ticker,Balance,Risk%,ATR,15mHigh,15mLow,VolRatio%,Entry,SL,TP1,TP2,TP3,SeqE,SeqT1,SeqT2,SeqT3,SeqS,SeqF,Flatten,MaxPrice,Efficiency%,GainLoss%,TradeNotes\n";
+            let csv = "Date,Status,Brokerage,Ticker,Balance,Risk%,ATR,15mHigh,15mLow,VolRatio%,Entry,SL,TP1,TP2,TP3,SeqE,SeqT1,SeqT2,SeqT3,SeqS,SeqF,IntraHigh,Flatten,MaxPrice,Efficiency%,GainLoss%,TradeNotes\n";
             for(let i=0; i<8; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
                 const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
@@ -92,12 +90,13 @@
                 const sl = l - (a * 0.1);
                 const stopDist = e - sl;
                 const totalUnits = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
+                const ih = document.getElementById(`ih-${i}`).value || 0;
                 const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
                 const maxP = parseFloat(document.getElementById(`mp-${i}`).value) || 0;
                 const status = ( ((h-l)/a)*100 >= parseFloat(document.getElementById('gMin').value) && ((h-l)/a)*100 <= parseFloat(document.getElementById('gMax').value) ) ? "APPROVED" : "DISQUALIFIED";
                 const eff = (maxP > e && flatP > e) ? (((flatP - e) / (maxP - e)) * 100).toFixed(2) : "N/A";
 
-                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${(((h-l)/a)*100).toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+stopDist).toFixed(2)},${(e+stopDist*2).toFixed(2)},${(e+stopDist*3).toFixed(2)},${document.getElementById(`s-e-${i}`).value},${document.getElementById(`s-t1-${i}`).value},${document.getElementById(`s-t2-${i}`).value},${document.getElementById(`s-t3-${i}`).value},${document.getElementById(`s-s-${i}`).value},${document.getElementById(`s-f-${i}`).value},${flatP},${maxP},${eff}%,${((((flatP - e) * totalUnits) / b) * 100).toFixed(2)}%,${document.getElementById(`n1-${i}`).value}\n`;
+                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${(((h-l)/a)*100).toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+stopDist).toFixed(2)},${(e+stopDist*2).toFixed(2)},${(e+stopDist*3).toFixed(2)},${document.getElementById(`s-e-${i}`).value},${document.getElementById(`s-t1-${i}`).value},${document.getElementById(`s-t2-${i}`).value},${document.getElementById(`s-t3-${i}`).value},${document.getElementById(`s-s-${i}`).value},${document.getElementById(`s-f-${i}`).value},${ih},${flatP},${maxP},${eff}%,${((((flatP - e) * totalUnits) / b) * 100).toFixed(2)}%,${document.getElementById(`n1-${i}`).value}\n`;
             }
             const a = document.createElement('a');
             a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Forensic_Log.csv'; a.click();
