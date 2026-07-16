@@ -54,18 +54,26 @@
             const a = parseFloat(document.getElementById(`a-${i}`).value);
             const h = parseFloat(document.getElementById(`h-${i}`).value);
             const l = parseFloat(document.getElementById(`l-${i}`).value);
+            const brokerage = document.getElementById(`m-${i}`).value;
             const r = parseFloat(document.getElementById('gRisk').value)/100;
             const minS = parseFloat(document.getElementById('gMin').value);
             const maxS = parseFloat(document.getElementById('gMax').value);
+            
             if(!b || !a || !h || !l) return;
+            
             const e = h + (h*0.001 + a*0.05*0.1);
             const sl = l - (a*0.1);
             const d = e - sl;
-            const total = (b * r) / d;
+            
+            // Logic: Use instance-specific balance and apply floor() to enforce risk cap
+            let total = Math.floor((b * r) / d);
+            
             const sat = ((h - l) / a) * 100;
             const status = (sat >= minS && sat <= maxS) ? "APPROVED" : "DISQUALIFIED";
+            const unitLabel = (brokerage === "MT5") ? "Lots" : "Shares";
+
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
-            Total: ${Math.round(total)} | Body: ${Math.round(total/3)} | Runner: ${Math.round(total*2/3)}<br>
+            Total: ${total} ${unitLabel} | Body: ${Math.floor(total/3)} | Runner: ${Math.floor(total*2/3)}<br>
             E: ${e.toFixed(2)} | SL: ${sl.toFixed(2)}<br>TP1: ${(e+d).toFixed(2)} | TP2: ${(e+d*2).toFixed(2)} | TP3: ${(e+d*3).toFixed(2)}`;
         }
 
@@ -80,7 +88,7 @@
                 const e = h + (h*0.001 + a*0.05*0.1);
                 const sl = l - (a*0.1);
                 const dist = e - sl;
-                const totalShares = (b * r) / dist;
+                const totalShares = Math.floor((b * r) / dist);
                 const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
                 const exitType = document.getElementById(`exit-type-${i}`).value;
                 const sat = ((h - l) / a) * 100;
