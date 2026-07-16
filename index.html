@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 42.1</title>
+    <title>Engine 44</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
@@ -18,7 +18,7 @@
     </style>
 </head>
 <body>
-    <h2>Engine 42.1</h2>
+    <h2>Engine 44</h2>
     <div class="dashboard">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
         Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
@@ -28,11 +28,11 @@
     <button class="export-btn" onclick="exportCSV()">Export Full Forensic CSV</button>
 
     <script>
-        // Platform-aware unit calculation
+        // Updated unit calculation: MT5 uses decimal lots, ETRADE uses whole shares
         function getUnitCount(b, r, d, brokerage) {
-            const raw = (b * r) / d;
-            // ETRADE: Shares (Rounded down) | MT5: Lots (Decimal)
-            return (brokerage === "ETRADE") ? Math.floor(raw) : (raw / 100).toFixed(2);
+            const riskAmount = b * r;
+            const raw = riskAmount / d;
+            return (brokerage === "ETRADE") ? Math.floor(raw) : raw.toFixed(2);
         }
 
         function init() {
