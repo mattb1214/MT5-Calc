@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 53 (Stable Logic)</title>
+    <title>Engine 52</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
@@ -10,19 +10,22 @@
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; }
         .card { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid #334155; }
         .output { font-family: monospace; font-size: 0.9em; margin: 10px 0; background: #020617; padding: 12px; border-left: 4px solid var(--accent); color: #e2e8f0; }
+        .approved { color: #22c55e; font-weight: bold; }
+        .disqualified { color: #ef4444; font-weight: bold; }
+        .seq-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; margin: 10px 0; }
         input, select, textarea { width: 100%; padding: 6px; margin: 2px 0; background: #334155; color: #fff; border: 1px solid #475569; }
         .export-btn { margin-top: 20px; padding: 15px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h2>Engine 53 (Stable Logic)</h2>
+    <h2>Engine 52</h2>
     <div class="dashboard">
         Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
         Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
         Max Sat: <input type="number" id="gMax" value="52.5" style="width:60px">
     </div>
     <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export CSV</button>
+    <button class="export-btn" onclick="exportCSV()">Export Full Forensic CSV</button>
 
     <script>
         function init() {
@@ -34,54 +37,70 @@
                         <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
                         <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="15m Low" id="l-${i}" oninput="calc(${i})"></div>
-                        <div class="output" id="res-${i}">Waiting for data...</div>
-                        <div style="display:flex; gap:5px;"><input type="number" placeholder="Manual P/L" id="mpl-${i}"><input type="number" placeholder="Max Price" id="mp-${i}"></div>
-                        <div style="display:flex; gap:5px;"><input type="number" placeholder="IntraHigh" id="ih-${i}"><input type="number" placeholder="IntraLow" id="il-${i}"></div>
-                        <input type="number" placeholder="Flatten Price" id="fp-${i}">
-                        <select id="et-${i}"><option value="Normal">Normal</option><option value="BE">BE</option><option value="Stopped">Stopped</option></select>
-                        <textarea placeholder="Notes" id="n1-${i}"></textarea>
+                        <div class="output" id="res-${i}">Calculations...</div>
+                        <div class="seq-row">
+                            <input placeholder="E" id="s-e-${i}"><input placeholder="T1" id="s-t1-${i}"><input placeholder="T2" id="s-t2-${i}"><input placeholder="T3" id="s-t3-${i}"><input placeholder="S" id="s-s-${i}"><input placeholder="F" id="s-f-${i}">
+                        </div>
+                        <div style="display:flex; gap:5px;"><input type="number" placeholder="IntraHigh" id="ih-${i}"><input type="number" placeholder="IntraLow" id="il-${i}"><input type="number" placeholder="Flatten" id="ex-${i}"></div>
+                        <div style="display:flex; gap:5px;"><input type="number" placeholder="Max Price" id="mp-${i}"><select id="exit-type-${i}"><option value="Normal">Normal</option><option value="BE">BE</option><option value="Stopped">Stopped</option></select></div>
+                        <textarea placeholder="Trade Notes" id="n1-${i}"></textarea>
                     </div>
                 `;
             }
         }
+
         function calc(i) {
             const b = parseFloat(document.getElementById(`b-${i}`).value);
             const a = parseFloat(document.getElementById(`a-${i}`).value);
             const h = parseFloat(document.getElementById(`h-${i}`).value);
             const l = parseFloat(document.getElementById(`l-${i}`).value);
-            const risk = parseFloat(document.getElementById('gRisk').value) / 100;
-            const m = document.getElementById(`m-${i}`).value;
-            if(isNaN(b) || isNaN(a) || isNaN(h) || isNaN(l)) return;
+            const brokerage = document.getElementById(`m-${i}`).value;
+            const r = parseFloat(document.getElementById('gRisk').value)/100;
             
-            const stopDist = h - l;
-            // Engine 53 logic: exact sizing formula
-            const total = m === "MT5" ? ((b * risk) / (stopDist * 100)) : ((b * risk) / stopDist);
-            const body = Math.floor(total * 0.333);
-            const runner = Math.ceil(total * 0.666);
+            if(!b || !a || !h || !l) return;
             
-            const sat = (stopDist / a) * 100;
+            const e = h + (h * 0.001) + (a * 0.05);
+            const sl = l - (a * 0.1);
+            const stopDist = e - sl;
+            
+            // Back to the proven sizing formula
+            const total = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
+            
+            const unitLabel = (brokerage === "MT5") ? "Lots" : "Shares";
+            const body = (brokerage === "ETRADE") ? Math.floor(total / 3) : (total / 3).toFixed(2);
+            const runner = (brokerage === "ETRADE") ? (total - body) : (total - parseFloat(body)).toFixed(2);
+            
+            const sat = ((h - l) / a) * 100;
             const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
-            const tp1 = h + a; const tp2 = h + (a * 2); const tp3 = h + (a * 3);
-            
-            document.getElementById(`res-${i}`).innerHTML = `<b>${status}</b> | Sat: ${sat.toFixed(1)}%<br>${m === "MT5" ? "Lots" : "Shares"}: Total ${total.toFixed(2)} | Body ${body} / Runner ${runner}<br>Entry: ${h} | SL: ${l}<br>TP1: ${tp1.toFixed(2)} | TP2: ${tp2.toFixed(2)} | TP3: ${tp3.toFixed(2)}`;
-            return { total, body, runner, tp1, tp2, tp3 };
+
+            document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
+            Total: ${total} ${unitLabel} | Body: ${body} | Runner: ${runner}<br>
+            E: ${e.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
+            TP1: ${(e+stopDist).toFixed(2)} | TP2: ${(e+stopDist*2).toFixed(2)} | TP3: ${(e+stopDist*3).toFixed(2)}`;
         }
+
         function exportCSV() {
-            let csv = "Date,Status,Brokerage,Ticker,Balance,Risk%,ATR,15mHigh,15mLow,VolRatio,Entry,StopLoss,TP1,TP2,TP3,SeqE,SeqT1,SeqT2,SeqT3,SeqS,SeqF,Flatten,MaxPrice,ManualPL,GainLoss%,ExitType,Notes\n";
+            let csv = "Date,Status,Brokerage,Ticker,Balance,Risk%,ATR,15mHigh,15mLow,VolRatio%,Entry,SL,TP1,TP2,TP3,SeqE,SeqT1,SeqT2,SeqT3,SeqS,SeqF,Flatten,MaxPrice,Efficiency%,GainLoss%,TradeNotes\n";
             for(let i=0; i<8; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
                 const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
                 const h = parseFloat(document.getElementById(`h-${i}`).value) || 0;
                 const l = parseFloat(document.getElementById(`l-${i}`).value) || 0;
-                const mpl = parseFloat(document.getElementById(`mpl-${i}`).value) || 0;
-                const gl = b !== 0 ? ((mpl / b) * 100).toFixed(2) + "%" : "0%";
-                const v = calc(i) || {tp1:0, tp2:0, tp3:0};
-                csv += `${new Date().toLocaleDateString()},Active,${document.getElementById(`m-${i}`).value},${document.getElementById(`t-${i}`).value || 'N/A'},${b},${document.getElementById('gRisk').value},${a},${h},${l},${a > 0 ? ((h - l) / a * 100).toFixed(2) : 0},${h},${l},${v.tp1.toFixed(2)},${v.tp2.toFixed(2)},${v.tp3.toFixed(2)},0,0,0,0,0,0,${document.getElementById(`fp-${i}`).value || 0},${document.getElementById(`mp-${i}`).value || 0},${mpl},${gl},${document.getElementById(`et-${i}`).value},"${document.getElementById(`n1-${i}`).value}"\n`;
+                const r = parseFloat(document.getElementById('gRisk').value)/100;
+                const brokerage = document.getElementById(`m-${i}`).value;
+                const e = h + (h * 0.001) + (a * 0.05);
+                const sl = l - (a * 0.1);
+                const stopDist = e - sl;
+                const totalUnits = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
+                const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
+                const maxP = parseFloat(document.getElementById(`mp-${i}`).value) || 0;
+                const status = ( ((h-l)/a)*100 >= parseFloat(document.getElementById('gMin').value) && ((h-l)/a)*100 <= parseFloat(document.getElementById('gMax').value) ) ? "APPROVED" : "DISQUALIFIED";
+                const eff = (maxP > e && flatP > e) ? (((flatP - e) / (maxP - e)) * 100).toFixed(2) : "N/A";
+
+                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${(((h-l)/a)*100).toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+stopDist).toFixed(2)},${(e+stopDist*2).toFixed(2)},${(e+stopDist*3).toFixed(2)},${document.getElementById(`s-e-${i}`).value},${document.getElementById(`s-t1-${i}`).value},${document.getElementById(`s-t2-${i}`).value},${document.getElementById(`s-t3-${i}`).value},${document.getElementById(`s-s-${i}`).value},${document.getElementById(`s-f-${i}`).value},${flatP},${maxP},${eff}%,${((((flatP - e) * totalUnits) / b) * 100).toFixed(2)}%,${document.getElementById(`n1-${i}`).value}\n`;
             }
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = 'Forensic_Log.csv'; a.click();
+            a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Forensic_Log.csv'; a.click();
         }
         window.onload = init;
     </script>
