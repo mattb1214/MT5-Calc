@@ -25,7 +25,6 @@
     <script>
         function init() {
             const grid = document.getElementById('grid');
-            // Dashboard controls are now embedded compactly at the top of the single tile
             grid.innerHTML = `
                 <div class="card">
                     <div class="dashboard">
@@ -40,7 +39,10 @@
                     <div class="output" id="res-0">Calculations...</div>
                     <div style="display:flex; gap:5px;"><input type="number" placeholder="IntraHigh" id="ih-0"><input type="number" placeholder="IntraLow" id="il-0"><input type="number" placeholder="Flatten" id="ex-0"></div>
                     <div style="display:flex; gap:5px;"><input type="number" placeholder="Actual P/L" id="pl-0"><input type="number" placeholder="Max Price" id="mp-0"></div>
-                    <select id="exit-type-0"><option value="Normal">Normal</option><option value="BE">BE</option><option value="Stopped">Stopped</option></select>
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" placeholder="Offset % (e.g. 25)" id="off-0" oninput="calc(0)">
+                        <input type="text" placeholder="Custom Entry Value" id="off-res-0" readonly style="background:#1e293b; color:#94a3b8;">
+                    </div>
                     <textarea placeholder="Trade Notes" id="n1-0"></textarea>
                 </div>
             `;
@@ -68,6 +70,17 @@
             const sat = ((h - l) / a) * 100;
             const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
 
+            // Custom Offset Calculation (Percentage between Entry and Stop Loss)
+            const offsetInput = parseFloat(document.getElementById(`off-${i}`).value);
+            let customEntryText = "Custom Entry: N/A";
+            if (!isNaN(offsetInput)) {
+                // Formula: moves from Entry down toward Stop Loss based on percentage
+                const customE = e - (stopDist * (offsetInput / 100));
+                document.getElementById(`off-res-0`).value = customE.toFixed(2);
+            } else {
+                document.getElementById(`off-res-0`).value = "";
+            }
+
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
             Total: ${total} ${unitLabel} | Body: ${body} | Runner: ${runner}<br>
             E: ${e.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
@@ -76,7 +89,6 @@
 
         function exportCSV() {
             let csv = "Date,Status,Brokerage,Ticker,Balance,Risk%,ATR,15mHigh,15mLow,VolRatio%,Entry,SL,TP1,TP2,TP3,IntraHigh,IntraLow,Flatten,MaxPrice,ActualPL,Efficiency%,GainLoss%,TradeNotes\n";
-            // Loop runs for the single active tile (index 0)
             for(let i=0; i<1; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
                 const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
