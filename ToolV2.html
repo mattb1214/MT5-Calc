@@ -43,6 +43,7 @@
                         <input type="number" placeholder="Offset % (e.g. 25)" id="off-0" oninput="calc(0)">
                         <input type="text" placeholder="Custom Entry Value" id="off-res-0" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
+                    <div class="output" id="off-metrics-0" style="border-left-color: #22c55e; margin-top: 5px;">Custom Entry Adjustments: Enter Offset %</div>
                     <textarea placeholder="Trade Notes" id="n1-0"></textarea>
                 </div>
             `;
@@ -70,15 +71,27 @@
             const sat = ((h - l) / a) * 100;
             const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
 
-            // Custom Offset Calculation (Percentage between Entry and Stop Loss)
+            // Custom Offset & Resized Risk Calculations
             const offsetInput = parseFloat(document.getElementById(`off-${i}`).value);
-            let customEntryText = "Custom Entry: N/A";
             if (!isNaN(offsetInput)) {
-                // Formula: moves from Entry down toward Stop Loss based on percentage
                 const customE = e - (stopDist * (offsetInput / 100));
                 document.getElementById(`off-res-0`).value = customE.toFixed(2);
+
+                const customStopDist = customE - sl;
+                if (customStopDist > 0) {
+                    const adjTotal = (brokerage === "ETRADE") ? Math.floor((b * r) / customStopDist) : parseFloat(((b * r) / customStopDist).toFixed(2));
+                    const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : (adjTotal / 3).toFixed(2);
+                    const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : (adjTotal - parseFloat(adjBody)).toFixed(2);
+
+                    document.getElementById(`off-metrics-0`).innerHTML = `<b>Custom Entry Metrics (Equal Risk Re-sized):</b><br>
+                    New Dist: ${customStopDist.toFixed(2)} | Adj Total: ${adjTotal} ${unitLabel}<br>
+                    Adj Body: ${adjBody} | Adj Runner: ${adjRunner}`;
+                } else {
+                    document.getElementById(`off-metrics-0`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry must remain above stop loss.</span>`;
+                }
             } else {
                 document.getElementById(`off-res-0`).value = "";
+                document.getElementById(`off-metrics-0`).innerHTML = `Custom Entry Adjustments: Enter Offset %`;
             }
 
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
