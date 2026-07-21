@@ -37,8 +37,10 @@
                     <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-0" oninput="calc(0)"><input type="number" placeholder="ATR" id="a-0" oninput="calc(0)"></div>
                     <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-0" oninput="calc(0)"><input type="number" placeholder="15m Low" id="l-0" oninput="calc(0)"></div>
                     <div class="output" id="res-0">Calculations...</div>
-                    <div style="display:flex; gap:5px;"><input type="number" placeholder="IntraHigh" id="ih-0"><input type="number" placeholder="IntraLow" id="il-0"><input type="number" placeholder="Flatten" id="ex-0"></div>
-                    <div style="display:flex; gap:5px;"><input type="number" placeholder="Actual P/L" id="pl-0"><input type="number" placeholder="Max Price" id="mp-0"></div>
+                    
+                    <!-- Placeholder field replacing the removed forensic metrics row -->
+                    <input type="text" placeholder="Future Logic Placeholder" id="placeholder-0">
+
                     <div style="display:flex; gap:5px;">
                         <input type="number" placeholder="Offset % (e.g. 25)" id="off-0" oninput="calc(0)">
                         <input type="text" placeholder="Custom Entry Value" id="off-res-0" readonly style="background:#1e293b; color:#94a3b8;">
@@ -71,7 +73,6 @@
             const sat = ((h - l) / a) * 100;
             const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
 
-            // Custom Offset & Resized Risk Calculations
             const offsetInput = parseFloat(document.getElementById(`off-${i}`).value);
             if (!isNaN(offsetInput)) {
                 const customE = e - (stopDist * (offsetInput / 100));
@@ -114,15 +115,16 @@
                 const stopDist = e - sl;
                 const totalUnits = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
                 
-                const ih = document.getElementById(`ih-${i}`).value || 0;
-                const il = document.getElementById(`il-${i}`).value || 0;
-                const pl = document.getElementById(`pl-${i}`).value || 0;
-                const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
-                const maxP = parseFloat(document.getElementById(`mp-${i}`).value) || 0;
+                // Fields removed from UI; exporting defaults/zeros to maintain CSV structure
+                const ih = 0;
+                const il = 0;
+                const pl = 0;
+                const flatP = 0;
+                const maxP = 0;
                 const status = ( ((h-l)/a)*100 >= parseFloat(document.getElementById('gMin').value) && ((h-l)/a)*100 <= parseFloat(document.getElementById('gMax').value) ) ? "APPROVED" : "DISQUALIFIED";
                 
-                const eff = (maxP > e && flatP > e) ? (((flatP - e) / (maxP - e)) * 100).toFixed(2) : "N/A";
-                const gl = (flatP === 0) ? "0%" : (((flatP - e) * totalUnits) / b * 100).toFixed(2) + "%";
+                const eff = "N/A";
+                const gl = "0%";
 
                 csv += `${new Date().toLocaleDateString()},${status},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${(((h-l)/a)*100).toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+stopDist).toFixed(2)},${(e+stopDist*2).toFixed(2)},${(e+stopDist*3).toFixed(2)},${ih},${il},${flatP},${maxP},${pl},${eff}%,${gl},"${document.getElementById(`n1-${i}`).value}"\n`;
             }
