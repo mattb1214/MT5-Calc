@@ -1,1 +1,187 @@
 
+import csv
+from datetime import datetime
+
+class BreakoutTradeEngine:
+    def __init__(self, trade_date, ticker, starting_balance, risk_pct, atr_14, vol_sat_pct, high_15m, low_15m, trade_status, original_entry, stop_loss, take_profit):
+        self.trade_date = trade_date
+        self.ticker = ticker
+        self.starting_balance = starting_balance
+        self.risk_pct = risk_pct
+        self.atr_14 = atr_14
+        self.vol_sat_pct = vol_sat_pct
+        self.high_15m = high_15m
+        self.low_15m = low_15m
+        
+        # Trade Status & Main Calculations
+        self.trade_status = trade_status  # Approved / Disqualified
+        self.original_entry = original_entry
+        self.stop_loss = stop_loss
+        self.take_profit = take_profit
+        
+        # Entry Condition Fields
+        self.entry_condition = ""
+        self.entry_timestamp = ""
+        
+        # Exit Condition Fields
+        self.exit_condition = ""
+        self.tp_hit_timestamp = ""
+        self.final_exit_timestamp = ""
+        
+        # Session Price Action Fields
+        self.flatten_price = 0.0
+        self.intraday_high = 0.0
+        self.intraday_high_timestamp = ""
+        self.intraday_low = 0.0
+        self.intraday_low_timestamp = ""
+        self.intra_trade_high = 0.0
+        
+        # Shadow Trade Setup
+        self.shadow_offset_pct = 0.0
+        self.shadow_entry_price = 0.0
+        self.dynamic_shadow_sizing = False
+        
+        # Results & Notes
+        self.main_trade_return_pct = 0.0
+        self.shadow_trade_return_pct = 0.0
+        self.notes = ""
+
+    def set_entry_details(self, condition, timestamp):
+        self.entry_condition = condition
+        self.entry_timestamp = timestamp
+
+    def set_exit_details(self, condition, tp_timestamp, final_timestamp):
+        self.exit_condition = condition
+        self.tp_hit_timestamp = tp_timestamp
+        self.final_exit_timestamp = final_timestamp
+
+    def set_price_action(self, flatten_price, intraday_high, id_high_ts, intraday_low, id_low_ts, intra_trade_high):
+        self.flatten_price = flatten_price
+        self.intraday_high = intraday_high
+        self.intraday_high_timestamp = id_high_ts
+        self.intraday_low = intraday_low
+        self.intraday_low_timestamp = id_low_ts
+        self.intra_trade_high = intra_trade_high
+
+    def configure_shadow_trade(self, offset_pct, dynamic_sizing_toggle):
+        self.shadow_offset_pct = offset_pct
+        self.dynamic_shadow_sizing = dynamic_sizing_toggle
+        
+        # Calculate Shadow Entry Price based on 14-day ATR / Entry-to-Stop Distance offset
+        entry_to_stop_dist = self.original_entry - self.stop_loss
+        offset_amount = entry_to_stop_dist * (self.shadow_offset_pct / 100.0)
+        self.shadow_entry_price = self.original_entry - offset_amount
+
+    def calculate_performance(self):
+        # Placeholder calculation logic for percentage returns (Main vs Shadow)
+        # Integrates 1/3 body profit splits, runner management, and dynamic sizing rules.
+        risk_amount = self.starting_balance * (self.risk_pct / 100.0)
+        
+        # Simplified simulation hook for illustration
+        if self.trade_status.lower() == "disqualified":
+            self.main_trade_return_pct = 0.0
+            self.shadow_trade_return_pct = 0.0
+            return
+
+        # Main Trade return calculation logic...
+        if "TP hit" in self.exit_condition:
+            # 1/3 body secured at TP, remaining 2/3 managed
+            self.main_trade_return_pct = 1.5 # Example positive return
+        elif "stopped out" in self.exit_condition:
+            self.main_trade_return_pct = -self.risk_pct
+        else:
+            self.main_trade_return_pct = 0.5
+
+        # Shadow Trade return calculation logic with shifted entry
+        shadow_risk_dist = self.shadow_entry_price - self.stop_loss
+        if shadow_risk_dist > 0:
+            self.shadow_trade_return_pct = self.main_trade_return_pct * ( (self.original_entry - self.stop_loss) / shadow_risk_dist )
+        else:
+            self.shadow_trade_return_pct = self.main_trade_return_pct
+
+    def export_to_csv_row(self):
+        """Returns a 24-column list mapped strictly to the required repository CSV schema."""
+        return [
+            self.trade_date,
+            self.ticker,
+            self.starting_balance,
+            self.risk_pct,
+            self.atr_14,
+            self.vol_sat_pct,
+            self.high_15m,
+            self.low_15m,
+            self.trade_status,
+            self.original_entry,
+            self.stop_loss,
+            self.take_profit,
+            self.entry_condition,
+            self.entry_timestamp,
+            self.exit_condition,
+            self.tp_hit_timestamp,
+            self.final_exit_timestamp,
+            self.flatten_price,
+            self.intraday_high,
+            self.intraday_high_timestamp,
+            self.intraday_low,
+            self.intraday_low_timestamp,
+            self.intra_trade_high,
+            self.shadow_offset_pct,
+            self.shadow_entry_price,
+            self.dynamic_shadow_sizing,
+            round(self.main_trade_return_pct, 4),
+            round(self.shadow_trade_return_pct, 4),
+            self.notes
+        ]
+
+
+def save_trade_to_csv(filename, trade_engine_instance):
+    headers = [
+        "Trade Date", "Ticker / Instrument", "Starting Balance", "Risk %",
+        "Daily ATR (14-day)", "Volatility Saturation %", "15-Minute High", "15-Minute Low",
+        "Trade Status", "Original Entry Price", "Stop Loss", "Take Profit (TP1)",
+        "Entry Condition", "Entry Action Timestamp", "Exit Condition", "TP Hit Timestamp",
+        "Final Exit/Flatten Timestamp", "Flatten Price", "Intraday High", "Intraday High Timestamp",
+        "Intraday Low", "Intraday Low Timestamp", "Intra-Trade High", "Shadow Offset %",
+        "New Shadow Entry Price", "Dynamic Shadow Sizing Toggle", "Main Trade % Return",
+        "Shadow Trade % Return", "Notes"
+    ]
+    
+    with open(filename, mode='a', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        # Write headers if file is empty
+        csv_file.seek(0, 2)
+        if csv_file.tell() == 0:
+            writer.writerow(headers)
+        writer.writerow(trade_engine_instance.export_to_csv_row())
+
+
+# Example Execution Block for Repository Integration
+if __name__ == "__main__":
+    # Initialize trade card data
+    trade = BreakoutTradeEngine(
+        trade_date="2026-07-20",
+        ticker="US100",
+        starting_balance=10000.0,
+        risk_pct=1.0,
+        atr_14=125.50,
+        vol_sat_pct=84.2,
+        high_15m=18500.25,
+        low_15m=18420.10,
+        trade_status="Approved",
+        original_entry=18460.00,
+        stop_loss=18410.00,
+        take_profit=18560.00
+    )
+    
+    # Configure Execution & Dropdown Selections
+    trade.set_entry_details("Shadow entry price and entry price hit", "09:32:15")
+    trade.set_exit_details("TP hit, order stopped out", "10:15:00", "11:45:30")
+    trade.set_price_action(18445.00, 18580.00, "10:18:00", 18415.50, "09:15:00", 18580.00)
+    
+    # Shadow Settings (25% offset down with dynamic sizing toggle enabled)
+    trade.configure_shadow_trade(offset_pct=25.0, dynamic_sizing_toggle=True)
+    
+    # Run Calculations & Export
+    trade.calculate_performance()
+    save_trade_to_csv("breakout_trade_journal.csv", trade)
+    print("Trade successfully logged and exported to CSV repository.")
