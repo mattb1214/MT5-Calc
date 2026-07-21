@@ -38,7 +38,6 @@
                     <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-0" oninput="calc(0)"><input type="number" placeholder="15m Low" id="l-0" oninput="calc(0)"></div>
                     <div class="output" id="res-0">Calculations...</div>
                     
-                    <!-- Placeholder field replacing the removed forensic metrics row -->
                     <input type="text" placeholder="Future Logic Placeholder" id="placeholder-0">
 
                     <div style="display:flex; gap:5px;">
@@ -85,7 +84,7 @@
                     const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : (adjTotal - parseFloat(adjBody)).toFixed(2);
 
                     document.getElementById(`off-metrics-0`).innerHTML = `<b>Custom Entry Metrics (Equal Risk Re-sized):</b><br>
-                    New Dist: ${customStopDist.toFixed(2)} | Adj Total: ${adjTotal} ${unitLabel}<br>
+                    New Entry: ${customE.toFixed(2)} | Adj Total: ${adjTotal} ${unitLabel}<br>
                     Adj Body: ${adjBody} | Adj Runner: ${adjRunner}`;
                 } else {
                     document.getElementById(`off-metrics-0`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry must remain above stop loss.</span>`;
@@ -115,7 +114,6 @@
                 const stopDist = e - sl;
                 const totalUnits = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
                 
-                // Fields removed from UI; exporting defaults/zeros to maintain CSV structure
                 const ih = 0;
                 const il = 0;
                 const pl = 0;
