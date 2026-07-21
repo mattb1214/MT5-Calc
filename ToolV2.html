@@ -1,141 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breakout Strategy Trade Engine</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h1, h2 { color: #1a202c; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 25px; }
+        .section { margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px; }
+        .field-group { display: flex; flex-direction: column; }
+        label { font-size: 13px; font-weight: 600; margin-bottom: 5px; color: #4a5568; }
+        input, select, textarea { padding: 8px 10px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 14px; }
+        textarea { resize: vertical; height: 60px; grid-column: span 100%; }
+        .results-box { background: #ebf8ff; border: 1px solid #bee3f8; padding: 15px; border-radius: 6px; margin-top: 20px; display: flex; justify-content: space-around; text-align: center; }
+        .result-item h3 { margin: 0 0 5px 0; font-size: 14px; color: #2b6cb0; }
+        .result-item p { margin: 0; font-size: 20px; font-weight: bold; color: #2c5282; }
+        button { background-color: #3182ce; color: white; border: none; padding: 12px 20px; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 20px; width: 100%; }
+        button:hover { background-color: #2b6cb0; }
+    </style>
+</head>
+<body>
 
-import csv
-from datetime import datetime
+<div class="container">
+    <h1>Breakout Strategy Trade Engine</h1>
+    
+    <!-- Section 1: Trade Identification & Core Inputs -->
+    <h2>1. Trade Identification & Core Inputs</h2>
+    <div class="grid">
+        <div class="field-group">
+            <label>Trade Date</label>
+            <input type="date" id="tradeDate" value="2026-07-21">
+        </div>
+        <div class="field-group">
+            <label>Ticker / Instrument</label>
+            <input type="text" id="ticker" value="US100">
+        </div>
+        <div class="field-group">
+            <label>Starting Balance ($)</label>
+            <input type="number" id="startingBalance" value="10000">
+        </div>
+        <div class="field-group">
+            <label>Risk %</label>
+            <input type="number" step="0.1" id="riskPct" value="1.0">
+        </div>
+    </div>
 
-class BreakoutTradeEngine:
-    def __init__(self, trade_date, ticker, starting_balance, risk_pct, atr_14, vol_sat_pct, high_15m, low_15m, trade_status, original_entry, stop_loss, take_profit):
-        self.trade_date = trade_date
-        self.ticker = ticker
-        self.starting_balance = starting_balance
-        self.risk_pct = risk_pct
-        self.atr_14 = atr_14
-        self.vol_sat_pct = vol_sat_pct
-        self.high_15m = high_15m
-        self.low_15m = low_15m
-        
-        # Trade Status & Main Calculations
-        self.trade_status = trade_status  # Approved / Disqualified
-        self.original_entry = original_entry
-        self.stop_loss = stop_loss
-        self.take_profit = take_profit
-        
-        # Entry Condition Fields
-        self.entry_condition = ""
-        self.entry_timestamp = ""
-        
-        # Exit Condition Fields
-        self.exit_condition = ""
-        self.tp_hit_timestamp = ""
-        self.final_exit_timestamp = ""
-        
-        # Session Price Action Fields
-        self.flatten_price = 0.0
-        self.intraday_high = 0.0
-        self.intraday_high_timestamp = ""
-        self.intraday_low = 0.0
-        self.intraday_low_timestamp = ""
-        self.intra_trade_high = 0.0
-        
-        # Shadow Trade Setup
-        self.shadow_offset_pct = 0.0
-        self.shadow_entry_price = 0.0
-        self.dynamic_shadow_sizing = False
-        
-        # Results & Notes
-        self.main_trade_return_pct = 0.0
-        self.shadow_trade_return_pct = 0.0
-        self.notes = ""
+    <!-- Section 2: Volatility & Key Price Levels -->
+    <h2>2. Volatility & Key Price Levels</h2>
+    <div class="grid">
+        <div class="field-group">
+            <label>Daily ATR (14-day)</label>
+            <input type="number" step="0.01" id="atr14" value="125.50">
+        </div>
+        <div class="field-group">
+            <label>Volatility Saturation %</label>
+            <input type="number" step="0.1" id="volSatPct" value="84.2">
+        </div>
+        <div class="field-group">
+            <label>15-Minute High</label>
+            <input type="number" step="0.01" id="high15m" value="18500.25">
+        </div>
+        <div class="field-group">
+            <label>15-Minute Low</label>
+            <input type="number" step="0.01" id="low15m" value="18420.10">
+        </div>
+    </div>
 
-    def set_entry_details(self, condition, timestamp):
-        self.entry_condition = condition
-        self.entry_timestamp = timestamp
+    <!-- Section 3: Main Trade Calculations & Status -->
+    <h2>3. Main Trade Calculations & Status</h2>
+    <div class="grid">
+        <div class="field-group">
+            <label>Trade Status</label>
+            <select id="tradeStatus">
+                <option value="Approved">Approved</option>
+                <option value="Disqualified">Disqualified</option>
+            </select>
+        </div>
+        <div class="field-group">
+            <label>Original Entry Price</label>
+            <input type="number" step="0.01" id="originalEntry" value="18460.00">
+        </div>
+        <div class="field-group">
+            <label>Stop Loss</label>
+            <input type="number" step="0.01" id="stopLoss" value="18410.00">
+        </div>
+        <div class="field-group">
+            <label>Take Profit (TP1)</label>
+            <input type="number" step="0.01" id="takeProfit" value="18560.00">
+        </div>
+    </div>
 
-    def set_exit_details(self, condition, tp_timestamp, final_timestamp):
-        self.exit_condition = condition
-        self.tp_hit_timestamp = tp_timestamp
-        self.final_exit_timestamp = final_timestamp
+    <!-- Section 4: Entry & Timing -->
+    <h2>4. Entry Dropdown & Timing</h2>
+    <div class="grid">
+        <div class="field-group">
+            <label>Entry Condition</label>
+            <select id="entryCondition">
+                <option value="Entry price not hit">Entry price not hit</option>
+                <option value="Shadow entry price hit">Shadow entry price hit</option>
+                <option value="Shadow entry price and entry price hit" selected>Shadow entry price and entry price hit</option>
+            </select>
+        </div>
+        <div class="field-group">
+            <label>Entry Action Timestamp</label>
+            <input type="time" id="entryTimestamp" value="09:32">
+        </div>
+    </div>
 
-    def set_price_action(self, flatten_price, intraday_high, id_high_ts, intraday_low, id_low_ts, intra_trade_high):
-        self.flatten_price = flatten_price
-        self.intraday_high = intraday_high
-        self.intraday_high_timestamp = id_high_ts
-        self.intraday_low = intraday_low
-        self.intraday_low_timestamp = id_low_ts
-        self.intra_trade_high = intra_trade_high
+    <!-- Section 5: Exit & Timing -->
+    <h2>5. Exit Dropdown & Timing</h2>
+    <div class="grid">
+        <div class="field-group">
+            <label>Exit Condition</label>
+            <select id="exitCondition">
+                <option value="TP not hit, order stopped out">TP not hit, order stopped out</option>
+                <option value="TP not hit, order flattened">TP not hit, order flattened</option>
+                <option value="TP hit, order stopped out" selected>TP hit, order stopped out</option>
+                <option value="TP hit, order flattened">TP hit, order flattened</option>
+            </select>
+        </div>
+        <div class="field-group">
+            <label>TP Hit Timestamp</label>
+            <input type="time" id="tpHitTimestamp" value="10:15">
+        </div>
+        <div class="field-group">
+            <label>Final Exit / Flatten Timestamp</label>
+            <input type="time" id="finalExitTimestamp" value="11:45">
+        </div>
+    </div>
 
-    def configure_shadow_trade(self, offset_pct, dynamic_sizing_toggle):
-        self.shadow_offset_pct = offset_pct
-        self.dynamic_shadow_sizing = dynamic_sizing_toggle
-        
-        # Calculate Shadow Entry Price based on 14-day ATR / Entry-to-Stop Distance offset
-        entry_to_stop_dist = self.original_entry - self.stop_loss
-        offset_amount = entry_to_stop_dist * (self.shadow_offset_pct / 100.0)
-        self.shadow_entry_price = self.original_entry - offset_amount
+    <!-- Section 6: Session Price Action -->
+    <h2>6. Price Action & Session Data</h2>
+    <div class="grid">
+        <div class="field-group">
+            <label>Flatten Price</label>
+            <input type="number" step="0.01" id="flattenPrice" value="18445.00">
+        </div>
+        <div class="field-group">
+            <label>Intraday High & Time</label>
+            <div style="display:flex; gap:5px;">
+                <input type="number" step="0.01" id="intradayHigh" value="18580.00" style="flex:2;">
+                <input type="time" id="intradayHighTime" value="10:18" style="flex:1;">
+            </div>
+        </div>
+        <div class="field-group">
+            <label>Intraday Low & Time</label>
+            <div style="display:flex; gap:5px;">
+                <input type="number" step="0.01" id="intradayLow" value="18415.50" style="flex:2;">
+                <input type="time" id="intradayLowTime" value="09:15" style="flex:1;">
+            </div>
+        </div>
+        <div class="field-group">
+            <label>Intra-Trade High</label>
+            <input type="number" step="0.01" id="intraTradeHigh" value="18580.00">
+        </div>
+    </div>
 
-    def calculate_performance(self):
-        # Placeholder calculation logic for percentage returns (Main vs Shadow)
-        # Integrates 1/3 body profit splits, runner management, and dynamic sizing rules.
-        risk_amount = self.starting_balance * (self.risk_pct / 100.0)
-        
-        # Simplified simulation hook for illustration
-        if self.trade_status.lower() == "disqualified":
-            self.main_trade_return_pct = 0.0
-            self.shadow_trade_return_pct = 0.0
-            return
+    <!-- Section 7: Shadow Trade Setup -->
+    <h2>7. Shadow Trade Setup</h2>
+    <div class="grid">
+        <div class="field-group">
+            <label>Shadow Offset Percentage (%)</label>
+            <input type="number" step="0.1" id="shadowOffsetPct" value="25.0">
+        </div>
+        <div class="field-group">
+            <label>New Shadow Entry Price (Calc)</label>
+            <input type="number" step="0.01" id="shadowEntryPrice" readonly style="background:#edf2f7;">
+        </div>
+        <div class="field-group">
+            <label>Dynamic Shadow Sizing Toggle</label>
+            <select id="dynamicShadowSizing">
+                <option value="false">OFF (Fixed Size)</option>
+                <option value="true">ON (Dynamic Scale)</option>
+            </select>
+        </div>
+    </div>
 
-        # Main Trade return calculation logic...
-        if "TP hit" in self.exit_condition:
-            # 1/3 body secured at TP, remaining 2/3 managed
-            self.main_trade_return_pct = 1.5 # Example positive return
-        elif "stopped out" in self.exit_condition:
-            self.main_trade_return_pct = -self.risk_pct
-        else:
-            self.main_trade_return_pct = 0.5
+    <!-- Section 8: Notes -->
+    <h2>8. Trade Notes</h2>
+    <div class="grid">
+        <textarea id="tradeNotes" placeholder="Enter session commentary or pattern notes here...">Clean breakout continuation test with strong volume expansion.</textarea>
+    </div>
 
-        # Shadow Trade return calculation logic with shifted entry
-        shadow_risk_dist = self.shadow_entry_price - self.stop_loss
-        if shadow_risk_dist > 0:
-            self.shadow_trade_return_pct = self.main_trade_return_pct * ( (self.original_entry - self.stop_loss) / shadow_risk_dist )
-        else:
-            self.shadow_trade_return_pct = self.main_trade_return_pct
+    <!-- Section 9: Side-by-Side Performance Comparison -->
+    <h2>9. Performance Comparison Results</h2>
+    <div class="results-box">
+        <div class="result-item">
+            <h3>Main Trade Return</h3>
+            <p id="mainReturnDisplay">+1.50%</p>
+        </div>
+        <div class="result-item">
+            <h3>Shadow Trade Return</h3>
+            <p id="shadowReturnDisplay">+2.10%</p>
+        </div>
+    </div>
 
-    def export_to_csv_row(self):
-        """Returns a 24-column list mapped strictly to the required repository CSV schema."""
-        return [
-            self.trade_date,
-            self.ticker,
-            self.starting_balance,
-            self.risk_pct,
-            self.atr_14,
-            self.vol_sat_pct,
-            self.high_15m,
-            self.low_15m,
-            self.trade_status,
-            self.original_entry,
-            self.stop_loss,
-            self.take_profit,
-            self.entry_condition,
-            self.entry_timestamp,
-            self.exit_condition,
-            self.tp_hit_timestamp,
-            self.final_exit_timestamp,
-            self.flatten_price,
-            self.intraday_high,
-            self.intraday_high_timestamp,
-            self.intraday_low,
-            self.intraday_low_timestamp,
-            self.intra_trade_high,
-            self.shadow_offset_pct,
-            self.shadow_entry_price,
-            self.dynamic_shadow_sizing,
-            round(self.main_trade_return_pct, 4),
-            round(self.shadow_trade_return_pct, 4),
-            self.notes
-        ]
+    <button onclick="calculateAndExportCSV()">Calculate & Export CSV</button>
+</div>
 
+<script>
+function updateCalculations() {
+    let origEntry = parseFloat(document.getElementById('originalEntry').value) || 0;
+    let stopLoss = parseFloat(document.getElementById('stopLoss').value) || 0;
+    let offsetPct = parseFloat(document.getElementById('shadowOffsetPct').value) || 0;
+    
+    // Shadow Entry Calculation: Original Entry - (Distance * Offset%)
+    let riskDist = origEntry - stopLoss;
+    let shadowEntry = origEntry - (riskDist * (offsetPct / 100.0));
+    document.getElementById('shadowEntryPrice').value = shadowEntry.toFixed(2);
+}
 
-def save_trade_to_csv(filename, trade_engine_instance):
-    headers = [
+// Attach live listeners
+document.querySelectorAll('input').forEach(el => el.addEventListener('input', updateCalculations));
+window.onload = updateCalculations;
+
+function calculateAndExportCSV() {
+    updateCalculations();
+    
+    const data = [
+        document.getElementById('tradeDate').value,
+        document.getElementById('ticker').value,
+        document.getElementById('startingBalance').value,
+        document.getElementById('riskPct').value,
+        document.getElementById('atr14').value,
+        document.getElementById('volSatPct').value,
+        document.getElementById('high15m').value,
+        document.getElementById('low15m').value,
+        document.getElementById('tradeStatus').value,
+        document.getElementById('originalEntry').value,
+        document.getElementById('stopLoss').value,
+        document.getElementById('takeProfit').value,
+        document.getElementById('entryCondition').value,
+        document.getElementById('entryTimestamp').value,
+        document.getElementById('exitCondition').value,
+        document.getElementById('tpHitTimestamp').value,
+        document.getElementById('finalExitTimestamp').value,
+        document.getElementById('flattenPrice').value,
+        document.getElementById('intradayHigh').value,
+        document.getElementById('intradayHighTime').value,
+        document.getElementById('intradayLow').value,
+        document.getElementById('intradayLowTime').value,
+        document.getElementById('intraTradeHigh').value,
+        document.getElementById('shadowOffsetPct').value,
+        document.getElementById('shadowEntryPrice').value,
+        document.getElementById('dynamicShadowSizing').value,
+        document.getElementById('mainReturnDisplay').innerText,
+        document.getElementById('shadowReturnDisplay').innerText,
+        document.getElementById('tradeNotes').value
+    ];
+
+    const headers = [
         "Trade Date", "Ticker / Instrument", "Starting Balance", "Risk %",
         "Daily ATR (14-day)", "Volatility Saturation %", "15-Minute High", "15-Minute Low",
         "Trade Status", "Original Entry Price", "Stop Loss", "Take Profit (TP1)",
@@ -144,44 +260,21 @@ def save_trade_to_csv(filename, trade_engine_instance):
         "Intraday Low", "Intraday Low Timestamp", "Intra-Trade High", "Shadow Offset %",
         "New Shadow Entry Price", "Dynamic Shadow Sizing Toggle", "Main Trade % Return",
         "Shadow Trade % Return", "Notes"
-    ]
-    
-    with open(filename, mode='a', newline='') as csv_file:
-        writer = csv.writer(csv_file)
-        # Write headers if file is empty
-        csv_file.seek(0, 2)
-        if csv_file.tell() == 0:
-            writer.writerow(headers)
-        writer.writerow(trade_engine_instance.export_to_csv_row())
+    ];
 
+    let csvContent = "data:text/csv;charset=utf-8," 
+        + headers.join(",") + "\n" 
+        + data.map(e => `"${e}"`).join(",");
 
-# Example Execution Block for Repository Integration
-if __name__ == "__main__":
-    # Initialize trade card data
-    trade = BreakoutTradeEngine(
-        trade_date="2026-07-20",
-        ticker="US100",
-        starting_balance=10000.0,
-        risk_pct=1.0,
-        atr_14=125.50,
-        vol_sat_pct=84.2,
-        high_15m=18500.25,
-        low_15m=18420.10,
-        trade_status="Approved",
-        original_entry=18460.00,
-        stop_loss=18410.00,
-        take_profit=18560.00
-    )
-    
-    # Configure Execution & Dropdown Selections
-    trade.set_entry_details("Shadow entry price and entry price hit", "09:32:15")
-    trade.set_exit_details("TP hit, order stopped out", "10:15:00", "11:45:30")
-    trade.set_price_action(18445.00, 18580.00, "10:18:00", 18415.50, "09:15:00", 18580.00)
-    
-    # Shadow Settings (25% offset down with dynamic sizing toggle enabled)
-    trade.configure_shadow_trade(offset_pct=25.0, dynamic_sizing_toggle=True)
-    
-    # Run Calculations & Export
-    trade.calculate_performance()
-    save_trade_to_csv("breakout_trade_journal.csv", trade)
-    print("Trade successfully logged and exported to CSV repository.")
+    var encodedUri = encodeURI(csvContent);
+    var link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `breakout_trade_${document.getElementById('tradeDate').value}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+
+</body>
+</html>
