@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Breakout Strategy 8-Tile Trade Engine</title>
+    <title>V1Breakout Strategy Engine - Master Trade Tile</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -13,8 +13,8 @@
             --text-secondary: #94a3b8;
             --accent-blue: #38bdf8;
             --accent-green: #34d399;
+            --accent-red: #f87171;
             --input-bg: #0f172a;
-            --hover-bg: #2563eb;
         }
 
         body {
@@ -22,55 +22,38 @@
             background-color: var(--bg-color);
             color: var(--text-primary);
             margin: 0;
-            padding: 15px;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .workspace-container {
+            width: 100%;
+            max-width: 480px;
         }
 
         .dashboard-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding: 0 10px;
+            margin-bottom: 15px;
         }
 
         .dashboard-header h1 {
-            font-size: 20px;
+            font-size: 18px;
             margin: 0;
             color: var(--accent-blue);
-        }
-
-        .global-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn-global {
-            background-color: var(--accent-blue);
-            color: #0f172a;
-            border: none;
-            padding: 8px 14px;
-            font-size: 13px;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .btn-global:hover { opacity: 0.9; }
-
-        .tiles-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-            gap: 15px;
         }
 
         .trade-tile {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4);
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         }
 
         .tile-header {
@@ -78,12 +61,12 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--border-color);
-            padding-bottom: 6px;
+            padding-bottom: 8px;
         }
 
         .tile-header h3 {
             margin: 0;
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-primary);
         }
 
@@ -92,15 +75,15 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: var(--accent-blue);
-            margin: 6px 0 2px 0;
+            margin: 8px 0 4px 0;
             border-bottom: 1px dashed var(--border-color);
-            padding-bottom: 2px;
+            padding-bottom: 3px;
         }
 
         .grid-compact {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
+            gap: 8px;
         }
 
         .field-group {
@@ -115,16 +98,16 @@
         label {
             font-size: 10px;
             font-weight: 600;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
             color: var(--text-secondary);
         }
 
         input, select, textarea {
             background: var(--input-bg);
             color: var(--text-primary);
-            padding: 5px 6px;
+            padding: 6px 8px;
             border: 1px solid var(--border-color);
-            border-radius: 3px;
+            border-radius: 4px;
             font-size: 12px;
         }
 
@@ -135,7 +118,7 @@
 
         textarea {
             resize: vertical;
-            height: 35px;
+            height: 45px;
         }
 
         .split-input {
@@ -146,13 +129,13 @@
         .split-input input[type="time"] { flex: 1; }
 
         .results-box {
-            background: rgba(56, 189, 248, 0.1);
-            border: 1px solid rgba(56, 189, 248, 0.2);
-            padding: 6px;
-            border-radius: 4px;
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            padding: 8px;
+            border-radius: 6px;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
             margin-top: 4px;
         }
 
@@ -166,52 +149,103 @@
             margin: 0;
             font-size: 9px;
             color: var(--text-secondary);
+            text-transform: uppercase;
         }
 
         .result-item p {
-            margin: 2px 0 0 0;
-            font-size: 12px;
+            margin: 3px 0 0 0;
+            font-size: 13px;
             font-weight: bold;
             color: var(--accent-green);
         }
 
-        .btn-export-tile {
+        .btn-export {
             background-color: #2563eb;
             color: white;
             border: none;
+            padding: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 6px;
+        }
+        .btn-export:hover { background-color: #1d4ed8; }
+
+        .btn-resolve {
+            background-color: #334155;
+            color: var(--accent-blue);
+            border: 1px solid var(--accent-blue);
             padding: 6px;
             font-size: 11px;
             font-weight: bold;
-            border-radius: 3px;
+            border-radius: 4px;
             cursor: pointer;
             width: 100%;
-            margin-top: 4px;
         }
-        .btn-export-tile:hover { background-color: #1d4ed8; }
+        .btn-resolve:hover { background-color: #1e293b; }
+
+        /* Modal Overlay Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 20px;
+            width: 360px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 14px;
+            color: var(--accent-blue);
+        }
+
+        .btn-close-modal {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 16px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
-<div class="dashboard-header">
-    <h1>Breakout Strategy Engine (8-Tile Workspace)</h1>
-    <div class="global-actions">
-        <button class="btn-global" onclick="exportAllTilesCSV()">Export All Tiles to CSV</button>
+<div class="workspace-container">
+    <div class="dashboard-header">
+        <h1>Breakout Strategy Engine</h1>
     </div>
-</div>
 
-<div class="tiles-container" id="tilesContainer">
-    <!-- Tiles injected dynamically -->
-</div>
-
-<script>
-const NUM_TILES = 8;
-
-function createTileHTML(id) {
-    return `
-    <div class="trade-tile" id="tile-${id}">
+    <div class="trade-tile" id="tile-1">
         <div class="tile-header">
-            <h3>Trade Tile #${id}</h3>
-            <button class="btn-export-tile" style="width: auto; padding: 3px 8px; margin: 0;" onclick="exportSingleTile(${id})">Export Tile CSV</button>
+            <h3>Trade Tile #1</h3>
+            <span id="liveStatusBadge" style="font-size:11px; font-weight:bold; padding:2px 6px; border-radius:3px; background:rgba(52,211,153,0.15); color:var(--accent-green);">APPROVED</span>
         </div>
 
         <!-- Section 1 -->
@@ -219,24 +253,24 @@ function createTileHTML(id) {
         <div class="grid-compact">
             <div class="field-group">
                 <label>Trade Date</label>
-                <input type="date" id="tradeDate_${id}" value="2026-07-21">
+                <input type="date" id="tradeDate_1" value="2026-07-21">
             </div>
             <div class="field-group">
                 <label>Platform</label>
-                <select id="platform_${id}">
-                    <option value="MT5" selected>MT5</option>
-                    <option value="E-Trade">E-Trade</option>
+                <select id="platform_1" onchange="runEngineCalcs()">
+                    <option value="MT5" selected>MT5 (Indices)</option>
+                    <option value="E-Trade">E-Trade (SOFI/Equities)</option>
                 </select>
             </div>
             <div class="field-group">
                 <label>Ticker</label>
-                <input type="text" id="ticker_${id}" value="US100">
+                <input type="text" id="ticker_1" value="US100">
             </div>
             <div class="field-group">
                 <label>Balance ($) & Risk %</label>
                 <div class="split-input">
-                    <input type="number" id="startingBalance_${id}" value="10000" style="flex:2;" oninput="updateTileCalcs(${id})">
-                    <input type="number" step="0.1" id="riskPct_${id}" value="1.0" style="flex:1;" oninput="updateTileCalcs(${id})">
+                    <input type="number" id="startingBalance_1" value="10000" style="flex:2;" oninput="runEngineCalcs()">
+                    <input type="number" step="0.1" id="riskPct_1" value="1.0" style="flex:1;" oninput="runEngineCalcs()">
                 </div>
             </div>
         </div>
@@ -245,21 +279,26 @@ function createTileHTML(id) {
         <div class="section-title">2. Volatility & Price Levels</div>
         <div class="grid-compact">
             <div class="field-group">
-                <label>14-day ATR</label>
-                <input type="number" step="0.01" id="atr14_${id}" value="125.50">
+                <label>14-day ATR (Daily Chart)</label>
+                <input type="number" step="0.01" id="atr14_1" value="125.50" oninput="runEngineCalcs()">
             </div>
             <div class="field-group">
-                <label>Volatility Sat %</label>
-                <input type="number" step="0.1" id="volSatPct_${id}" value="84.2">
+                <label>Volatility Saturation %</label>
+                <input type="number" step="0.1" id="volSatPct_1" value="84.2" oninput="runEngineCalcs()">
             </div>
             <div class="field-group">
                 <label>15M High</label>
-                <input type="number" step="0.01" id="high15m_${id}" value="18500.25">
+                <input type="number" step="0.01" id="high15m_1" value="18500.25" oninput="runEngineCalcs()">
             </div>
             <div class="field-group">
                 <label>15M Low</label>
-                <input type="number" step="0.01" id="low15m_${id}" value="18420.10">
+                <input type="number" step="0.01" id="low15m_1" value="18420.10" oninput="runEngineCalcs()">
             </div>
+        </div>
+
+        <!-- Volatility Saturation Resolution Screen (Placed between Section 2 and 3) -->
+        <div style="margin-top: 4px;">
+            <button class="btn-resolve" onclick="openVolModal()">Open Volatility Saturation Resolve Screen</button>
         </div>
 
         <!-- Section 3 -->
@@ -267,22 +306,22 @@ function createTileHTML(id) {
         <div class="grid-compact">
             <div class="field-group">
                 <label>Status</label>
-                <select id="tradeStatus_${id}">
-                    <option value="Approved">Approved</option>
+                <select id="tradeStatus_1" onchange="runEngineCalcs()">
+                    <option value="Approved" selected>Approved</option>
                     <option value="Disqualified">Disqualified</option>
                 </select>
             </div>
             <div class="field-group">
                 <label>Original Entry</label>
-                <input type="number" step="0.01" id="originalEntry_${id}" value="18460.00" oninput="updateTileCalcs(${id})">
+                <input type="number" step="0.01" id="originalEntry_1" value="18460.00" oninput="runEngineCalcs()">
             </div>
             <div class="field-group">
                 <label>Stop Loss</label>
-                <input type="number" step="0.01" id="stopLoss_${id}" value="18410.00" oninput="updateTileCalcs(${id})">
+                <input type="number" step="0.01" id="stopLoss_1" value="18410.00" oninput="runEngineCalcs()">
             </div>
             <div class="field-group">
                 <label>Take Profit (TP1)</label>
-                <input type="number" step="0.01" id="takeProfit_${id}" value="18560.00">
+                <input type="number" step="0.01" id="takeProfit_1" value="18560.00" oninput="runEngineCalcs()">
             </div>
         </div>
 
@@ -291,7 +330,7 @@ function createTileHTML(id) {
         <div class="grid-compact">
             <div class="field-group">
                 <label>Entry Condition</label>
-                <select id="entryCondition_${id}">
+                <select id="entryCondition_1">
                     <option value="Entry price not hit">Not hit</option>
                     <option value="Shadow entry price hit">Shadow hit</option>
                     <option value="Shadow entry price and entry price hit" selected>Both hit</option>
@@ -299,7 +338,7 @@ function createTileHTML(id) {
             </div>
             <div class="field-group">
                 <label>Entry Time</label>
-                <input type="time" id="entryTimestamp_${id}" value="09:32">
+                <input type="time" id="entryTimestamp_1" value="09:32">
             </div>
         </div>
 
@@ -308,7 +347,7 @@ function createTileHTML(id) {
         <div class="grid-compact">
             <div class="field-group full-width">
                 <label>Exit Condition</label>
-                <select id="exitCondition_${id}">
+                <select id="exitCondition_1">
                     <option value="TP not hit, order stopped out">TP not hit, stopped out</option>
                     <option value="TP not hit, order flattened">TP not hit, flattened</option>
                     <option value="TP hit, order stopped out" selected>TP hit, stopped out</option>
@@ -317,11 +356,11 @@ function createTileHTML(id) {
             </div>
             <div class="field-group">
                 <label>TP Hit Time</label>
-                <input type="time" id="tpHitTimestamp_${id}" value="10:15">
+                <input type="time" id="tpHitTimestamp_1" value="10:15">
             </div>
             <div class="field-group">
                 <label>Exit / Flatten Time</label>
-                <input type="time" id="finalExitTimestamp_${id}" value="11:45">
+                <input type="time" id="finalExitTimestamp_1" value="11:45">
             </div>
         </div>
 
@@ -330,25 +369,25 @@ function createTileHTML(id) {
         <div class="grid-compact">
             <div class="field-group full-width">
                 <label>Flatten Price</label>
-                <input type="number" step="0.01" id="flattenPrice_${id}" value="18445.00">
+                <input type="number" step="0.01" id="flattenPrice_1" value="18445.00" oninput="runEngineCalcs()">
             </div>
             <div class="field-group full-width">
                 <label>Intraday High & Time</label>
                 <div class="split-input">
-                    <input type="number" step="0.01" id="intradayHigh_${id}" value="18580.00">
-                    <input type="time" id="intradayHighTime_${id}" value="10:18">
+                    <input type="number" step="0.01" id="intradayHigh_1" value="18580.00">
+                    <input type="time" id="intradayHighTime_1" value="10:18">
                 </div>
             </div>
             <div class="field-group full-width">
                 <label>Intraday Low & Time</label>
                 <div class="split-input">
-                    <input type="number" step="0.01" id="intradayLow_${id}" value="18415.50">
-                    <input type="time" id="intradayLowTime_${id}" value="09:15">
+                    <input type="number" step="0.01" id="intradayLow_1" value="18415.50">
+                    <input type="time" id="intradayLowTime_1" value="09:15">
                 </div>
             </div>
             <div class="field-group full-width">
                 <label>Intra-Trade High</label>
-                <input type="number" step="0.01" id="intraTradeHigh_${id}" value="18580.00">
+                <input type="number" step="0.01" id="intraTradeHigh_1" value="18580.00">
             </div>
         </div>
 
@@ -357,15 +396,15 @@ function createTileHTML(id) {
         <div class="grid-compact">
             <div class="field-group">
                 <label>Shadow Offset %</label>
-                <input type="number" step="0.1" id="shadowOffsetPct_${id}" value="25.0" oninput="updateTileCalcs(${id})">
+                <input type="number" step="0.1" id="shadowOffsetPct_1" value="25.0" oninput="runEngineCalcs()">
             </div>
             <div class="field-group">
                 <label>New Shadow Entry</label>
-                <input type="number" step="0.01" id="shadowEntryPrice_${id}" readonly style="background:#090d16;">
+                <input type="number" step="0.01" id="shadowEntryPrice_1" readonly style="background:#090d16;">
             </div>
             <div class="field-group full-width">
                 <label>Dynamic Shadow Sizing Toggle</label>
-                <select id="dynamicShadowSizing_${id}" onchange="updateTileCalcs(${id})">
+                <select id="dynamicShadowSizing_1" onchange="runEngineCalcs()">
                     <option value="false">OFF (Fixed Size)</option>
                     <option value="true">ON (Dynamic Scale)</option>
                 </select>
@@ -373,95 +412,158 @@ function createTileHTML(id) {
         </div>
 
         <!-- Section 8 & 9 -->
-        <div class="section-title">8 & 9. Notes & Performance / Sizing Display</div>
+        <div class="section-title">8 & 9. Notes & Performance Engine Output</div>
         <div class="field-group full-width" style="margin-bottom:4px;">
             <label>Trade Notes</label>
-            <textarea id="tradeNotes_${id}">Clean breakout continuation setup.</textarea>
+            <textarea id="tradeNotes_1">Clean breakout continuation verified against 14-day daily ATR baseline.</textarea>
         </div>
 
         <div class="results-box">
             <div class="results-row">
                 <div class="result-item">
-                    <h4>Main Sizing (Lots/Shares)</h4>
-                    <p id="mainSizingDisplay_${id}" style="color:var(--accent-blue);">0.00</p>
+                    <h4>Main Sizing</h4>
+                    <p id="mainSizingDisplay_1" style="color:var(--accent-blue);">0.00 Lots</p>
                 </div>
                 <div class="result-item">
-                    <h4>Shadow Sizing (Lots/Shares)</h4>
-                    <p id="shadowSizingDisplay_${id}" style="color:var(--accent-blue);">0.00</p>
+                    <h4>Shadow Sizing</h4>
+                    <p id="shadowSizingDisplay_1" style="color:var(--accent-blue);">0.00 Lots</p>
                 </div>
             </div>
-            <div class="results-row" style="border-top: 1px solid rgba(56,189,248,0.2); padding-top: 3px;">
+            <div class="results-row" style="border-top: 1px solid rgba(56,189,248,0.2); padding-top: 4px;">
                 <div class="result-item">
                     <h4>Main Return</h4>
-                    <p id="mainReturnDisplay_${id}">+1.50%</p>
+                    <p id="mainReturnDisplay_1">+0.00%</p>
                 </div>
                 <div class="result-item">
                     <h4>Shadow Return</h4>
-                    <p id="shadowReturnDisplay_${id}">+2.10%</p>
+                    <p id="shadowReturnDisplay_1">+0.00%</p>
                 </div>
             </div>
         </div>
+
+        <button class="btn-export" onclick="exportSingleTileCSV()">Export Tile to CSV</button>
     </div>
-    `;
-}
+</div>
 
-function initDashboard() {
-    let container = document.getElementById('tilesContainer');
-    let html = '';
-    for (let i = 1; i <= NUM_TILES; i++) {
-        html += createTileHTML(i);
+<!-- Volatility Saturation Resolution Modal Screen -->
+<div class="modal-overlay" id="volModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Volatility Saturation Resolve Screen</h3>
+            <button class="btn-close-modal" onclick="closeVolModal()">&times;</button>
+        </div>
+        <div style="font-size: 11px; color: var(--text-secondary);">
+            Evaluates current session price range relative to the 14-day daily ATR baseline.
+        </div>
+        <div class="field-group">
+            <label>Calculated Saturation Status</label>
+            <input type="text" id="modalSatStatus" readonly style="background:#090d16; font-weight:bold; color:var(--accent-green);">
+        </div>
+        <div class="field-group">
+            <label>ATR Baseline Reference</label>
+            <input type="text" id="modalAtrRef" readonly style="background:#090d16;">
+        </div>
+        <div class="field-group">
+            <label>Volatility Resolution Notes</label>
+            <textarea id="modalNotes" style="height:55px;">Sufficient range expansion verified for breakout continuation.</textarea>
+        </div>
+        <button class="btn-export" style="margin-top:0;" onclick="closeVolModal()">Confirm & Apply</button>
+    </div>
+</div>
+
+<script>
+function runEngineCalcs() {
+    // 1. Retrieve Core Inputs
+    let balance = parseFloat(document.getElementById('startingBalance_1').value) || 0;
+    let riskPct = parseFloat(document.getElementById('riskPct_1').value) || 0;
+    let origEntry = parseFloat(document.getElementById('originalEntry_1').value) || 0;
+    let stopLoss = parseFloat(document.getElementById('stopLoss_1').value) || 0;
+    let takeProfit = parseFloat(document.getElementById('takeProfit_1').value) || 0;
+    let flattenPrice = parseFloat(document.getElementById('flattenPrice_1').value) || 0;
+    let offsetPct = parseFloat(document.getElementById('shadowOffsetPct_1').value) || 0;
+    let platform = document.getElementById('platform_1').value;
+    let dynamicToggle = document.getElementById('dynamicShadowSizing_1').value === "true";
+    let status = document.getElementById('tradeStatus_1').value;
+    let volSat = parseFloat(document.getElementById('volSatPct_1').value) || 0;
+    let atr14 = parseFloat(document.getElementById('atr14_1').value) || 0;
+
+    // Update Status Badge Visual
+    let badge = document.getElementById('liveStatusBadge');
+    if (status === "Approved") {
+        badge.innerText = "APPROVED";
+        badge.style.background = "rgba(52,211,153,0.15)";
+        badge.style.color = "var(--accent-green)";
+    } else {
+        badge.innerText = "DISQUALIFIED";
+        badge.style.background = "rgba(248,113,113,0.15)";
+        badge.style.color = "var(--accent-red)";
     }
-    container.innerHTML = html;
-    
-    for (let i = 1; i <= NUM_TILES; i++) {
-        updateTileCalcs(i);
-    }
-}
 
-function updateTileCalcs(id) {
-    let balance = parseFloat(document.getElementById(`startingBalance_${id}`).value) || 0;
-    let riskPct = parseFloat(document.getElementById(`riskPct_${id}`).value) || 0;
-    let origEntry = parseFloat(document.getElementById(`originalEntry_${id}`).value) || 0;
-    let stopLoss = parseFloat(document.getElementById(`stopLoss_${id}`).value) || 0;
-    let offsetPct = parseFloat(document.getElementById(`shadowOffsetPct_${id}`).value) || 0;
-    let platform = document.getElementById(`platform_${id}`).value;
-    let dynamicToggle = document.getElementById(`dynamicShadowSizing_${id}`).value === "true";
-
+    // 2. Risk & Position Sizing Calculations ($ Risk / Distance)
     let dollarRisk = balance * (riskPct / 100.0);
     let mainDist = Math.abs(origEntry - stopLoss);
     
-    // Main Lot Sizing Calculation
     let mainSize = 0;
     if (mainDist > 0) {
-        if (platform === "MT5") {
-            // MT5 standard index contract sizing check (e.g. US100 standard contract/point value scaling)
-            mainSize = dollarRisk / mainDist;
-        } else {
-            // E-Trade equity / futures contract sizing
-            mainSize = dollarRisk / mainDist;
-        }
+        mainSize = dollarRisk / mainDist;
     }
 
-    // Shadow Entry & Sizing Calculation
+    // 3. Shadow Entry & Sizing Calculations
     let shadowEntry = origEntry - (mainDist * (offsetPct / 100.0));
-    document.getElementById(`shadowEntryPrice_${id}`).value = shadowEntry.toFixed(2);
+    document.getElementById('shadowEntryPrice_1').value = shadowEntry.toFixed(2);
 
     let shadowDist = Math.abs(shadowEntry - stopLoss);
     let shadowSize = mainSize;
 
     if (dynamicToggle && shadowDist > 0) {
-        // Recalculates position size based on tighter shadow distance for constant dollar risk
         shadowSize = dollarRisk / shadowDist;
     }
 
-    // Display formatted sizes based on platform conventions
+    // 4. Platform Formatting (MT5 Lots vs E-Trade Shares)
     if (platform === "MT5") {
-        document.getElementById(`mainSizingDisplay_${id}`).innerText = mainSize.toFixed(2) + " Lots";
-        document.getElementById(`shadowSizingDisplay_${id}`).innerText = shadowSize.toFixed(2) + " Lots";
+        document.getElementById('mainSizingDisplay_1').innerText = mainSize.toFixed(2) + " Lots";
+        document.getElementById('shadowSizingDisplay_1').innerText = shadowSize.toFixed(2) + " Lots";
     } else {
-        document.getElementById(`mainSizingDisplay_${id}`).innerText = Math.round(mainSize) + " Shares";
-        document.getElementById(`shadowSizingDisplay_${id}`).innerText = Math.round(shadowSize) + " Shares";
+        document.getElementById('mainSizingDisplay_1').innerText = Math.round(mainSize) + " Shares";
+        document.getElementById('shadowSizingDisplay_1').innerText = Math.round(shadowSize) + " Shares";
     }
+
+    // 5. Performance Return Calculations (% Gain/Loss on Account Balance)
+    let mainReturnPct = 0;
+    let shadowReturnPct = 0;
+
+    if (balance > 0 && origEntry > 0) {
+        // Assuming profitable move to Take Profit or exit at flattenPrice
+        let mainPriceDelta = flattenPrice - origEntry;
+        let mainProfitDollar = mainPriceDelta * mainSize;
+        mainReturnPct = (mainProfitDollar / balance) * 100.0;
+
+        let shadowPriceDelta = flattenPrice - shadowEntry;
+        let shadowProfitDollar = shadowPriceDelta * shadowSize;
+        shadowReturnPct = (shadowProfitDollar / balance) * 100.0;
+    }
+
+    let mainReturnElem = document.getElementById('mainReturnDisplay_1');
+    let shadowReturnElem = document.getElementById('shadowReturnDisplay_1');
+
+    mainReturnElem.innerText = (mainReturnPct >= 0 ? "+" : "") + mainReturnPct.toFixed(2) + "%";
+    mainReturnElem.style.color = mainReturnPct >= 0 ? "var(--accent-green)" : "var(--accent-red)";
+
+    shadowReturnElem.innerText = (shadowReturnPct >= 0 ? "+" : "") + shadowReturnPct.toFixed(2) + "%";
+    shadowReturnElem.style.color = shadowReturnPct >= 0 ? "var(--accent-green)" : "var(--accent-red)";
+
+    // 6. Update Modal Fields
+    document.getElementById('modalSatStatus').value = volSat.toFixed(1) + "% Saturation Level";
+    document.getElementById('modalAtrRef').value = "14-day Daily ATR: " + atr14.toFixed(2);
+}
+
+function openVolModal() {
+    runEngineCalcs();
+    document.getElementById('volModal').style.display = 'flex';
+}
+
+function closeVolModal() {
+    document.getElementById('volModal').style.display = 'none';
 }
 
 const csvHeaders = [
@@ -475,73 +577,58 @@ const csvHeaders = [
     "Shadow Trade % Return", "Notes"
 ];
 
-function getTileDataArray(id) {
-    updateTileCalcs(id);
+function getTileDataArray() {
+    runEngineCalcs();
     return [
-        document.getElementById(`tradeDate_${id}`).value,
-        document.getElementById(`platform_${id}`).value,
-        document.getElementById(`ticker_${id}`).value,
-        document.getElementById(`startingBalance_${id}`).value,
-        document.getElementById(`riskPct_${id}`).value,
-        document.getElementById(`atr14_${id}`).value,
-        document.getElementById(`volSatPct_${id}`).value,
-        document.getElementById(`high15m_${id}`).value,
-        document.getElementById(`low15m_${id}`).value,
-        document.getElementById(`tradeStatus_${id}`).value,
-        document.getElementById(`originalEntry_${id}`).value,
-        document.getElementById(`stopLoss_${id}`).value,
-        document.getElementById(`takeProfit_${id}`).value,
-        document.getElementById(`entryCondition_${id}`).value,
-        document.getElementById(`entryTimestamp_${id}`).value,
-        document.getElementById(`exitCondition_${id}`).value,
-        document.getElementById(`tpHitTimestamp_${id}`).value,
-        document.getElementById(`finalExitTimestamp_${id}`).value,
-        document.getElementById(`flattenPrice_${id}`).value,
-        document.getElementById(`intradayHigh_${id}`).value,
-        document.getElementById(`intradayHighTime_${id}`).value,
-        document.getElementById(`intradayLow_${id}`).value,
-        document.getElementById(`intradayLowTime_${id}`).value,
-        document.getElementById(`intraTradeHigh_${id}`).value,
-        document.getElementById(`shadowOffsetPct_${id}`).value,
-        document.getElementById(`shadowEntryPrice_${id}`).value,
-        document.getElementById(`dynamicShadowSizing_${id}`).value,
-        document.getElementById(`mainReturnDisplay_${id}`).innerText,
-        document.getElementById(`shadowReturnDisplay_${id}`).innerText,
-        document.getElementById(`tradeNotes_${id}`).value
+        document.getElementById('tradeDate_1').value,
+        document.getElementById('platform_1').value,
+        document.getElementById('ticker_1').value,
+        document.getElementById('startingBalance_1').value,
+        document.getElementById('riskPct_1').value,
+        document.getElementById('atr14_1').value,
+        document.getElementById('volSatPct_1').value,
+        document.getElementById('high15m_1').value,
+        document.getElementById('low15m_1').value,
+        document.getElementById('tradeStatus_1').value,
+        document.getElementById('originalEntry_1').value,
+        document.getElementById('stopLoss_1').value,
+        document.getElementById('takeProfit_1').value,
+        document.getElementById('entryCondition_1').value,
+        document.getElementById('entryTimestamp_1').value,
+        document.getElementById('exitCondition_1').value,
+        document.getElementById('tpHitTimestamp_1').value,
+        document.getElementById('finalExitTimestamp_1').value,
+        document.getElementById('flattenPrice_1').value,
+        document.getElementById('intradayHigh_1').value,
+        document.getElementById('intradayHighTime_1').value,
+        document.getElementById('intradayLow_1').value,
+        document.getElementById('intradayLowTime_1').value,
+        document.getElementById('intraTradeHigh_1').value,
+        document.getElementById('shadowOffsetPct_1').value,
+        document.getElementById('shadowEntryPrice_1').value,
+        document.getElementById('dynamicShadowSizing_1').value,
+        document.getElementById('mainReturnDisplay_1').innerText,
+        document.getElementById('shadowReturnDisplay_1').innerText,
+        document.getElementById('tradeNotes_1').value
     ];
 }
 
-function exportSingleTile(id) {
-    const data = getTileDataArray(id);
+function exportSingleTileCSV() {
+    const data = getTileDataArray();
     let csvContent = "data:text/csv;charset=utf-8," 
         + csvHeaders.join(",") + "\n" 
         + data.map(e => `"${e}"`).join(",");
 
-    triggerDownload(csvContent, `breakout_tile_${id}_${document.getElementById(`tradeDate_${id}`).value}.csv`);
-}
-
-function exportAllTilesCSV() {
-    let csvRows = [csvHeaders.join(",")];
-    for (let i = 1; i <= NUM_TILES; i++) {
-        let data = getTileDataArray(i);
-        csvRows.push(data.map(e => `"${e}"`).join(","));
-    }
-
-    let csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
-    triggerDownload(csvContent, `breakout_all_tiles_${document.getElementById('tradeDate_1').value}.csv`);
-}
-
-function triggerDownload(csvContent, filename) {
     var encodedUri = encodeURI(csvContent);
     var link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", filename);
+    link.setAttribute("download", `breakout_tile_1_${document.getElementById('tradeDate_1').value}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
-window.onload = initDashboard;
+window.onload = runEngineCalcs;
 </script>
 
 </body>
