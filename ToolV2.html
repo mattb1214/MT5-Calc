@@ -38,7 +38,20 @@
                     <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-0" oninput="calc(0)"><input type="number" placeholder="15m Low" id="l-0" oninput="calc(0)"></div>
                     <div class="output" id="res-0">Calculations...</div>
                     
-                    <input type="text" placeholder="Future Logic Placeholder" id="placeholder-0">
+                    <!-- Entry & Exit Condition Dropdowns -->
+                    <div style="display:flex; gap:5px;">
+                        <select id="entry-cond-0" onchange="calc(0)">
+                            <option value="Entry price not hit">Entry price not hit</option>
+                            <option value="Shadow entry hit">Shadow entry hit</option>
+                            <option value="Both entry prices hit">Both entry prices hit</option>
+                        </select>
+                        <select id="exit-cond-0" onchange="calc(0)">
+                            <option value="Stopped out">Stopped out</option>
+                            <option value="TP not hit, flattened">TP not hit, flattened</option>
+                            <option value="TP hit, stopped out">TP hit, stopped out</option>
+                            <option value="TP hit, flattened">TP hit, flattened</option>
+                        </select>
+                    </div>
 
                     <div style="display:flex; gap:5px;">
                         <input type="number" placeholder="Offset % (e.g. 25)" id="off-0" oninput="calc(0)">
