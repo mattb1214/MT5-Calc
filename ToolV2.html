@@ -3,277 +3,496 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Breakout Strategy Trade Engine</title>
+    <title>Breakout Strategy 8-Tile Trade Engine</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        h1, h2 { color: #1a202c; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 25px; }
-        .section { margin-bottom: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px; }
-        .field-group { display: flex; flex-direction: column; }
-        label { font-size: 13px; font-weight: 600; margin-bottom: 5px; color: #4a5568; }
-        input, select, textarea { padding: 8px 10px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 14px; }
-        textarea { resize: vertical; height: 60px; grid-column: span 100%; }
-        .results-box { background: #ebf8ff; border: 1px solid #bee3f8; padding: 15px; border-radius: 6px; margin-top: 20px; display: flex; justify-content: space-around; text-align: center; }
-        .result-item h3 { margin: 0 0 5px 0; font-size: 14px; color: #2b6cb0; }
-        .result-item p { margin: 0; font-size: 20px; font-weight: bold; color: #2c5282; }
-        button { background-color: #3182ce; color: white; border: none; padding: 12px 20px; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 20px; width: 100%; }
-        button:hover { background-color: #2b6cb0; }
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-green: #34d399;
+            --input-bg: #0f172a;
+            --hover-bg: #2563eb;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 15px;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 10px;
+        }
+
+        .dashboard-header h1 {
+            font-size: 20px;
+            margin: 0;
+            color: var(--accent-blue);
+        }
+
+        .global-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-global {
+            background-color: var(--accent-blue);
+            color: #0f172a;
+            border: none;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-global:hover { opacity: 0.9; }
+
+        /* 8-Tile Grid Layout (2 rows x 4 columns or auto-fit responsive) */
+        .tiles-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 15px;
+        }
+
+        .trade-tile {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .tile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 6px;
+        }
+
+        .tile-header h3 {
+            margin: 0;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--accent-blue);
+            margin: 6px 0 2px 0;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 2px;
+        }
+
+        .grid-compact {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+
+        .grid-compact-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .field-group.full-width {
+            grid-column: span 2;
+        }
+
+        .field-group.full-width-3 {
+            grid-column: span 3;
+        }
+
+        label {
+            font-size: 10px;
+            font-weight: 600;
+            margin-bottom: 2px;
+            color: var(--text-secondary);
+        }
+
+        input, select, textarea {
+            background: var(--input-bg);
+            color: var(--text-primary);
+            padding: 5px 6px;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        textarea {
+            resize: vertical;
+            height: 35px;
+        }
+
+        .split-input {
+            display: flex;
+            gap: 4px;
+        }
+        .split-input input[type="number"] { flex: 2; }
+        .split-input input[type="time"] { flex: 1; }
+
+        .results-box {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            padding: 6px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        .result-item h4 {
+            margin: 0;
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .result-item p {
+            margin: 2px 0 0 0;
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--accent-green);
+        }
+
+        .btn-export-tile {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 3px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 4px;
+        }
+        .btn-export-tile:hover { background-color: #1d4ed8; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Breakout Strategy Trade Engine</h1>
-    
-    <!-- Section 1: Trade Identification & Core Inputs -->
-    <h2>1. Trade Identification & Core Inputs</h2>
-    <div class="grid">
-        <div class="field-group">
-            <label>Trade Date</label>
-            <input type="date" id="tradeDate" value="2026-07-21">
-        </div>
-        <div class="field-group">
-            <label>Ticker / Instrument</label>
-            <input type="text" id="ticker" value="US100">
-        </div>
-        <div class="field-group">
-            <label>Starting Balance ($)</label>
-            <input type="number" id="startingBalance" value="10000">
-        </div>
-        <div class="field-group">
-            <label>Risk %</label>
-            <input type="number" step="0.1" id="riskPct" value="1.0">
-        </div>
+<div class="dashboard-header">
+    <h1>Breakout Strategy Engine (8-Tile Workspace)</h1>
+    <div class="global-actions">
+        <button class="btn-global" onclick="exportAllTilesCSV()">Export All Tiles to CSV</button>
     </div>
+</div>
 
-    <!-- Section 2: Volatility & Key Price Levels -->
-    <h2>2. Volatility & Key Price Levels</h2>
-    <div class="grid">
-        <div class="field-group">
-            <label>Daily ATR (14-day)</label>
-            <input type="number" step="0.01" id="atr14" value="125.50">
-        </div>
-        <div class="field-group">
-            <label>Volatility Saturation %</label>
-            <input type="number" step="0.1" id="volSatPct" value="84.2">
-        </div>
-        <div class="field-group">
-            <label>15-Minute High</label>
-            <input type="number" step="0.01" id="high15m" value="18500.25">
-        </div>
-        <div class="field-group">
-            <label>15-Minute Low</label>
-            <input type="number" step="0.01" id="low15m" value="18420.10">
-        </div>
-    </div>
-
-    <!-- Section 3: Main Trade Calculations & Status -->
-    <h2>3. Main Trade Calculations & Status</h2>
-    <div class="grid">
-        <div class="field-group">
-            <label>Trade Status</label>
-            <select id="tradeStatus">
-                <option value="Approved">Approved</option>
-                <option value="Disqualified">Disqualified</option>
-            </select>
-        </div>
-        <div class="field-group">
-            <label>Original Entry Price</label>
-            <input type="number" step="0.01" id="originalEntry" value="18460.00">
-        </div>
-        <div class="field-group">
-            <label>Stop Loss</label>
-            <input type="number" step="0.01" id="stopLoss" value="18410.00">
-        </div>
-        <div class="field-group">
-            <label>Take Profit (TP1)</label>
-            <input type="number" step="0.01" id="takeProfit" value="18560.00">
-        </div>
-    </div>
-
-    <!-- Section 4: Entry & Timing -->
-    <h2>4. Entry Dropdown & Timing</h2>
-    <div class="grid">
-        <div class="field-group">
-            <label>Entry Condition</label>
-            <select id="entryCondition">
-                <option value="Entry price not hit">Entry price not hit</option>
-                <option value="Shadow entry price hit">Shadow entry price hit</option>
-                <option value="Shadow entry price and entry price hit" selected>Shadow entry price and entry price hit</option>
-            </select>
-        </div>
-        <div class="field-group">
-            <label>Entry Action Timestamp</label>
-            <input type="time" id="entryTimestamp" value="09:32">
-        </div>
-    </div>
-
-    <!-- Section 5: Exit & Timing -->
-    <h2>5. Exit Dropdown & Timing</h2>
-    <div class="grid">
-        <div class="field-group">
-            <label>Exit Condition</label>
-            <select id="exitCondition">
-                <option value="TP not hit, order stopped out">TP not hit, order stopped out</option>
-                <option value="TP not hit, order flattened">TP not hit, order flattened</option>
-                <option value="TP hit, order stopped out" selected>TP hit, order stopped out</option>
-                <option value="TP hit, order flattened">TP hit, order flattened</option>
-            </select>
-        </div>
-        <div class="field-group">
-            <label>TP Hit Timestamp</label>
-            <input type="time" id="tpHitTimestamp" value="10:15">
-        </div>
-        <div class="field-group">
-            <label>Final Exit / Flatten Timestamp</label>
-            <input type="time" id="finalExitTimestamp" value="11:45">
-        </div>
-    </div>
-
-    <!-- Section 6: Session Price Action -->
-    <h2>6. Price Action & Session Data</h2>
-    <div class="grid">
-        <div class="field-group">
-            <label>Flatten Price</label>
-            <input type="number" step="0.01" id="flattenPrice" value="18445.00">
-        </div>
-        <div class="field-group">
-            <label>Intraday High & Time</label>
-            <div style="display:flex; gap:5px;">
-                <input type="number" step="0.01" id="intradayHigh" value="18580.00" style="flex:2;">
-                <input type="time" id="intradayHighTime" value="10:18" style="flex:1;">
-            </div>
-        </div>
-        <div class="field-group">
-            <label>Intraday Low & Time</label>
-            <div style="display:flex; gap:5px;">
-                <input type="number" step="0.01" id="intradayLow" value="18415.50" style="flex:2;">
-                <input type="time" id="intradayLowTime" value="09:15" style="flex:1;">
-            </div>
-        </div>
-        <div class="field-group">
-            <label>Intra-Trade High</label>
-            <input type="number" step="0.01" id="intraTradeHigh" value="18580.00">
-        </div>
-    </div>
-
-    <!-- Section 7: Shadow Trade Setup -->
-    <h2>7. Shadow Trade Setup</h2>
-    <div class="grid">
-        <div class="field-group">
-            <label>Shadow Offset Percentage (%)</label>
-            <input type="number" step="0.1" id="shadowOffsetPct" value="25.0">
-        </div>
-        <div class="field-group">
-            <label>New Shadow Entry Price (Calc)</label>
-            <input type="number" step="0.01" id="shadowEntryPrice" readonly style="background:#edf2f7;">
-        </div>
-        <div class="field-group">
-            <label>Dynamic Shadow Sizing Toggle</label>
-            <select id="dynamicShadowSizing">
-                <option value="false">OFF (Fixed Size)</option>
-                <option value="true">ON (Dynamic Scale)</option>
-            </select>
-        </div>
-    </div>
-
-    <!-- Section 8: Notes -->
-    <h2>8. Trade Notes</h2>
-    <div class="grid">
-        <textarea id="tradeNotes" placeholder="Enter session commentary or pattern notes here...">Clean breakout continuation test with strong volume expansion.</textarea>
-    </div>
-
-    <!-- Section 9: Side-by-Side Performance Comparison -->
-    <h2>9. Performance Comparison Results</h2>
-    <div class="results-box">
-        <div class="result-item">
-            <h3>Main Trade Return</h3>
-            <p id="mainReturnDisplay">+1.50%</p>
-        </div>
-        <div class="result-item">
-            <h3>Shadow Trade Return</h3>
-            <p id="shadowReturnDisplay">+2.10%</p>
-        </div>
-    </div>
-
-    <button onclick="calculateAndExportCSV()">Calculate & Export CSV</button>
+<div class="tiles-container" id="tilesContainer">
+    <!-- Tiles will be dynamically injected here via JS -->
 </div>
 
 <script>
-function updateCalculations() {
-    let origEntry = parseFloat(document.getElementById('originalEntry').value) || 0;
-    let stopLoss = parseFloat(document.getElementById('stopLoss').value) || 0;
-    let offsetPct = parseFloat(document.getElementById('shadowOffsetPct').value) || 0;
-    
-    // Shadow Entry Calculation: Original Entry - (Distance * Offset%)
-    let riskDist = origEntry - stopLoss;
-    let shadowEntry = origEntry - (riskDist * (offsetPct / 100.0));
-    document.getElementById('shadowEntryPrice').value = shadowEntry.toFixed(2);
+const NUM_TILES = 8;
+
+function createTileHTML(id) {
+    return `
+    <div class="trade-tile" id="tile-${id}">
+        <div class="tile-header">
+            <h3>Trade Tile #${id}</h3>
+            <button class="btn-export-tile" style="width: auto; padding: 3px 8px; margin: 0;" onclick="exportSingleTile(${id})">Export Tile CSV</button>
+        </div>
+
+        <!-- Section 1 -->
+        <div class="section-title">1. Identification & Core Inputs</div>
+        <div class="grid-compact">
+            <div class="field-group">
+                <label>Trade Date</label>
+                <input type="date" id="tradeDate_${id}" value="2026-07-21">
+            </div>
+            <div class="field-group">
+                <label>Ticker</label>
+                <input type="text" id="ticker_${id}" value="US100">
+            </div>
+            <div class="field-group">
+                <label>Balance ($)</label>
+                <input type="number" id="startingBalance_${id}" value="10000">
+            </div>
+            <div class="field-group">
+                <label>Risk %</label>
+                <input type="number" step="0.1" id="riskPct_${id}" value="1.0">
+            </div>
+        </div>
+
+        <!-- Section 2 -->
+        <div class="section-title">2. Volatility & Price Levels</div>
+        <div class="grid-compact">
+            <div class="field-group">
+                <label>14-day ATR</label>
+                <input type="number" step="0.01" id="atr14_${id}" value="125.50">
+            </div>
+            <div class="field-group">
+                <label>Volatility Sat %</label>
+                <input type="number" step="0.1" id="volSatPct_${id}" value="84.2">
+            </div>
+            <div class="field-group">
+                <label>15M High</label>
+                <input type="number" step="0.01" id="high15m_${id}" value="18500.25">
+            </div>
+            <div class="field-group">
+                <label>15M Low</label>
+                <input type="number" step="0.01" id="low15m_${id}" value="18420.10">
+            </div>
+        </div>
+
+        <!-- Section 3 -->
+        <div class="section-title">3. Main Calculations & Status</div>
+        <div class="grid-compact">
+            <div class="field-group">
+                <label>Status</label>
+                <select id="tradeStatus_${id}">
+                    <option value="Approved">Approved</option>
+                    <option value="Disqualified">Disqualified</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Original Entry</label>
+                <input type="number" step="0.01" id="originalEntry_${id}" value="18460.00" oninput="updateTileCalcs(${id})">
+            </div>
+            <div class="field-group">
+                <label>Stop Loss</label>
+                <input type="number" step="0.01" id="stopLoss_${id}" value="18410.00" oninput="updateTileCalcs(${id})">
+            </div>
+            <div class="field-group">
+                <label>Take Profit (TP1)</label>
+                <input type="number" step="0.01" id="takeProfit_${id}" value="18560.00">
+            </div>
+        </div>
+
+        <!-- Section 4 -->
+        <div class="section-title">4. Entry & Timing</div>
+        <div class="grid-compact">
+            <div class="field-group">
+                <label>Entry Condition</label>
+                <select id="entryCondition_${id}">
+                    <option value="Entry price not hit">Not hit</option>
+                    <option value="Shadow entry price hit">Shadow hit</option>
+                    <option value="Shadow entry price and entry price hit" selected>Both hit</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Entry Time</label>
+                <input type="time" id="entryTimestamp_${id}" value="09:32">
+            </div>
+        </div>
+
+        <!-- Section 5 -->
+        <div class="section-title">5. Exit & Timing</div>
+        <div class="grid-compact">
+            <div class="field-group full-width">
+                <label>Exit Condition</label>
+                <select id="exitCondition_${id}">
+                    <option value="TP not hit, order stopped out">TP not hit, stopped out</option>
+                    <option value="TP not hit, order flattened">TP not hit, flattened</option>
+                    <option value="TP hit, order stopped out" selected>TP hit, stopped out</option>
+                    <option value="TP hit, order flattened">TP hit, flattened</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>TP Hit Time</label>
+                <input type="time" id="tpHitTimestamp_${id}" value="10:15">
+            </div>
+            <div class="field-group">
+                <label>Exit / Flatten Time</label>
+                <input type="time" id="finalExitTimestamp_${id}" value="11:45">
+            </div>
+        </div>
+
+        <!-- Section 6 -->
+        <div class="section-title">6. Price Action & Session Data</div>
+        <div class="grid-compact">
+            <div class="field-group full-width">
+                <label>Flatten Price</label>
+                <input type="number" step="0.01" id="flattenPrice_${id}" value="18445.00">
+            </div>
+            <div class="field-group full-width">
+                <label>Intraday High & Time</label>
+                <div class="split-input">
+                    <input type="number" step="0.01" id="intradayHigh_${id}" value="18580.00">
+                    <input type="time" id="intradayHighTime_${id}" value="10:18">
+                </div>
+            </div>
+            <div class="field-group full-width">
+                <label>Intraday Low & Time</label>
+                <div class="split-input">
+                    <input type="number" step="0.01" id="intradayLow_${id}" value="18415.50">
+                    <input type="time" id="intradayLowTime_${id}" value="09:15">
+                </div>
+            </div>
+            <div class="field-group full-width">
+                <label>Intra-Trade High</label>
+                <input type="number" step="0.01" id="intraTradeHigh_${id}" value="18580.00">
+            </div>
+        </div>
+
+        <!-- Section 7 -->
+        <div class="section-title">7. Shadow Trade Setup</div>
+        <div class="grid-compact">
+            <div class="field-group">
+                <label>Shadow Offset %</label>
+                <input type="number" step="0.1" id="shadowOffsetPct_${id}" value="25.0" oninput="updateTileCalcs(${id})">
+            </div>
+            <div class="field-group">
+                <label>New Shadow Entry</label>
+                <input type="number" step="0.01" id="shadowEntryPrice_${id}" readonly style="background:#090d16;">
+            </div>
+            <div class="field-group full-width">
+                <label>Dynamic Shadow Sizing Toggle</label>
+                <select id="dynamicShadowSizing_${id}">
+                    <option value="false">OFF (Fixed Size)</option>
+                    <option value="true">ON (Dynamic Scale)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Section 8 & 9 -->
+        <div class="section-title">8 & 9. Notes & Performance</div>
+        <div class="field-group full-width" style="margin-bottom:6px;">
+            <label>Trade Notes</label>
+            <textarea id="tradeNotes_${id}">Clean breakout continuation setup.</textarea>
+        </div>
+
+        <div class="results-box">
+            <div class="result-item">
+                <h4>Main Return</h4>
+                <p id="mainReturnDisplay_${id}">+1.50%</p>
+            </div>
+            <div class="result-item">
+                <h4>Shadow Return</h4>
+                <p id="shadowReturnDisplay_${id}">+2.10%</p>
+            </div>
+        </div>
+    </div>
+    `;
 }
 
-// Attach live listeners
-document.querySelectorAll('input').forEach(el => el.addEventListener('input', updateCalculations));
-window.onload = updateCalculations;
-
-function calculateAndExportCSV() {
-    updateCalculations();
+function initDashboard() {
+    let container = document.getElementById('tilesContainer');
+    let html = '';
+    for (let i = 1; i <= NUM_TILES; i++) {
+        html += createTileHTML(i);
+    }
+    container.innerHTML = html;
     
-    const data = [
-        document.getElementById('tradeDate').value,
-        document.getElementById('ticker').value,
-        document.getElementById('startingBalance').value,
-        document.getElementById('riskPct').value,
-        document.getElementById('atr14').value,
-        document.getElementById('volSatPct').value,
-        document.getElementById('high15m').value,
-        document.getElementById('low15m').value,
-        document.getElementById('tradeStatus').value,
-        document.getElementById('originalEntry').value,
-        document.getElementById('stopLoss').value,
-        document.getElementById('takeProfit').value,
-        document.getElementById('entryCondition').value,
-        document.getElementById('entryTimestamp').value,
-        document.getElementById('exitCondition').value,
-        document.getElementById('tpHitTimestamp').value,
-        document.getElementById('finalExitTimestamp').value,
-        document.getElementById('flattenPrice').value,
-        document.getElementById('intradayHigh').value,
-        document.getElementById('intradayHighTime').value,
-        document.getElementById('intradayLow').value,
-        document.getElementById('intradayLowTime').value,
-        document.getElementById('intraTradeHigh').value,
-        document.getElementById('shadowOffsetPct').value,
-        document.getElementById('shadowEntryPrice').value,
-        document.getElementById('dynamicShadowSizing').value,
-        document.getElementById('mainReturnDisplay').innerText,
-        document.getElementById('shadowReturnDisplay').innerText,
-        document.getElementById('tradeNotes').value
-    ];
+    // Run initial calculations for all tiles
+    for (let i = 1; i <= NUM_TILES; i++) {
+        updateTileCalcs(i);
+    }
+}
 
-    const headers = [
-        "Trade Date", "Ticker / Instrument", "Starting Balance", "Risk %",
-        "Daily ATR (14-day)", "Volatility Saturation %", "15-Minute High", "15-Minute Low",
-        "Trade Status", "Original Entry Price", "Stop Loss", "Take Profit (TP1)",
-        "Entry Condition", "Entry Action Timestamp", "Exit Condition", "TP Hit Timestamp",
-        "Final Exit/Flatten Timestamp", "Flatten Price", "Intraday High", "Intraday High Timestamp",
-        "Intraday Low", "Intraday Low Timestamp", "Intra-Trade High", "Shadow Offset %",
-        "New Shadow Entry Price", "Dynamic Shadow Sizing Toggle", "Main Trade % Return",
-        "Shadow Trade % Return", "Notes"
-    ];
+function updateTileCalcs(id) {
+    let origEntry = parseFloat(document.getElementById(`originalEntry_${id}`).value) || 0;
+    let stopLoss = parseFloat(document.getElementById(`stopLoss_${id}`).value) || 0;
+    let offsetPct = parseFloat(document.getElementById(`shadowOffsetPct_${id}`).value) || 0;
+    
+    let riskDist = origEntry - stopLoss;
+    let shadowEntry = origEntry - (riskDist * (offsetPct / 100.0));
+    document.getElementById(`shadowEntryPrice_${id}`).value = shadowEntry.toFixed(2);
+}
 
+const csvHeaders = [
+    "Trade Date", "Ticker / Instrument", "Starting Balance", "Risk %",
+    "Daily ATR (14-day)", "Volatility Saturation %", "15-Minute High", "15-Minute Low",
+    "Trade Status", "Original Entry Price", "Stop Loss", "Take Profit (TP1)",
+    "Entry Condition", "Entry Action Timestamp", "Exit Condition", "TP Hit Timestamp",
+    "Final Exit/Flatten Timestamp", "Flatten Price", "Intraday High", "Intraday High Timestamp",
+    "Intraday Low", "Intraday Low Timestamp", "Intra-Trade High", "Shadow Offset %",
+    "New Shadow Entry Price", "Dynamic Shadow Sizing Toggle", "Main Trade % Return",
+    "Shadow Trade % Return", "Notes"
+];
+
+function getTileDataArray(id) {
+    updateTileCalcs(id);
+    return [
+        document.getElementById(`tradeDate_${id}`).value,
+        document.getElementById(`ticker_${id}`).value,
+        document.getElementById(`startingBalance_${id}`).value,
+        document.getElementById(`riskPct_${id}`).value,
+        document.getElementById(`atr14_${id}`).value,
+        document.getElementById(`volSatPct_${id}`).value,
+        document.getElementById(`high15m_${id}`).value,
+        document.getElementById(`low15m_${id}`).value,
+        document.getElementById(`tradeStatus_${id}`).value,
+        document.getElementById(`originalEntry_${id}`).value,
+        document.getElementById(`stopLoss_${id}`).value,
+        document.getElementById(`takeProfit_${id}`).value,
+        document.getElementById(`entryCondition_${id}`).value,
+        document.getElementById(`entryTimestamp_${id}`).value,
+        document.getElementById(`exitCondition_${id}`).value,
+        document.getElementById(`tpHitTimestamp_${id}`).value,
+        document.getElementById(`finalExitTimestamp_${id}`).value,
+        document.getElementById(`flattenPrice_${id}`).value,
+        document.getElementById(`intradayHigh_${id}`).value,
+        document.getElementById(`intradayHighTime_${id}`).value,
+        document.getElementById(`intradayLow_${id}`).value,
+        document.getElementById(`intradayLowTime_${id}`).value,
+        document.getElementById(`intraTradeHigh_${id}`).value,
+        document.getElementById(`shadowOffsetPct_${id}`).value,
+        document.getElementById(`shadowEntryPrice_${id}`).value,
+        document.getElementById(`dynamicShadowSizing_${id}`).value,
+        document.getElementById(`mainReturnDisplay_${id}`).innerText,
+        document.getElementById(`shadowReturnDisplay_${id}`).innerText,
+        document.getElementById(`tradeNotes_${id}`).value
+    ];
+}
+
+function exportSingleTile(id) {
+    const data = getTileDataArray(id);
     let csvContent = "data:text/csv;charset=utf-8," 
-        + headers.join(",") + "\n" 
+        + csvHeaders.join(",") + "\n" 
         + data.map(e => `"${e}"`).join(",");
 
+    triggerDownload(csvContent, `breakout_tile_${id}_${document.getElementById(`tradeDate_${id}`).value}.csv`);
+}
+
+function exportAllTilesCSV() {
+    let csvRows = [csvHeaders.join(",")];
+    for (let i = 1; i <= NUM_TILES; i++) {
+        let data = getTileDataArray(i);
+        csvRows.push(data.map(e => `"${e}"`).join(","));
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    triggerDownload(csvContent, `breakout_all_tiles_${document.getElementById('tradeDate_1').value}.csv`);
+}
+
+function triggerDownload(csvContent, filename) {
     var encodedUri = encodeURI(csvContent);
     var link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `breakout_trade_${document.getElementById('tradeDate').value}.csv`);
+    link.setAttribute("download", filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
+
+window.onload = initDashboard;
 </script>
 
 </body>
