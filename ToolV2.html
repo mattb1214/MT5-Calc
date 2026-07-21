@@ -56,7 +56,6 @@
         }
         .btn-global:hover { opacity: 0.9; }
 
-        /* 8-Tile Grid Layout (2 rows x 4 columns or auto-fit responsive) */
         .tiles-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
@@ -104,12 +103,6 @@
             gap: 6px;
         }
 
-        .grid-compact-3 {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 6px;
-        }
-
         .field-group {
             display: flex;
             flex-direction: column;
@@ -117,10 +110,6 @@
 
         .field-group.full-width {
             grid-column: span 2;
-        }
-
-        .field-group.full-width-3 {
-            grid-column: span 3;
         }
 
         label {
@@ -162,20 +151,26 @@
             padding: 6px;
             border-radius: 4px;
             display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .results-row {
+            display: flex;
             justify-content: space-around;
             text-align: center;
-            margin-top: 4px;
         }
 
         .result-item h4 {
             margin: 0;
-            font-size: 10px;
+            font-size: 9px;
             color: var(--text-secondary);
         }
 
         .result-item p {
             margin: 2px 0 0 0;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
             color: var(--accent-green);
         }
@@ -205,7 +200,7 @@
 </div>
 
 <div class="tiles-container" id="tilesContainer">
-    <!-- Tiles will be dynamically injected here via JS -->
+    <!-- Tiles injected dynamically -->
 </div>
 
 <script>
@@ -220,23 +215,29 @@ function createTileHTML(id) {
         </div>
 
         <!-- Section 1 -->
-        <div class="section-title">1. Identification & Core Inputs</div>
+        <div class="section-title">1. Identification & Platform</div>
         <div class="grid-compact">
             <div class="field-group">
                 <label>Trade Date</label>
                 <input type="date" id="tradeDate_${id}" value="2026-07-21">
             </div>
             <div class="field-group">
+                <label>Platform</label>
+                <select id="platform_${id}">
+                    <option value="MT5" selected>MT5</option>
+                    <option value="E-Trade">E-Trade</option>
+                </select>
+            </div>
+            <div class="field-group">
                 <label>Ticker</label>
                 <input type="text" id="ticker_${id}" value="US100">
             </div>
             <div class="field-group">
-                <label>Balance ($)</label>
-                <input type="number" id="startingBalance_${id}" value="10000">
-            </div>
-            <div class="field-group">
-                <label>Risk %</label>
-                <input type="number" step="0.1" id="riskPct_${id}" value="1.0">
+                <label>Balance ($) & Risk %</label>
+                <div class="split-input">
+                    <input type="number" id="startingBalance_${id}" value="10000" style="flex:2;" oninput="updateTileCalcs(${id})">
+                    <input type="number" step="0.1" id="riskPct_${id}" value="1.0" style="flex:1;" oninput="updateTileCalcs(${id})">
+                </div>
             </div>
         </div>
 
@@ -364,7 +365,7 @@ function createTileHTML(id) {
             </div>
             <div class="field-group full-width">
                 <label>Dynamic Shadow Sizing Toggle</label>
-                <select id="dynamicShadowSizing_${id}">
+                <select id="dynamicShadowSizing_${id}" onchange="updateTileCalcs(${id})">
                     <option value="false">OFF (Fixed Size)</option>
                     <option value="true">ON (Dynamic Scale)</option>
                 </select>
@@ -372,20 +373,32 @@ function createTileHTML(id) {
         </div>
 
         <!-- Section 8 & 9 -->
-        <div class="section-title">8 & 9. Notes & Performance</div>
-        <div class="field-group full-width" style="margin-bottom:6px;">
+        <div class="section-title">8 & 9. Notes & Performance / Sizing Display</div>
+        <div class="field-group full-width" style="margin-bottom:4px;">
             <label>Trade Notes</label>
             <textarea id="tradeNotes_${id}">Clean breakout continuation setup.</textarea>
         </div>
 
         <div class="results-box">
-            <div class="result-item">
-                <h4>Main Return</h4>
-                <p id="mainReturnDisplay_${id}">+1.50%</p>
+            <div class="results-row">
+                <div class="result-item">
+                    <h4>Main Sizing (Lots/Shares)</h4>
+                    <p id="mainSizingDisplay_${id}" style="color:var(--accent-blue);">0.00</p>
+                </div>
+                <div class="result-item">
+                    <h4>Shadow Sizing (Lots/Shares)</h4>
+                    <p id="shadowSizingDisplay_${id}" style="color:var(--accent-blue);">0.00</p>
+                </div>
             </div>
-            <div class="result-item">
-                <h4>Shadow Return</h4>
-                <p id="shadowReturnDisplay_${id}">+2.10%</p>
+            <div class="results-row" style="border-top: 1px solid rgba(56,189,248,0.2); padding-top: 3px;">
+                <div class="result-item">
+                    <h4>Main Return</h4>
+                    <p id="mainReturnDisplay_${id}">+1.50%</p>
+                </div>
+                <div class="result-item">
+                    <h4>Shadow Return</h4>
+                    <p id="shadowReturnDisplay_${id}">+2.10%</p>
+                </div>
             </div>
         </div>
     </div>
@@ -400,24 +413,59 @@ function initDashboard() {
     }
     container.innerHTML = html;
     
-    // Run initial calculations for all tiles
     for (let i = 1; i <= NUM_TILES; i++) {
         updateTileCalcs(i);
     }
 }
 
 function updateTileCalcs(id) {
+    let balance = parseFloat(document.getElementById(`startingBalance_${id}`).value) || 0;
+    let riskPct = parseFloat(document.getElementById(`riskPct_${id}`).value) || 0;
     let origEntry = parseFloat(document.getElementById(`originalEntry_${id}`).value) || 0;
     let stopLoss = parseFloat(document.getElementById(`stopLoss_${id}`).value) || 0;
     let offsetPct = parseFloat(document.getElementById(`shadowOffsetPct_${id}`).value) || 0;
+    let platform = document.getElementById(`platform_${id}`).value;
+    let dynamicToggle = document.getElementById(`dynamicShadowSizing_${id}`).value === "true";
+
+    let dollarRisk = balance * (riskPct / 100.0);
+    let mainDist = Math.abs(origEntry - stopLoss);
     
-    let riskDist = origEntry - stopLoss;
-    let shadowEntry = origEntry - (riskDist * (offsetPct / 100.0));
+    // Main Lot Sizing Calculation
+    let mainSize = 0;
+    if (mainDist > 0) {
+        if (platform === "MT5") {
+            // MT5 standard index contract sizing check (e.g. US100 standard contract/point value scaling)
+            mainSize = dollarRisk / mainDist;
+        } else {
+            // E-Trade equity / futures contract sizing
+            mainSize = dollarRisk / mainDist;
+        }
+    }
+
+    // Shadow Entry & Sizing Calculation
+    let shadowEntry = origEntry - (mainDist * (offsetPct / 100.0));
     document.getElementById(`shadowEntryPrice_${id}`).value = shadowEntry.toFixed(2);
+
+    let shadowDist = Math.abs(shadowEntry - stopLoss);
+    let shadowSize = mainSize;
+
+    if (dynamicToggle && shadowDist > 0) {
+        // Recalculates position size based on tighter shadow distance for constant dollar risk
+        shadowSize = dollarRisk / shadowDist;
+    }
+
+    // Display formatted sizes based on platform conventions
+    if (platform === "MT5") {
+        document.getElementById(`mainSizingDisplay_${id}`).innerText = mainSize.toFixed(2) + " Lots";
+        document.getElementById(`shadowSizingDisplay_${id}`).innerText = shadowSize.toFixed(2) + " Lots";
+    } else {
+        document.getElementById(`mainSizingDisplay_${id}`).innerText = Math.round(mainSize) + " Shares";
+        document.getElementById(`shadowSizingDisplay_${id}`).innerText = Math.round(shadowSize) + " Shares";
+    }
 }
 
 const csvHeaders = [
-    "Trade Date", "Ticker / Instrument", "Starting Balance", "Risk %",
+    "Trade Date", "Platform", "Ticker / Instrument", "Starting Balance", "Risk %",
     "Daily ATR (14-day)", "Volatility Saturation %", "15-Minute High", "15-Minute Low",
     "Trade Status", "Original Entry Price", "Stop Loss", "Take Profit (TP1)",
     "Entry Condition", "Entry Action Timestamp", "Exit Condition", "TP Hit Timestamp",
@@ -431,6 +479,7 @@ function getTileDataArray(id) {
     updateTileCalcs(id);
     return [
         document.getElementById(`tradeDate_${id}`).value,
+        document.getElementById(`platform_${id}`).value,
         document.getElementById(`ticker_${id}`).value,
         document.getElementById(`startingBalance_${id}`).value,
         document.getElementById(`riskPct_${id}`).value,
