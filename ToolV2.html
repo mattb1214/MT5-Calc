@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>V1Breakout Strategy Engine - Master Trade Tile</title>
+    <title>Breakout Strategy Engine - Master Trade Tile</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -14,6 +14,7 @@
             --accent-blue: #38bdf8;
             --accent-green: #34d399;
             --accent-red: #f87171;
+            --accent-yellow: #f59e0b;
             --input-bg: #0f172a;
         }
 
@@ -25,6 +26,11 @@
             padding: 20px;
             display: flex;
             justify-content: center;
+            box-sizing: border-box;
+        }
+
+        *, *:before, *:after {
+            box-sizing: inherit;
         }
 
         .workspace-container {
@@ -54,6 +60,8 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            width: 100%;
+            overflow: hidden;
         }
 
         .tile-header {
@@ -82,13 +90,15 @@
 
         .grid-compact {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 8px;
+            width: 100%;
         }
 
         .field-group {
             display: flex;
             flex-direction: column;
+            min-width: 0;
         }
 
         .field-group.full-width {
@@ -100,6 +110,9 @@
             font-weight: 600;
             margin-bottom: 3px;
             color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         input, select, textarea {
@@ -109,6 +122,8 @@
             border: 1px solid var(--border-color);
             border-radius: 4px;
             font-size: 12px;
+            width: 100%;
+            max-width: 100%;
         }
 
         input:focus, select:focus, textarea:focus {
@@ -124,9 +139,15 @@
         .split-input {
             display: flex;
             gap: 4px;
+            width: 100%;
+            min-width: 0;
         }
-        .split-input input[type="number"] { flex: 2; }
-        .split-input input[type="time"] { flex: 1; }
+        .split-input input[type="number"], .split-input input[type="time"] { 
+            flex: 1 1 0; 
+            min-width: 0; 
+        }
+        .split-input input.balance-input { flex: 2 1 0; }
+        .split-input input.risk-input { flex: 1 1 0; }
 
         .results-box {
             background: rgba(56, 189, 248, 0.08);
@@ -198,6 +219,7 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            padding: 15px;
         }
 
         .modal-content {
@@ -205,7 +227,8 @@
             border: 1px solid var(--accent-blue);
             border-radius: 8px;
             padding: 20px;
-            width: 360px;
+            width: 100%;
+            max-width: 360px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             display: flex;
             flex-direction: column;
@@ -249,7 +272,7 @@
         </div>
 
         <!-- Section 1 -->
-        <div class="section-title">1. Identification & Platform</div>
+        <div class="section-title">1. Identification, Platform & Guardrails</div>
         <div class="grid-compact">
             <div class="field-group">
                 <label>Trade Date</label>
@@ -269,8 +292,15 @@
             <div class="field-group">
                 <label>Balance ($) & Risk %</label>
                 <div class="split-input">
-                    <input type="number" id="startingBalance_1" value="10000" style="flex:2;" oninput="runEngineCalcs()">
-                    <input type="number" step="0.1" id="riskPct_1" value="1.0" style="flex:1;" oninput="runEngineCalcs()">
+                    <input type="number" id="startingBalance_1" class="balance-input" value="10000" oninput="runEngineCalcs()">
+                    <input type="number" step="0.1" id="riskPct_1" class="risk-input" value="1.0" oninput="runEngineCalcs()">
+                </div>
+            </div>
+            <div class="field-group full-width">
+                <label>Volatility Guardrail Range (%) [Min - Max]</label>
+                <div class="split-input">
+                    <input type="number" step="0.1" id="guardrailMin_1" value="32.5" oninput="runEngineCalcs()" title="Minimum Guardrail %">
+                    <input type="number" step="0.1" id="guardrailMax_1" value="52.5" oninput="runEngineCalcs()" title="Maximum Guardrail %">
                 </div>
             </div>
         </div>
@@ -283,8 +313,8 @@
                 <input type="number" step="0.01" id="atr14_1" value="125.50" oninput="runEngineCalcs()">
             </div>
             <div class="field-group">
-                <label>Volatility Saturation %</label>
-                <input type="number" step="0.1" id="volSatPct_1" value="84.2" oninput="runEngineCalcs()">
+                <label>Volatility Saturation % (Auto)</label>
+                <input type="number" step="0.1" id="volSatPct_1" readonly style="background:#090d16; font-weight:bold; color:var(--accent-blue);">
             </div>
             <div class="field-group">
                 <label>15M High</label>
@@ -296,7 +326,7 @@
             </div>
         </div>
 
-        <!-- Volatility Saturation Resolution Screen (Placed between Section 2 and 3) -->
+        <!-- Volatility Saturation Resolution Screen -->
         <div style="margin-top: 4px;">
             <button class="btn-resolve" onclick="openVolModal()">Open Volatility Saturation Resolve Screen</button>
         </div>
@@ -452,16 +482,16 @@
             <h3>Volatility Saturation Resolve Screen</h3>
             <button class="btn-close-modal" onclick="closeVolModal()">&times;</button>
         </div>
-        <div style="font-size: 11px; color: var(--text-secondary);">
-            Evaluates current session price range relative to the 14-day daily ATR baseline.
+        <div style="font-size: 11px; color: var(--text-secondary);" id="modalGuardrailDesc">
+            Evaluates 14-day daily ATR divided by the 15-minute candle range. Target guardrail: Min to Max.
         </div>
         <div class="field-group">
-            <label>Calculated Saturation Status</label>
-            <input type="text" id="modalSatStatus" readonly style="background:#090d16; font-weight:bold; color:var(--accent-green);">
+            <label>Calculated Saturation %</label>
+            <input type="text" id="modalSatStatus" readonly style="background:#090d16; font-weight:bold;">
         </div>
         <div class="field-group">
-            <label>ATR Baseline Reference</label>
-            <input type="text" id="modalAtrRef" readonly style="background:#090d16;">
+            <label>Guardrail Compliance Status</label>
+            <input type="text" id="modalCompliance" readonly style="background:#090d16; font-weight:bold;">
         </div>
         <div class="field-group">
             <label>Volatility Resolution Notes</label>
@@ -473,7 +503,6 @@
 
 <script>
 function runEngineCalcs() {
-    // 1. Retrieve Core Inputs
     let balance = parseFloat(document.getElementById('startingBalance_1').value) || 0;
     let riskPct = parseFloat(document.getElementById('riskPct_1').value) || 0;
     let origEntry = parseFloat(document.getElementById('originalEntry_1').value) || 0;
@@ -484,22 +513,37 @@ function runEngineCalcs() {
     let platform = document.getElementById('platform_1').value;
     let dynamicToggle = document.getElementById('dynamicShadowSizing_1').value === "true";
     let status = document.getElementById('tradeStatus_1').value;
-    let volSat = parseFloat(document.getElementById('volSatPct_1').value) || 0;
     let atr14 = parseFloat(document.getElementById('atr14_1').value) || 0;
+    let high15m = parseFloat(document.getElementById('high15m_1').value) || 0;
+    let low15m = parseFloat(document.getElementById('low15m_1').value) || 0;
+    
+    let guardrailMin = parseFloat(document.getElementById('guardrailMin_1').value) || 0;
+    let guardrailMax = parseFloat(document.getElementById('guardrailMax_1').value) || 0;
 
-    // Update Status Badge Visual
+    let range15m = Math.abs(high15m - low15m);
+    let volSat = 0;
+    if (range15m > 0) {
+        volSat = (atr14 / range15m) * 100.0;
+    }
+    document.getElementById('volSatPct_1').value = range15m > 0 ? volSat.toFixed(1) : "";
+
+    let isWithinGuardrail = (volSat >= guardrailMin && volSat <= guardrailMax);
+
     let badge = document.getElementById('liveStatusBadge');
-    if (status === "Approved") {
-        badge.innerText = "APPROVED";
+    if (status === "Approved" && isWithinGuardrail) {
+        badge.innerText = "APPROVED (VERIFIED)";
         badge.style.background = "rgba(52,211,153,0.15)";
         badge.style.color = "var(--accent-green)";
+    } else if (status === "Approved" && !isWithinGuardrail) {
+        badge.innerText = "WARNING: OUT OF GUARDRAIL";
+        badge.style.background = "rgba(245,158,11,0.15)";
+        badge.style.color = "var(--accent-yellow)";
     } else {
         badge.innerText = "DISQUALIFIED";
         badge.style.background = "rgba(248,113,113,0.15)";
         badge.style.color = "var(--accent-red)";
     }
 
-    // 2. Risk & Position Sizing Calculations ($ Risk / Distance)
     let dollarRisk = balance * (riskPct / 100.0);
     let mainDist = Math.abs(origEntry - stopLoss);
     
@@ -508,9 +552,8 @@ function runEngineCalcs() {
         mainSize = dollarRisk / mainDist;
     }
 
-    // 3. Shadow Entry & Sizing Calculations
     let shadowEntry = origEntry - (mainDist * (offsetPct / 100.0));
-    document.getElementById('shadowEntryPrice_1').value = shadowEntry.toFixed(2);
+    document.getElementById('shadowEntryPrice_1').value = origEntry > 0 ? shadowEntry.toFixed(2) : "";
 
     let shadowDist = Math.abs(shadowEntry - stopLoss);
     let shadowSize = mainSize;
@@ -519,21 +562,18 @@ function runEngineCalcs() {
         shadowSize = dollarRisk / shadowDist;
     }
 
-    // 4. Platform Formatting (MT5 Lots vs E-Trade Shares)
     if (platform === "MT5") {
-        document.getElementById('mainSizingDisplay_1').innerText = mainSize.toFixed(2) + " Lots";
-        document.getElementById('shadowSizingDisplay_1').innerText = shadowSize.toFixed(2) + " Lots";
+        document.getElementById('mainSizingDisplay_1').innerText = mainSize > 0 ? mainSize.toFixed(2) + " Lots" : "0.00 Lots";
+        document.getElementById('shadowSizingDisplay_1').innerText = shadowSize > 0 ? shadowSize.toFixed(2) + " Lots" : "0.00 Lots";
     } else {
-        document.getElementById('mainSizingDisplay_1').innerText = Math.round(mainSize) + " Shares";
-        document.getElementById('shadowSizingDisplay_1').innerText = Math.round(shadowSize) + " Shares";
+        document.getElementById('mainSizingDisplay_1').innerText = mainSize > 0 ? Math.round(mainSize) + " Shares" : "0 Shares";
+        document.getElementById('shadowSizingDisplay_1').innerText = shadowSize > 0 ? Math.round(shadowSize) + " Shares" : "0 Shares";
     }
 
-    // 5. Performance Return Calculations (% Gain/Loss on Account Balance)
     let mainReturnPct = 0;
     let shadowReturnPct = 0;
 
-    if (balance > 0 && origEntry > 0) {
-        // Assuming profitable move to Take Profit or exit at flattenPrice
+    if (balance > 0 && origEntry > 0 && flattenPrice > 0) {
         let mainPriceDelta = flattenPrice - origEntry;
         let mainProfitDollar = mainPriceDelta * mainSize;
         mainReturnPct = (mainProfitDollar / balance) * 100.0;
@@ -552,9 +592,21 @@ function runEngineCalcs() {
     shadowReturnElem.innerText = (shadowReturnPct >= 0 ? "+" : "") + shadowReturnPct.toFixed(2) + "%";
     shadowReturnElem.style.color = shadowReturnPct >= 0 ? "var(--accent-green)" : "var(--accent-red)";
 
-    // 6. Update Modal Fields
-    document.getElementById('modalSatStatus').value = volSat.toFixed(1) + "% Saturation Level";
-    document.getElementById('modalAtrRef').value = "14-day Daily ATR: " + atr14.toFixed(2);
+    document.getElementById('modalGuardrailDesc').innerText = "Evaluates 14-day daily ATR divided by 15-minute range. Target guardrail: " + guardrailMin.toFixed(1) + "% to " + guardrailMax.toFixed(1) + "%.";
+    document.getElementById('modalSatStatus').value = range15m > 0 ? (volSat.toFixed(1) + "% (ATR: " + atr14.toFixed(2) + " / Range: " + range15m.toFixed(2) + ")") : "";
+    
+    let complianceElem = document.getElementById('modalCompliance');
+    if (range15m > 0) {
+        if (isWithinGuardrail) {
+            complianceElem.value = "PASSED (Within " + guardrailMin.toFixed(1) + "% - " + guardrailMax.toFixed(1) + "% Target)";
+            complianceElem.style.color = "var(--accent-green)";
+        } else {
+            complianceElem.value = "FAILED (Outside " + guardrailMin.toFixed(1) + "% - " + guardrailMax.toFixed(1) + "% Guardrail)";
+            complianceElem.style.color = "var(--accent-red)";
+        }
+    } else {
+        complianceElem.value = "";
+    }
 }
 
 function openVolModal() {
@@ -568,13 +620,13 @@ function closeVolModal() {
 
 const csvHeaders = [
     "Trade Date", "Platform", "Ticker / Instrument", "Starting Balance", "Risk %",
-    "Daily ATR (14-day)", "Volatility Saturation %", "15-Minute High", "15-Minute Low",
-    "Trade Status", "Original Entry Price", "Stop Loss", "Take Profit (TP1)",
-    "Entry Condition", "Entry Action Timestamp", "Exit Condition", "TP Hit Timestamp",
-    "Final Exit/Flatten Timestamp", "Flatten Price", "Intraday High", "Intraday High Timestamp",
-    "Intraday Low", "Intraday Low Timestamp", "Intra-Trade High", "Shadow Offset %",
-    "New Shadow Entry Price", "Dynamic Shadow Sizing Toggle", "Main Trade % Return",
-    "Shadow Trade % Return", "Notes"
+    "Guardrail Min %", "Guardrail Max %", "Daily ATR (14-day)", "Volatility Saturation %",
+    "15-Minute High", "15-Minute Low", "Trade Status", "Original Entry Price", "Stop Loss",
+    "Take Profit (TP1)", "Entry Condition", "Entry Action Timestamp", "Exit Condition",
+    "TP Hit Timestamp", "Final Exit/Flatten Timestamp", "Flatten Price", "Intraday High",
+    "Intraday High Timestamp", "Intraday Low", "Intraday Low Timestamp", "Intra-Trade High",
+    "Shadow Offset %", "New Shadow Entry Price", "Dynamic Shadow Sizing Toggle",
+    "Main Trade % Return", "Shadow Trade % Return", "Notes"
 ];
 
 function getTileDataArray() {
@@ -585,6 +637,8 @@ function getTileDataArray() {
         document.getElementById('ticker_1').value,
         document.getElementById('startingBalance_1').value,
         document.getElementById('riskPct_1').value,
+        document.getElementById('guardrailMin_1').value,
+        document.getElementById('guardrailMax_1').value,
         document.getElementById('atr14_1').value,
         document.getElementById('volSatPct_1').value,
         document.getElementById('high15m_1').value,
@@ -622,7 +676,7 @@ function exportSingleTileCSV() {
     var encodedUri = encodeURI(csvContent);
     var link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `breakout_tile_1_${document.getElementById('tradeDate_1').value}.csv`);
+    link.setAttribute("download", `breakout_tile_1_${document.getElementById('tradeDate_1').value || 'trade'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
