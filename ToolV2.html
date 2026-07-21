@@ -6,32 +6,33 @@
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
-        .dashboard { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--accent); margin-bottom: 20px; display: flex; gap: 15px; }
         .grid { display: grid; grid-template-columns: 1fr; gap: 20px; max-width: 600px; }
         .card { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid #334155; }
+        .dashboard { background: #020617; padding: 10px; border-radius: 6px; border: 1px solid #475569; margin-bottom: 12px; display: flex; gap: 10px; font-size: 0.9em; align-items: center; }
         .output { font-family: monospace; font-size: 0.9em; margin: 10px 0; background: #020617; padding: 12px; border-left: 4px solid var(--accent); color: #e2e8f0; }
         .approved { color: #22c55e; font-weight: bold; }
         .disqualified { color: #ef4444; font-weight: bold; }
         input, select, textarea { width: 100%; padding: 6px; margin: 2px 0; background: #334155; color: #fff; border: 1px solid #475569; box-sizing: border-box; }
+        .dashboard input { width: 50px; padding: 3px; font-size: 0.9em; }
         .export-btn { margin-top: 20px; padding: 15px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; max-width: 600px; font-weight: bold; }
     </style>
 </head>
 <body>
     <h2>Engine 61</h2>
-    <div class="dashboard">
-        Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
-        Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
-        Max Sat: <input type="number" id="gMax" value="52.5" style="width:60px">
-    </div>
     <div id="grid" class="grid"></div>
     <button class="export-btn" onclick="exportCSV()">Export 23-Column Forensic CSV</button>
 
     <script>
         function init() {
             const grid = document.getElementById('grid');
-            // Rendered with a single tile (index 0) stripped of sequence inputs
+            // Dashboard controls are now embedded compactly at the top of the single tile
             grid.innerHTML = `
                 <div class="card">
+                    <div class="dashboard">
+                        Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" oninput="calc(0)">
+                        Min Sat: <input type="number" id="gMin" value="32.5" oninput="calc(0)">
+                        Max Sat: <input type="number" id="gMax" value="52.5" oninput="calc(0)">
+                    </div>
                     <input type="text" placeholder="Ticker" id="t-0">
                     <select id="m-0" onchange="calc(0)"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
                     <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-0" oninput="calc(0)"><input type="number" placeholder="ATR" id="a-0" oninput="calc(0)"></div>
