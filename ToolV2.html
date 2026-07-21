@@ -53,7 +53,24 @@
                         </select>
                     </div>
 
+                    <!-- Price & Timestamp Input Rows -->
                     <div style="display:flex; gap:5px;">
+                        <input type="number" placeholder="Intraday High" id="ih-0" style="flex:2;">
+                        <input type="text" placeholder="Time (e.g. 10:30)" id="ih-time-0" style="flex:1;">
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" placeholder="Intraday Low" id="il-0" style="flex:2;">
+                        <input type="text" placeholder="Time (e.g. 11:15)" id="il-time-0" style="flex:1;">
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" placeholder="Intra Trade High" id="ith-0" style="flex:2;">
+                        <input type="text" placeholder="Time (e.g. 13:45)" id="ith-time-0" style="flex:1;">
+                    </div>
+                    <div>
+                        <input type="number" placeholder="Flattened Price" id="ex-0">
+                    </div>
+
+                    <div style="display:flex; gap:5px; margin-top:5px;">
                         <input type="number" placeholder="Offset % (e.g. 25)" id="off-0" oninput="calc(0)">
                         <input type="text" placeholder="Custom Entry Value" id="off-res-0" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
@@ -127,11 +144,11 @@
                 const stopDist = e - sl;
                 const totalUnits = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
                 
-                const ih = 0;
-                const il = 0;
+                const ih = document.getElementById(`ih-${i}`).value || 0;
+                const il = document.getElementById(`il-${i}`).value || 0;
+                const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
+                const maxP = parseFloat(document.getElementById(`ith-${i}`).value) || 0;
                 const pl = 0;
-                const flatP = 0;
-                const maxP = 0;
                 const status = ( ((h-l)/a)*100 >= parseFloat(document.getElementById('gMin').value) && ((h-l)/a)*100 <= parseFloat(document.getElementById('gMax').value) ) ? "APPROVED" : "DISQUALIFIED";
                 
                 const eff = "N/A";
