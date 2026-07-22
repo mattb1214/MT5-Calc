@@ -87,10 +87,10 @@
                         <input type="text" placeholder="Custom Entry Value" id="off-res-0" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
                     
-                    <!-- Regular Trade P&L Simulation (% of Account) -->
+                    <!-- Regular Trade P&L Simulation (% and Dollar Amount) -->
                     <div class="output" id="pnl-res-0" style="border-left-color: #38bdf8; margin-top: 5px;">Trade P&L Simulation: Awaiting criteria inputs...</div>
 
-                    <!-- Bottom Result Screen: Dual Shadow Trade Comparisons (Unadjusted Lots vs. Adjusted Lots) -->
+                    <!-- Bottom Result Screen: Dual Shadow Trade Comparisons (% and Dollar Amounts) -->
                     <div class="output" id="off-metrics-0" style="border-left-color: #22c55e; margin-top: 5px;">Custom Entry Adjustments: Enter Offset %</div>
                     <textarea placeholder="Trade Notes" id="n1-0">Hit entry, did not hit tp1, flattened for small gain</textarea>
                 </div>
@@ -130,7 +130,7 @@
             E: ${baseE.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
             TP1 (Body Target): ${(baseE+stopDistBase).toFixed(2)} | TP2: ${(baseE+stopDistBase*2).toFixed(2)} | TP3: ${(baseE+stopDistBase*3).toFixed(2)}`;
 
-            // 2. Regular Trade P&L Simulation (% of Account)
+            // 2. Regular Trade P&L Simulation (% and Dollars)
             const entryCond = document.getElementById(`entry-cond-${i}`).value;
             const exitCond = document.getElementById(`exit-cond-${i}`).value;
             const flatPrice = parseFloat(document.getElementById(`ex-${i}`).value) || baseE;
@@ -167,12 +167,14 @@
             }
 
             const regularPLPercent = (regularPLDollars / b) * 100;
+            const regColor = regularPLDollars >= 0 ? '#22c55e' : '#ef4444';
+            const regSign = regularPLDollars >= 0 ? '+' : '';
 
-            document.getElementById(`pnl-res-0`).innerHTML = `<b>Regular Trade P&L Simulation (% of Account):</b><br>
-            Account Return: <span style="color: ${regularPLPercent >= 0 ? '#22c55e' : '#ef4444'}; font-weight: bold;">${regularPLPercent >= 0 ? '+' : ''}${regularPLPercent.toFixed(3)}%</span><br>
+            document.getElementById(`pnl-res-0`).innerHTML = `<b>Regular Trade P&L Simulation:</b><br>
+            Account Return: <span style="color: ${regColor}; font-weight: bold;">${regSign}${regularPLPercent.toFixed(3)}% (${regSign}$${regularPLDollars.toFixed(2)})</span><br>
             <span style="font-size: 0.9em; color: #94a3b8;">${regExecutionDesc}</span>`;
 
-            // 3. Shadow / Custom Offset Calculations & Dual Return Comparison (Unadjusted Lots vs. Recalculated Lots)
+            // 3. Shadow / Custom Offset Calculations & Dual Return Comparison (% and Dollars)
             const offsetInput = parseFloat(document.getElementById(`off-${i}`).value);
             let activeE = baseE;
             
@@ -199,6 +201,8 @@
                         unadjPLDollars = (unadjBody * (shadowTp1Target - activeE)) + (unadjRunner * (flatPrice - activeE));
                     }
                     const unadjPLPercent = (unadjPLDollars / b) * 100;
+                    const unadjColor = unadjPLDollars >= 0 ? '#22c55e' : '#ef4444';
+                    const unadjSign = unadjPLDollars >= 0 ? '+' : '';
 
                     // B. Shadow Return with RECALCULATED (Adjusted) Lot Size
                     const adjTotal = (brokerage === "ETRADE") ? Math.floor((b * r) / customStopDist) : parseFloat(((b * r) / customStopDist).toFixed(2));
@@ -216,12 +220,14 @@
                         adjPLDollars = (adjBody * (shadowTp1Target - activeE)) + (adjRunner * (flatPrice - activeE));
                     }
                     const adjPLPercent = (adjPLDollars / b) * 100;
+                    const adjColor = adjPLDollars >= 0 ? '#22c55e' : '#ef4444';
+                    const adjSign = adjPLDollars >= 0 ? '+' : '';
 
-                    // Render Dual Comparison inside bottom result field
-                    document.getElementById(`off-metrics-0`).innerHTML = `<b>Shadow Trade Comparisons & P&L (% of Account):</b><br>
+                    // Render Dual Comparison inside bottom result field with both % and $ amounts
+                    document.getElementById(`off-metrics-0`).innerHTML = `<b>Shadow Trade Comparisons & P&L:</b><br>
                     Shadow Entry: ${activeE.toFixed(2)}<br>
-                    1. Unadjusted Lots (${totalBase} ${unitLabel}): <span style="color: ${unadjPLPercent >= 0 ? '#22c55e' : '#ef4444'}; font-weight: bold;">${unadjPLPercent >= 0 ? '+' : ''}${unadjPLPercent.toFixed(3)}%</span><br>
-                    2. Recalculated Lots (${adjTotal} ${unitLabel} | Body: ${adjBody} | Runner: ${adjRunner}): <span style="color: ${adjPLPercent >= 0 ? '#22c55e' : '#ef4444'}; font-weight: bold;">${adjPLPercent >= 0 ? '+' : ''}${adjPLPercent.toFixed(3)}%</span>`;
+                    1. Unadjusted Lots (${totalBase} ${unitLabel}): <span style="color: ${unadjColor}; font-weight: bold;">${unadjSign}${unadjPLPercent.toFixed(3)}% (${unadjSign}$${unadjPLDollars.toFixed(2)})</span><br>
+                    2. Recalculated Lots (${adjTotal} ${unitLabel} | Body: ${adjBody} | Runner: ${adjRunner}): <span style="color: ${adjColor}; font-weight: bold;">${adjSign}${adjPLPercent.toFixed(3)}% (${adjSign}$${adjPLDollars.toFixed(2)})</span>`;
                 } else {
                     document.getElementById(`off-metrics-0`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry must remain above stop loss.</span>`;
                 }
