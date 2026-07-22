@@ -55,35 +55,39 @@
 
                     <!-- Entry & Shadow Entry Timestamp Rows -->
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Entry Price Hit" id="entry-price-0" style="flex:2;">
+                        <input type="number" placeholder="Entry Price Hit" id="entry-price-0" style="flex:2;" oninput="calc(0)">
                         <input type="text" placeholder="Time (e.g. 09:35)" id="entry-time-0" style="flex:1;">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Shadow Entry Hit" id="shadow-price-0" style="flex:2;">
+                        <input type="number" placeholder="Shadow Entry Hit" id="shadow-price-0" style="flex:2;" oninput="calc(0)">
                         <input type="text" placeholder="Time (e.g. 09:45)" id="shadow-time-0" style="flex:1;">
                     </div>
 
                     <!-- Price & Timestamp Input Rows -->
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intraday High" id="ih-0" style="flex:2;">
+                        <input type="number" placeholder="Intraday High" id="ih-0" style="flex:2;" oninput="calc(0)">
                         <input type="text" placeholder="Time (e.g. 10:30)" id="ih-time-0" style="flex:1;">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intraday Low" id="il-0" style="flex:2;">
+                        <input type="number" placeholder="Intraday Low" id="il-0" style="flex:2;" oninput="calc(0)">
                         <input type="text" placeholder="Time (e.g. 11:15)" id="il-time-0" style="flex:1;">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intra Trade High" id="ith-0" style="flex:2;">
+                        <input type="number" placeholder="Intra Trade High" id="ith-0" style="flex:2;" oninput="calc(0)">
                         <input type="text" placeholder="Time (e.g. 13:45)" id="ith-time-0" style="flex:1;">
                     </div>
                     <div>
-                        <input type="number" placeholder="Flattened Price" id="ex-0">
+                        <input type="number" placeholder="Flattened Price" id="ex-0" oninput="calc(0)">
                     </div>
 
                     <div style="display:flex; gap:5px; margin-top:5px;">
                         <input type="number" placeholder="Offset % (e.g. 25)" id="off-0" oninput="calc(0)">
                         <input type="text" placeholder="Custom Entry Value" id="off-res-0" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
+                    
+                    <!-- P&L / Trade Simulation Output Box (Now in Account % terms) -->
+                    <div class="output" id="pnl-res-0" style="border-left-color: #38bdf8; margin-top: 5px;">Trade P&L Simulation: Awaiting criteria inputs...</div>
+
                     <div class="output" id="off-metrics-0" style="border-left-color: #22c55e; margin-top: 5px;">Custom Entry Adjustments: Enter Offset %</div>
                     <textarea placeholder="Trade Notes" id="n1-0"></textarea>
                 </div>
@@ -100,44 +104,82 @@
             
             if(!b || !a || !h || !l) return;
             
-            const e = h + (h * 0.001) + (a * 0.05);
+            // Primary Entry & Stop Loss Calculations
+            const baseE = h + (h * 0.001) + (a * 0.05);
             const sl = l - (a * 0.1);
-            const stopDist = e - sl;
             
+            // Offset Handling
+            const offsetInput = parseFloat(document.getElementById(`off-${i}`).value);
+            let e = baseE;
+            if (!isNaN(offsetInput)) {
+                const stopDistBase = baseE - sl;
+                e = baseE - (stopDistBase * (offsetInput / 100));
+                document.getElementById(`off-res-0`).value = e.toFixed(2);
+            } else {
+                document.getElementById(`off-res-0`).value = "";
+            }
+
+            const stopDist = e - sl;
+            if (stopDist <= 0) return;
+
             const total = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
             const unitLabel = (brokerage === "MT5") ? "Lots" : "Shares";
-            const body = (brokerage === "ETRADE") ? Math.floor(total / 3) : (total / 3).toFixed(2);
-            const runner = (brokerage === "ETRADE") ? (total - body) : (total - parseFloat(body)).toFixed(2);
+            
+            // 1/3 Body (TP1 target = entry + stop distance) and 2/3 Runner
+            const body = (brokerage === "ETRADE") ? Math.floor(total / 3) : parseFloat((total / 3).toFixed(2));
+            const runner = (brokerage === "ETRADE") ? (total - body) : parseFloat((total - body).toFixed(2));
             
             const sat = ((h - l) / a) * 100;
             const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
 
-            const offsetInput = parseFloat(document.getElementById(`off-${i}`).value);
-            if (!isNaN(offsetInput)) {
-                const customE = e - (stopDist * (offsetInput / 100));
-                document.getElementById(`off-res-0`).value = customE.toFixed(2);
+            // --- TRADE P&L SIMULATION LOGIC (% of account) ---
+            const entryCond = document.getElementById(`entry-cond-${i}`).value;
+            const exitCond = document.getElementById(`exit-cond-${i}`).value;
+            const flatPrice = parseFloat(document.getElementById(`ex-${i}`).value) || e;
 
-                const customStopDist = customE - sl;
-                if (customStopDist > 0) {
-                    const adjTotal = (brokerage === "ETRADE") ? Math.floor((b * r) / customStopDist) : parseFloat(((b * r) / customStopDist).toFixed(2));
-                    const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : (adjTotal / 3).toFixed(2);
-                    const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : (adjTotal - parseFloat(adjBody)).toFixed(2);
+            let regularPLDollars = 0;
+            let executionDesc = "";
 
-                    document.getElementById(`off-metrics-0`).innerHTML = `<b>Custom Entry Metrics (Equal Risk Re-sized):</b><br>
-                    New Entry: ${customE.toFixed(2)} | Adj Total: ${adjTotal} ${unitLabel}<br>
-                    Adj Body: ${adjBody} | Adj Runner: ${adjRunner}`;
-                } else {
-                    document.getElementById(`off-metrics-0`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry must remain above stop loss.</span>`;
-                }
+            if (entryCond === "Entry price not hit") {
+                regularPLDollars = 0;
+                executionDesc = "No primary entry triggered.";
             } else {
-                document.getElementById(`off-res-0`).value = "";
-                document.getElementById(`off-metrics-0`).innerHTML = `Custom Entry Adjustments: Enter Offset %`;
+                const tp1Target = e + stopDist; // 1:1 risk reward for the 1/3 body target
+
+                if (exitCond === "Stopped out") {
+                    regularPLDollars = total * (sl - e);
+                    executionDesc = `Full position stopped out at initial SL (${sl.toFixed(2)}).`;
+                } 
+                else if (exitCond === "TP not hit, flattened") {
+                    regularPLDollars = total * (flatPrice - e);
+                    executionDesc = `Flattened prior to TP at ${flatPrice.toFixed(2)}.`;
+                } 
+                else if (exitCond === "TP hit, stopped out") {
+                    const bodyPL = body * (tp1Target - e);
+                    const runnerPL = runner * (e - e); // Breakeven exit at entry price
+                    regularPLDollars = bodyPL + runnerPL;
+                    executionDesc = `Body hit TP1 (${tp1Target.toFixed(2)}). Runner stopped out at Breakeven/Entry (${e.toFixed(2)}).`;
+                } 
+                else if (exitCond === "TP hit, flattened") {
+                    const bodyPL = body * (tp1Target - e);
+                    const runnerPL = runner * (flatPrice - e);
+                    regularPLDollars = bodyPL + runnerPL;
+                    executionDesc = `Body hit TP1 (${tp1Target.toFixed(2)}). Runner flattened at ${flatPrice.toFixed(2)}.`;
+                }
             }
 
+            // Convert Dollar P&L to Account Percentage P&L
+            const regularPLPercent = (regularPLDollars / b) * 100;
+
+            // Render Output Blocks
+            document.getElementById(`pnl-res-0`).innerHTML = `<b>Trade P&L Simulation (% of Account):</b><br>
+            Account Return: <span style="color: ${regularPLPercent >= 0 ? '#22c55e' : '#ef4444'}; font-weight: bold;">${regularPLPercent >= 0 ? '+' : ''}${regularPLPercent.toFixed(3)}%</span><br>
+            <span style="font-size: 0.9em; color: #94a3b8;">${executionDesc}</span>`;
+
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
-            Total: ${total} ${unitLabel} | Body: ${body} | Runner: ${runner}<br>
+            Total: ${total} ${unitLabel} | Body (1/3): ${body} | Runner (2/3): ${runner}<br>
             E: ${e.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
-            TP1: ${(e+stopDist).toFixed(2)} | TP2: ${(e+stopDist*2).toFixed(2)} | TP3: ${(e+stopDist*3).toFixed(2)}`;
+            TP1 (Body Target): ${(e+stopDist).toFixed(2)} | TP2: ${(e+stopDist*2).toFixed(2)} | TP3: ${(e+stopDist*3).toFixed(2)}`;
         }
 
         function exportCSV() {
@@ -152,19 +194,14 @@
                 const e = h + (h * 0.001) + (a * 0.05);
                 const sl = l - (a * 0.1);
                 const stopDist = e - sl;
-                const totalUnits = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
                 
                 const ih = document.getElementById(`ih-${i}`).value || 0;
                 const il = document.getElementById(`il-${i}`).value || 0;
                 const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
                 const maxP = parseFloat(document.getElementById(`ith-${i}`).value) || 0;
-                const pl = 0;
                 const status = ( ((h-l)/a)*100 >= parseFloat(document.getElementById('gMin').value) && ((h-l)/a)*100 <= parseFloat(document.getElementById('gMax').value) ) ? "APPROVED" : "DISQUALIFIED";
                 
-                const eff = "N/A";
-                const gl = "0%";
-
-                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${(((h-l)/a)*100).toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+stopDist).toFixed(2)},${(e+stopDist*2).toFixed(2)},${(e+stopDist*3).toFixed(2)},${ih},${il},${flatP},${maxP},${pl},${eff}%,${gl},"${document.getElementById(`n1-${i}`).value}"\n`;
+                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${(((h-l)/a)*100).toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+stopDist).toFixed(2)},${(e+stopDist*2).toFixed(2)},${(e+stopDist*3).toFixed(2)},${ih},${il},${flatP},${maxP},0,N/A,0%,"${document.getElementById(`n1-${i}`).value}"\n`;
             }
             const a = document.createElement('a');
             a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Forensic_Log.csv'; a.click();
