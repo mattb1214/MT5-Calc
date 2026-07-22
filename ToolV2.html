@@ -36,9 +36,9 @@
                 html += `
                 <div class="card">
                     <div class="dashboard">
-                        Risk%: <input type="number" id="gRisk-${i}" value="" step="0.05" oninput="calc(${i})">
-                        Min Sat: <input type="number" id="gMin-${i}" value="" oninput="calc(${i})">
-                        Max Sat: <input type="number" id="gMax-${i}" value="" oninput="calc(${i})">
+                        Risk%: <input type="number" id="gRisk-${i}" value="0.75" step="0.05" oninput="calc(${i})">
+                        Min Sat: <input type="number" id="gMin-${i}" value="32.5" oninput="calc(${i})">
+                        Max Sat: <input type="number" id="gMax-${i}" value="52.5" oninput="calc(${i})">
                     </div>
                     <div style="display:flex; gap:5px;">
                         <input type="text" placeholder="Ticker" id="t-${i}" value="">
@@ -90,7 +90,7 @@
                     </div>
 
                     <div style="display:flex; gap:5px; margin-top:5px;">
-                        <input type="number" placeholder="Offset % (e.g. 25)" id="off-${i}" value="" oninput="calc(${i})">
+                        <input type="number" placeholder="Offset % (e.g. 25)" id="off-${i}" value="25" oninput="calc(${i})">
                         <input type="text" placeholder="Custom Entry Value" id="off-res-${i}" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
                     
