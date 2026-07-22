@@ -2,64 +2,60 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 61 - Single Tile</title>
+    <title>Engine 61 - 8-Tile Dashboard</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
-        .grid { display: grid; grid-template-columns: 1fr; gap: 20px; max-width: 600px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px; max-width: 1600px; margin: 0 auto; }
         .card { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid #334155; }
         .dashboard { background: #020617; padding: 10px; border-radius: 6px; border: 1px solid #475569; margin-bottom: 12px; display: flex; gap: 10px; font-size: 0.9em; align-items: center; }
-        .output { font-family: monospace; font-size: 0.9em; margin: 10px 0; background: #020617; padding: 12px; border-left: 4px solid var(--accent); color: #e2e8f0; }
+        .output { font-family: monospace; font-size: 0.85em; margin: 8px 0; background: #020617; padding: 10px; border-left: 4px solid var(--accent); color: #e2e8f0; }
         .approved { color: #22c55e; font-weight: bold; }
         .disqualified { color: #ef4444; font-weight: bold; }
-        input, select, textarea { width: 100%; padding: 6px; margin: 2px 0; background: #334155; color: #fff; border: 1px solid #475569; box-sizing: border-box; }
+        input, select, textarea { width: 100%; padding: 6px; margin: 2px 0; background: #334155; color: #fff; border: 1px solid #475569; box-sizing: border-box; font-size: 0.9em; }
         
-        /* Remove spinner arrows for Chrome, Safari, Edge, Opera */
-        input::-webkit-outer-spin-button,
-        input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-        /* Remove spinner arrows for Firefox */
-        input[type=number] {
-            -moz-appearance: textfield;
-        }
+        /* Remove spinner arrows */
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
 
         .dashboard input { width: 50px; padding: 3px; font-size: 0.9em; }
-        .export-btn { margin-top: 20px; padding: 15px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; max-width: 600px; font-weight: bold; }
+        .export-btn { margin: 30px auto; padding: 15px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; max-width: 400px; font-weight: bold; display: block; font-size: 1.1em; }
+        h2 { text-align: center; color: #f8fafc; margin-bottom: 25px; }
     </style>
 </head>
 <body>
-    <h2>Engine 61</h2>
+    <h2>Engine 61 - 8-Tile Multi-Session Workspace</h2>
     <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export Comprehensive Forensic CSV</button>
+    <button class="export-btn" onclick="exportCSV()">Export Comprehensive Forensic CSV (All Tiles)</button>
 
     <script>
         function init() {
             const grid = document.getElementById('grid');
-            grid.innerHTML = `
+            let html = '';
+            for(let i = 0; i < 8; i++) {
+                html += `
                 <div class="card">
                     <div class="dashboard">
-                        Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" oninput="calc(0)">
-                        Min Sat: <input type="number" id="gMin" value="32.5" oninput="calc(0)">
-                        Max Sat: <input type="number" id="gMax" value="52.5" oninput="calc(0)">
+                        Risk%: <input type="number" id="gRisk-${i}" value="0.75" step="0.05" oninput="calc(${i})">
+                        Min Sat: <input type="number" id="gMin-${i}" value="32.5" oninput="calc(${i})">
+                        Max Sat: <input type="number" id="gMax-${i}" value="52.5" oninput="calc(${i})">
                     </div>
-                    <input type="text" placeholder="Ticker" id="t-0" value="US30">
-                    <select id="m-0" onchange="calc(0)"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
-                    <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-0" value="196328" oninput="calc(0)"><input type="number" placeholder="ATR" id="a-0" value="533" oninput="calc(0)"></div>
-                    <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-0" value="52125" oninput="calc(0)"><input type="number" placeholder="15m Low" id="l-0" value="51916" oninput="calc(0)"></div>
-                    
-                    <!-- Top Result Screen: Base Calculations -->
-                    <div class="output" id="res-0">Calculations...</div>
-                    
-                    <!-- Entry & Exit Condition Dropdowns -->
                     <div style="display:flex; gap:5px;">
-                        <select id="entry-cond-0" onchange="calc(0)">
+                        <input type="text" placeholder="Ticker" id="t-${i}" value="US30">
+                        <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
+                    </div>
+                    <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" value="196328" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" value="533" oninput="calc(${i})"></div>
+                    <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-${i}" value="52125" oninput="calc(${i})"><input type="number" placeholder="15m Low" id="l-${i}" value="51916" oninput="calc(${i})"></div>
+                    
+                    <div class="output" id="res-${i}">Calculations...</div>
+                    
+                    <div style="display:flex; gap:5px;">
+                        <select id="entry-cond-${i}" onchange="calc(${i})">
                             <option value="Entry price not hit">Entry price not hit</option>
                             <option value="Shadow entry hit">Shadow entry hit</option>
                             <option value="Both entry prices hit" selected>Both entry prices hit</option>
                         </select>
-                        <select id="exit-cond-0" onchange="calc(0)">
+                        <select id="exit-cond-${i}" onchange="calc(${i})">
                             <option value="Stopped out">Stopped out</option>
                             <option value="TP not hit, flattened" selected>TP not hit, flattened</option>
                             <option value="TP hit, stopped out">TP hit, stopped out</option>
@@ -67,47 +63,43 @@
                         </select>
                     </div>
 
-                    <!-- Entry & Shadow Entry Timestamp Rows -->
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Entry Price Hit" id="entry-price-0" style="flex:2;" value="52203" oninput="calc(0)">
-                        <input type="time" placeholder="Time" id="entry-time-0" style="flex:1;" value="09:00">
+                        <input type="number" placeholder="Entry Price Hit" id="entry-price-${i}" style="flex:2;" value="52203" oninput="calc(${i})">
+                        <input type="time" placeholder="Time" id="entry-time-${i}" style="flex:1;" value="09:00">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Shadow Entry Hit" id="shadow-price-0" style="flex:2;" value="52118" oninput="calc(0)">
-                        <input type="time" placeholder="Time" id="shadow-time-0" style="flex:1;" value="08:55">
+                        <input type="number" placeholder="Shadow Entry Hit" id="shadow-price-${i}" style="flex:2;" value="52118" oninput="calc(${i})">
+                        <input type="time" placeholder="Time" id="shadow-time-${i}" style="flex:1;" value="08:55">
                     </div>
 
-                    <!-- Price & Timestamp Input Rows -->
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intraday High" id="ih-0" style="flex:2;" value="52417" oninput="calc(0)">
-                        <input type="time" placeholder="Time" id="ih-time-0" style="flex:1;" value="11:45">
+                        <input type="number" placeholder="Intraday High" id="ih-${i}" style="flex:2;" value="52417" oninput="calc(${i})">
+                        <input type="time" placeholder="Time" id="ih-time-${i}" style="flex:1;" value="11:45">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intraday Low" id="il-0" style="flex:2;" value="52109" oninput="calc(0)">
-                        <input type="time" placeholder="Time" id="il-time-0" style="flex:1;" value="09:30">
+                        <input type="number" placeholder="Intraday Low" id="il-${i}" style="flex:2;" value="52109" oninput="calc(${i})">
+                        <input type="time" placeholder="Time" id="il-time-${i}" style="flex:1;" value="09:30">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intra Trade High" id="ith-0" style="flex:2;" value="52417" oninput="calc(0)">
-                        <input type="time" placeholder="Time" id="ith-time-0" style="flex:1;" value="11:45">
+                        <input type="number" placeholder="Intra Trade High" id="ith-${i}" style="flex:2;" value="52417" oninput="calc(${i})">
+                        <input type="time" placeholder="Time" id="ith-time-${i}" style="flex:1;" value="11:45">
                     </div>
                     <div>
-                        <input type="number" placeholder="Flattened Price" id="ex-0" value="52280" oninput="calc(0)">
+                        <input type="number" placeholder="Flattened Price" id="ex-${i}" value="52280" oninput="calc(${i})">
                     </div>
 
                     <div style="display:flex; gap:5px; margin-top:5px;">
-                        <input type="number" placeholder="Offset % (e.g. 25)" id="off-0" value="25" oninput="calc(0)">
-                        <input type="text" placeholder="Custom Entry Value" id="off-res-0" readonly style="background:#1e293b; color:#94a3b8;">
+                        <input type="number" placeholder="Offset % (e.g. 25)" id="off-${i}" value="25" oninput="calc(${i})">
+                        <input type="text" placeholder="Custom Entry Value" id="off-res-${i}" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
                     
-                    <!-- Regular Trade P&L Simulation -->
-                    <div class="output" id="pnl-res-0" style="border-left-color: #38bdf8; margin-top: 5px;">Trade P&L Simulation: Awaiting criteria inputs...</div>
-
-                    <!-- Bottom Result Screen: Dual Shadow Trade Comparisons -->
-                    <div class="output" id="off-metrics-0" style="border-left-color: #22c55e; margin-top: 5px;">Custom Entry Adjustments: Enter Offset %</div>
-                    <textarea placeholder="Trade Notes" id="n1-0">Hit entry, did not hit tp, flattened for small gain</textarea>
-                </div>
-            `;
-            calc(0);
+                    <div class="output" id="pnl-res-${i}" style="border-left-color: #38bdf8; margin-top: 5px;">Trade P&L Simulation...</div>
+                    <div class="output" id="off-metrics-${i}" style="border-left-color: #22c55e; margin-top: 5px;">Custom Entry Adjustments...</div>
+                    <textarea placeholder="Trade Notes" id="n1-${i}">Hit entry, did not hit tp, flattened for small gain</textarea>
+                </div>`;
+            }
+            grid.innerHTML = html;
+            for(let i = 0; i < 8; i++) { calc(i); }
         }
 
         function calc(i) {
@@ -116,11 +108,10 @@
             const h = parseFloat(document.getElementById(`h-${i}`).value);
             const l = parseFloat(document.getElementById(`l-${i}`).value);
             const brokerage = document.getElementById(`m-${i}`).value;
-            const r = parseFloat(document.getElementById('gRisk').value)/100;
+            const r = parseFloat(document.getElementById(`gRisk-${i}`).value)/100;
             
             if(!b || !a || !h || !l) return;
             
-            // 1. Base Calculations for Regular Trade
             const baseE = h + (h * 0.001) + (a * 0.05);
             const sl = l - (a * 0.1);
             const stopDistBase = baseE - sl;
@@ -134,15 +125,13 @@
             const runnerBase = (brokerage === "ETRADE") ? (totalBase - bodyBase) : parseFloat((totalBase - bodyBase).toFixed(2));
             
             const sat = ((h - l) / a) * 100;
-            const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
+            const status = (sat >= parseFloat(document.getElementById(`gMin-${i}`).value) && sat <= parseFloat(document.getElementById(`gMax-${i}`).value)) ? "APPROVED" : "DISQUALIFIED";
 
-            // Render Top Result Box (Regular Trade Specs)
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
             Total: ${totalBase} ${unitLabel} | Body (1/3): ${bodyBase} | Runner (2/3): ${runnerBase}<br>
             E: ${baseE.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
             TP (Body Target): ${(baseE+stopDistBase).toFixed(2)}`;
 
-            // 2. Regular Trade P&L Simulations
             const entryCond = document.getElementById(`entry-cond-${i}`).value;
             const exitCond = document.getElementById(`exit-cond-${i}`).value;
             const flatPrice = parseFloat(document.getElementById(`ex-${i}`).value) || baseE;
@@ -195,30 +184,25 @@
             const regInvColor = regInvertedRunnerDollars >= 0 ? '#22c55e' : '#ef4444';
             const regInvSign = regInvertedRunnerDollars >= 0 ? '+' : '';
 
-            document.getElementById(`pnl-res-0`).innerHTML = `<b>Regular Trade P&L Simulation:</b><br>
-            Account Return (Standard Split): <span style="color: ${regColor}; font-weight: bold;">${regSign}${regularPLPercent.toFixed(3)}% (${regSign}$${regularPLDollars.toFixed(2)})</span><br>
-            Account Return (Full Position Sold at TP): <span style="color: ${regFullColor}; font-weight: bold;">${regFullSign}${regFullPct.toFixed(3)}% (${regFullSign}$${regFullTPDollars.toFixed(2)})</span><br>
-            Account Return (1/3 Runner Split): <span style="color: ${regInvColor}; font-weight: bold;">${regInvSign}${regInvPct.toFixed(3)}% (${regInvSign}$${regInvertedRunnerDollars.toFixed(2)})</span><br>
-            <span style="font-size: 0.9em; color: #94a3b8;">${regExecutionDesc}</span>`;
+            document.getElementById(`pnl-res-${i}`).innerHTML = `<b>Regular Trade P&L Simulation:</b><br>
+            Standard Split: <span style="color: ${regColor}; font-weight: bold;">${regSign}${regularPLPercent.toFixed(3)}% (${regSign}$${regularPLDollars.toFixed(2)})</span><br>
+            Full Position Sold at TP: <span style="color: ${regFullColor}; font-weight: bold;">${regFullSign}${regFullPct.toFixed(3)}% (${regFullSign}$${regFullTPDollars.toFixed(2)})</span><br>
+            1/3 Runner Split: <span style="color: ${regInvColor}; font-weight: bold;">${regInvSign}${regInvPct.toFixed(3)}% (${regInvSign}$${regInvertedRunnerDollars.toFixed(2)})</span><br>
+            <span style="font-size: 0.85em; color: #94a3b8;">${regExecutionDesc}</span>`;
 
-            // 3. Shadow / Custom Offset Calculations & Dual Return Comparison
             const offsetInput = parseFloat(document.getElementById(`off-${i}`).value);
             let activeE = baseE;
             
             if (!isNaN(offsetInput)) {
                 activeE = baseE - (stopDistBase * (offsetInput / 100));
-                document.getElementById(`off-res-0`).value = activeE.toFixed(2);
+                document.getElementById(`off-res-${i}`).value = activeE.toFixed(2);
 
                 const customStopDist = activeE - sl;
                 if (customStopDist > 0) {
                     const shadowTpTarget = activeE + customStopDist;
 
-                    // A. Shadow Return with UNADJUSTED (Original) Lot Size
-                    let unadjPLDollars = 0;
-                    let unadjFullTP = 0;
-                    let unadjInvRunner = 0;
-                    const unadjBody = bodyBase;
-                    const unadjRunner = runnerBase;
+                    let unadjPLDollars = 0, unadjFullTP = 0, unadjInvRunner = 0;
+                    const unadjBody = bodyBase, unadjRunner = runnerBase;
 
                     if (exitCond === "Stopped out") {
                         unadjPLDollars = totalBase * (sl - activeE);
@@ -249,14 +233,11 @@
                     const unadjInvCol = unadjInvRunner >= 0 ? '#22c55e' : '#ef4444';
                     const unadjInvSign = unadjInvRunner >= 0 ? '+' : '';
 
-                    // B. Shadow Return with RECALCULATED (Adjusted) Lot Size
                     const adjTotal = (brokerage === "ETRADE") ? Math.floor((b * r) / customStopDist) : parseFloat(((b * r) / customStopDist).toFixed(2));
                     const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : parseFloat((adjTotal / 3).toFixed(2));
                     const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
 
-                    let adjPLDollars = 0;
-                    let adjFullTP = 0;
-                    let adjInvRunner = 0;
+                    let adjPLDollars = 0, adjFullTP = 0, adjInvRunner = 0;
 
                     if (exitCond === "Stopped out") {
                         adjPLDollars = adjTotal * (sl - activeE);
@@ -287,23 +268,16 @@
                     const adjInvCol = adjInvRunner >= 0 ? '#22c55e' : '#ef4444';
                     const adjInvSign = adjInvRunner >= 0 ? '+' : '';
 
-                    // Render Dual Comparison inside bottom result field
-                    document.getElementById(`off-metrics-0`).innerHTML = `<b>Shadow Trade Comparisons & P&L:</b><br>
-                    Shadow Entry: ${activeE.toFixed(2)}<br><br>
-                    <b>1. Unadjusted Lots (${totalBase} ${unitLabel}):</b><br>
-                    • Standard Split: <span style="color: ${unadjColor}; font-weight: bold;">${unadjSign}${unadjPLPercent.toFixed(3)}% (${unadjSign}$${unadjPLDollars.toFixed(2)})</span><br>
-                    • Full Position Sold at TP: <span style="color: ${unadjFullCol}; font-weight: bold;">${unadjFullSign}${unadjFullPct.toFixed(3)}% (${unadjFullSign}$${unadjFullTP.toFixed(2)})</span><br>
-                    • 1/3 Runner Split: <span style="color: ${unadjInvCol}; font-weight: bold;">${unadjInvSign}${unadjInvPct.toFixed(3)}% (${unadjInvSign}$${unadjInvRunner.toFixed(2)})</span><br><br>
-                    <b>2. Recalculated Lots (${adjTotal} ${unitLabel} | Body: ${adjBody} | Runner: ${adjRunner}):</b><br>
-                    • Standard Split: <span style="color: ${adjColor}; font-weight: bold;">${adjSign}${adjPLPercent.toFixed(3)}% (${adjSign}$${adjPLDollars.toFixed(2)})</span><br>
-                    • Full Position Sold at TP: <span style="color: ${adjFullCol}; font-weight: bold;">${adjFullSign}${adjFullPct.toFixed(3)}% (${adjFullSign}$${adjFullTP.toFixed(2)})</span><br>
-                    • 1/3 Runner Split: <span style="color: ${adjInvCol}; font-weight: bold;">${adjInvSign}${adjInvPct.toFixed(3)}% (${adjInvSign}$${adjInvRunner.toFixed(2)})</span>`;
+                    document.getElementById(`off-metrics-${i}`).innerHTML = `<b>Shadow Trade Comparisons & P&L:</b><br>
+                    Shadow E: ${activeE.toFixed(2)}<br>
+                    <b>1. Unadj (${totalBase} ${unitLabel}):</b> Std: <span style="color:${unadjColor}">${unadjSign}${unadjPLPercent.toFixed(2)}%</span> | Full: <span style="color:${unadjFullCol}">${unadjFullSign}${unadjFullPct.toFixed(2)}%</span> | Inv: <span style="color:${unadjInvCol}">${unadjInvSign}${unadjInvPct.toFixed(2)}%</span><br>
+                    <b>2. Recalc (${adjTotal} ${unitLabel}):</b> Std: <span style="color:${adjColor}">${adjSign}${adjPLPercent.toFixed(2)}%</span> | Full: <span style="color:${adjFullCol}">${adjFullSign}${adjFullPct.toFixed(2)}%</span> | Inv: <span style="color:${adjInvCol}">${adjInvSign}${adjInvPct.toFixed(2)}%</span>`;
                 } else {
-                    document.getElementById(`off-metrics-0`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry must remain above stop loss.</span>`;
+                    document.getElementById(`off-metrics-${i}`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry below stop loss.</span>`;
                 }
             } else {
-                document.getElementById(`off-res-0`).value = "";
-                document.getElementById(`off-metrics-0`).innerHTML = `Custom Entry Adjustments: Enter Offset %`;
+                document.getElementById(`off-res-${i}`).value = "";
+                document.getElementById(`off-metrics-${i}`).innerHTML = `Custom Entry Adjustments: Enter Offset %`;
             }
         }
 
@@ -317,21 +291,20 @@
                       "ShadowUnadj_StandardPct,ShadowUnadj_Standard$,ShadowUnadj_FullTPPct,ShadowUnadj_FullTP$,ShadowUnadj_13RunnerPct,ShadowUnadj_13Runner$,[" +
                       "ShadowAdj_StandardPct,ShadowAdj_Standard$,ShadowAdj_FullTPPct,ShadowAdj_FullTP$,ShadowAdj_13RunnerPct,ShadowAdj_13Runner$,TradeNotes\n";
 
-            for(let i=0; i<1; i++) {
+            for(let i=0; i<8; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
                 const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
                 const h = parseFloat(document.getElementById(`h-${i}`).value) || 0;
                 const l = parseFloat(document.getElementById(`l-${i}`).value) || 0;
-                const r = parseFloat(document.getElementById('gRisk').value)/100;
+                const r = parseFloat(document.getElementById(`gRisk-${i}`).value)/100;
                 const brokerage = document.getElementById(`m-${i}`).value;
                 const ticker = document.getElementById(`t-${i}`).value;
                 const baseE = h + (h * 0.001) + (a * 0.05);
                 const sl = l - (a * 0.1);
                 const stopDistBase = baseE - sl;
                 const sat = ((h - l) / a) * 100;
-                const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
+                const status = (sat >= parseFloat(document.getElementById(`gMin-${i}`).value) && sat <= parseFloat(document.getElementById(`gMax-${i}`).value)) ? "APPROVED" : "DISQUALIFIED";
 
-                // Inputs & timestamps
                 const entryCond = document.getElementById(`entry-cond-${i}`).value;
                 const exitCond = document.getElementById(`exit-cond-${i}`).value;
                 const entryPriceHit = document.getElementById(`entry-price-${i}`).value || 0;
@@ -348,7 +321,6 @@
                 const offsetInput = parseFloat(document.getElementById(`off-${i}`).value) || 0;
                 const notes = document.getElementById(`n1-${i}`).value.replace(/"/g, '""');
 
-                // Recalculate metrics for CSV output matching display logic
                 const totalBase = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDistBase) : parseFloat(((b * r) / stopDistBase).toFixed(2));
                 const bodyBase = (brokerage === "ETRADE") ? Math.floor(totalBase / 3) : parseFloat((totalBase / 3).toFixed(2));
                 const runnerBase = (brokerage === "ETRADE") ? (totalBase - bodyBase) : parseFloat((totalBase - bodyBase).toFixed(2));
@@ -378,7 +350,6 @@
                 const regFullPct = (regFull$ / b) * 100;
                 const regInvPct = (regInv$ / b) * 100;
 
-                // Shadow calculations
                 let s_unadjStd$, s_unadjFull$, s_unadjInv$;
                 let s_adjStd$, s_adjFull$, s_adjInv$;
                 s_unadjStd$ = s_unadjFull$ = s_unadjInv$ = s_adjStd$ = s_adjFull$ = s_adjInv$ = 0;
@@ -456,7 +427,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'Engine61_Comprehensive_Forensic_Log.csv';
+            a.download = 'Engine61_8Tile_Comprehensive_Forensic_Log.csv';
             a.click();
             URL.revokeObjectURL(url);
         }
