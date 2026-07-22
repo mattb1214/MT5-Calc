@@ -56,6 +56,7 @@
                             <option value="Both entry prices hit" selected>Both entry prices hit</option>
                         </select>
                         <select id="exit-cond-${i}" onchange="calc(${i})">
+                            <option value="No trade">No trade</option>
                             <option value="Stopped out">Stopped out</option>
                             <option value="TP not hit, flattened" selected>TP not hit, flattened</option>
                             <option value="TP hit, stopped out">TP hit, stopped out</option>
@@ -142,9 +143,11 @@
             let regFullTPDollars = 0;
             let regInvertedRunnerDollars = 0;
 
-            if (entryCond === "Entry price not hit") {
+            if (entryCond === "Entry price not hit" || exitCond === "No trade") {
                 regularPLDollars = 0;
-                regExecutionDesc = "No primary entry triggered.";
+                regFullTPDollars = 0;
+                regInvertedRunnerDollars = 0;
+                regExecutionDesc = "No trade executed; zero P&L impact.";
             } else {
                 if (exitCond === "Stopped out") {
                     regularPLDollars = totalBase * (sl - baseE);
@@ -204,22 +207,24 @@
                     let unadjPLDollars = 0, unadjFullTP = 0, unadjInvRunner = 0;
                     const unadjBody = bodyBase, unadjRunner = runnerBase;
 
-                    if (exitCond === "Stopped out") {
-                        unadjPLDollars = totalBase * (sl - activeE);
-                        unadjFullTP = totalBase * (sl - activeE);
-                        unadjInvRunner = totalBase * (sl - activeE);
-                    } else if (exitCond === "TP not hit, flattened") {
-                        unadjPLDollars = totalBase * (flatPrice - activeE);
-                        unadjFullTP = totalBase * (flatPrice - activeE);
-                        unadjInvRunner = totalBase * (flatPrice - activeE);
-                    } else if (exitCond === "TP hit, stopped out") {
-                        unadjPLDollars = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (activeE - activeE));
-                        unadjFullTP = totalBase * (shadowTpTarget - activeE);
-                        unadjInvRunner = (unadjBody * (activeE - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
-                    } else if (exitCond === "TP hit, flattened") {
-                        unadjPLDollars = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (flatPrice - activeE));
-                        unadjFullTP = totalBase * (shadowTpTarget - activeE);
-                        unadjInvRunner = (unadjBody * (flatPrice - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
+                    if (entryCond !== "Entry price not hit" && exitCond !== "No trade") {
+                        if (exitCond === "Stopped out") {
+                            unadjPLDollars = totalBase * (sl - activeE);
+                            unadjFullTP = totalBase * (sl - activeE);
+                            unadjInvRunner = totalBase * (sl - activeE);
+                        } else if (exitCond === "TP not hit, flattened") {
+                            unadjPLDollars = totalBase * (flatPrice - activeE);
+                            unadjFullTP = totalBase * (flatPrice - activeE);
+                            unadjInvRunner = totalBase * (flatPrice - activeE);
+                        } else if (exitCond === "TP hit, stopped out") {
+                            unadjPLDollars = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (activeE - activeE));
+                            unadjFullTP = totalBase * (shadowTpTarget - activeE);
+                            unadjInvRunner = (unadjBody * (activeE - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
+                        } else if (exitCond === "TP hit, flattened") {
+                            unadjPLDollars = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (flatPrice - activeE));
+                            unadjFullTP = totalBase * (shadowTpTarget - activeE);
+                            unadjInvRunner = (unadjBody * (flatPrice - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
+                        }
                     }
                     const unadjPLPercent = (unadjPLDollars / b) * 100;
                     const unadjColor = unadjPLDollars >= 0 ? '#22c55e' : '#ef4444';
@@ -239,22 +244,24 @@
 
                     let adjPLDollars = 0, adjFullTP = 0, adjInvRunner = 0;
 
-                    if (exitCond === "Stopped out") {
-                        adjPLDollars = adjTotal * (sl - activeE);
-                        adjFullTP = adjTotal * (sl - activeE);
-                        adjInvRunner = adjTotal * (sl - activeE);
-                    } else if (exitCond === "TP not hit, flattened") {
-                        adjPLDollars = adjTotal * (flatPrice - activeE);
-                        adjFullTP = adjTotal * (flatPrice - activeE);
-                        adjInvRunner = adjTotal * (flatPrice - activeE);
-                    } else if (exitCond === "TP hit, stopped out") {
-                        adjPLDollars = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (activeE - activeE));
-                        adjFullTP = adjTotal * (shadowTpTarget - activeE);
-                        adjInvRunner = (adjBody * (activeE - activeE)) + (adjRunner * (shadowTpTarget - activeE));
-                    } else if (exitCond === "TP hit, flattened") {
-                        adjPLDollars = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (flatPrice - activeE));
-                        adjFullTP = adjTotal * (shadowTpTarget - activeE);
-                        adjInvRunner = (adjBody * (flatPrice - activeE)) + (adjRunner * (shadowTpTarget - activeE));
+                    if (entryCond !== "Entry price not hit" && exitCond !== "No trade") {
+                        if (exitCond === "Stopped out") {
+                            adjPLDollars = adjTotal * (sl - activeE);
+                            adjFullTP = adjTotal * (sl - activeE);
+                            adjInvRunner = adjTotal * (sl - activeE);
+                        } else if (exitCond === "TP not hit, flattened") {
+                            adjPLDollars = adjTotal * (flatPrice - activeE);
+                            adjFullTP = adjTotal * (flatPrice - activeE);
+                            adjInvRunner = adjTotal * (flatPrice - activeE);
+                        } else if (exitCond === "TP hit, stopped out") {
+                            adjPLDollars = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (activeE - activeE));
+                            adjFullTP = adjTotal * (shadowTpTarget - activeE);
+                            adjInvRunner = (adjBody * (activeE - activeE)) + (adjRunner * (shadowTpTarget - activeE));
+                        } else if (exitCond === "TP hit, flattened") {
+                            adjPLDollars = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (flatPrice - activeE));
+                            adjFullTP = adjTotal * (shadowTpTarget - activeE);
+                            adjInvRunner = (adjBody * (flatPrice - activeE)) + (adjRunner * (shadowTpTarget - activeE));
+                        }
                     }
                     const adjPLPercent = (adjPLDollars / b) * 100;
                     const adjColor = adjPLDollars >= 0 ? '#22c55e' : '#ef4444';
@@ -327,7 +334,7 @@
                 const tpTargetBase = baseE + stopDistBase;
 
                 let regStd$ = 0, regFull$ = 0, regInv$ = 0;
-                if (entryCond !== "Entry price not hit" && stopDistBase > 0) {
+                if (entryCond !== "Entry price not hit" && exitCond !== "No trade" && stopDistBase > 0) {
                     if (exitCond === "Stopped out") {
                         regStd$ = totalBase * (sl - baseE);
                         regFull$ = regStd$;
@@ -354,7 +361,7 @@
                 let s_adjStd$, s_adjFull$, s_adjInv$;
                 s_unadjStd$ = s_unadjFull$ = s_unadjInv$ = s_adjStd$ = s_adjFull$ = s_adjInv$ = 0;
 
-                if (!isNaN(offsetInput) && stopDistBase > 0) {
+                if (entryCond !== "Entry price not hit" && exitCond !== "No trade" && !isNaN(offsetInput) && stopDistBase > 0) {
                     const activeE = baseE - (stopDistBase * (offsetInput / 100));
                     const customStopDist = activeE - sl;
                     if (customStopDist > 0) {
@@ -362,46 +369,44 @@
                         const unadjBody = bodyBase;
                         const unadjRunner = runnerBase;
 
-                        if (entryCond !== "Entry price not hit") {
-                            if (exitCond === "Stopped out") {
-                                s_unadjStd$ = totalBase * (sl - activeE);
-                                s_unadjFull$ = s_unadjStd$;
-                                s_unadjInv$ = s_unadjStd$;
-                            } else if (exitCond === "TP not hit, flattened") {
-                                s_unadjStd$ = totalBase * (flatPrice - activeE);
-                                s_unadjFull$ = s_unadjStd$;
-                                s_unadjInv$ = s_unadjStd$;
-                            } else if (exitCond === "TP hit, stopped out") {
-                                s_unadjStd$ = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (activeE - activeE));
-                                s_unadjFull$ = totalBase * (shadowTpTarget - activeE);
-                                s_unadjInv$ = (unadjBody * (activeE - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
-                            } else if (exitCond === "TP hit, flattened") {
-                                s_unadjStd$ = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (flatPrice - activeE));
-                                s_unadjFull$ = totalBase * (shadowTpTarget - activeE);
-                                s_unadjInv$ = (unadjBody * (flatPrice - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
-                            }
+                        if (exitCond === "Stopped out") {
+                            s_unadjStd$ = totalBase * (sl - activeE);
+                            s_unadjFull$ = s_unadjStd$;
+                            s_unadjInv$ = s_unadjStd$;
+                        } else if (exitCond === "TP not hit, flattened") {
+                            s_unadjStd$ = totalBase * (flatPrice - activeE);
+                            s_unadjFull$ = s_unadjStd$;
+                            s_unadjInv$ = s_unadjStd$;
+                        } else if (exitCond === "TP hit, stopped out") {
+                            s_unadjStd$ = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (activeE - activeE));
+                            s_unadjFull$ = totalBase * (shadowTpTarget - activeE);
+                            s_unadjInv$ = (unadjBody * (activeE - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
+                        } else if (exitCond === "TP hit, flattened") {
+                            s_unadjStd$ = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (flatPrice - activeE));
+                            s_unadjFull$ = totalBase * (shadowTpTarget - activeE);
+                            s_unadjInv$ = (unadjBody * (flatPrice - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
+                        }
 
-                            const adjTotal = (brokerage === "ETRADE") ? Math.floor((b * r) / customStopDist) : parseFloat(((b * r) / customStopDist).toFixed(2));
-                            const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : parseFloat((adjTotal / 3).toFixed(2));
-                            const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
+                        const adjTotal = (brokerage === "ETRADE") ? Math.floor((b * r) / customStopDist) : parseFloat(((b * r) / customStopDist).toFixed(2));
+                        const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : parseFloat((adjTotal / 3).toFixed(2));
+                        const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
 
-                            if (exitCond === "Stopped out") {
-                                s_adjStd$ = adjTotal * (sl - activeE);
-                                s_adjFull$ = s_adjStd$;
-                                s_adjInv$ = s_adjStd$;
-                            } else if (exitCond === "TP not hit, flattened") {
-                                s_adjStd$ = adjTotal * (flatPrice - activeE);
-                                s_adjFull$ = s_adjStd$;
-                                s_adjInv$ = s_adjStd$;
-                            } else if (exitCond === "TP hit, stopped out") {
-                                s_adjStd$ = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (activeE - activeE));
-                                s_adjFull$ = adjTotal * (shadowTpTarget - activeE);
-                                s_adjInv$ = (adjBody * (activeE - activeE)) + (adjRunner * (shadowTpTarget - activeE));
-                            } else if (exitCond === "TP hit, flattened") {
-                                s_adjStd$ = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (flatPrice - activeE));
-                                s_adjFull$ = adjTotal * (shadowTpTarget - activeE);
-                                s_adjInv$ = (adjBody * (flatPrice - activeE)) + (adjRunner * (shadowTpTarget - activeE));
-                            }
+                        if (exitCond === "Stopped out") {
+                            s_adjStd$ = adjTotal * (sl - activeE);
+                            s_adjFull$ = s_adjStd$;
+                            s_adjInv$ = s_adjStd$;
+                        } else if (exitCond === "TP not hit, flattened") {
+                            s_adjStd$ = adjTotal * (flatPrice - activeE);
+                            s_adjFull$ = s_adjStd$;
+                            s_adjInv$ = s_adjStd$;
+                        } else if (exitCond === "TP hit, stopped out") {
+                            s_adjStd$ = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (activeE - activeE));
+                            s_adjFull$ = adjTotal * (shadowTpTarget - activeE);
+                            s_adjInv$ = (adjBody * (activeE - activeE)) + (adjRunner * (shadowTpTarget - activeE));
+                        } else if (exitCond === "TP hit, flattened") {
+                            s_adjStd$ = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (flatPrice - activeE));
+                            s_adjFull$ = adjTotal * (shadowTpTarget - activeE);
+                            s_adjInv$ = (adjBody * (flatPrice - activeE)) + (adjRunner * (shadowTpTarget - activeE));
                         }
                     }
                 }
