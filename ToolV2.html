@@ -90,7 +90,7 @@
                     <!-- Regular Trade P&L Simulation (% of Account) -->
                     <div class="output" id="pnl-res-0" style="border-left-color: #38bdf8; margin-top: 5px;">Trade P&L Simulation: Awaiting criteria inputs...</div>
 
-                    <!-- Bottom Result Screen: Shadow Trade Sizing & Side-by-Side Return -->
+                    <!-- Bottom Result Screen: Dual Shadow Trade Comparisons (Unadjusted Lots vs. Adjusted Lots) -->
                     <div class="output" id="off-metrics-0" style="border-left-color: #22c55e; margin-top: 5px;">Custom Entry Adjustments: Enter Offset %</div>
                     <textarea placeholder="Trade Notes" id="n1-0">Hit entry, did not hit tp1, flattened for small gain</textarea>
                 </div>
@@ -172,7 +172,7 @@
             Account Return: <span style="color: ${regularPLPercent >= 0 ? '#22c55e' : '#ef4444'}; font-weight: bold;">${regularPLPercent >= 0 ? '+' : ''}${regularPLPercent.toFixed(3)}%</span><br>
             <span style="font-size: 0.9em; color: #94a3b8;">${regExecutionDesc}</span>`;
 
-            // 3. Shadow / Custom Offset Calculations & Side-by-Side Account Return
+            // 3. Shadow / Custom Offset Calculations & Dual Return Comparison (Unadjusted Lots vs. Recalculated Lots)
             const offsetInput = parseFloat(document.getElementById(`off-${i}`).value);
             let activeE = baseE;
             
@@ -182,41 +182,46 @@
 
                 const customStopDist = activeE - sl;
                 if (customStopDist > 0) {
+                    const shadowTp1Target = activeE + customStopDist;
+
+                    // A. Shadow Return with UNADJUSTED (Original) Lot Size
+                    let unadjPLDollars = 0;
+                    const unadjBody = bodyBase;
+                    const unadjRunner = runnerBase;
+
+                    if (exitCond === "Stopped out") {
+                        unadjPLDollars = totalBase * (sl - activeE);
+                    } else if (exitCond === "TP not hit, flattened") {
+                        unadjPLDollars = totalBase * (flatPrice - activeE);
+                    } else if (exitCond === "TP hit, stopped out") {
+                        unadjPLDollars = (unadjBody * (shadowTp1Target - activeE)) + (unadjRunner * (activeE - activeE));
+                    } else if (exitCond === "TP hit, flattened") {
+                        unadjPLDollars = (unadjBody * (shadowTp1Target - activeE)) + (unadjRunner * (flatPrice - activeE));
+                    }
+                    const unadjPLPercent = (unadjPLDollars / b) * 100;
+
+                    // B. Shadow Return with RECALCULATED (Adjusted) Lot Size
                     const adjTotal = (brokerage === "ETRADE") ? Math.floor((b * r) / customStopDist) : parseFloat(((b * r) / customStopDist).toFixed(2));
                     const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : parseFloat((adjTotal / 3).toFixed(2));
                     const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
 
-                    let shadowPLDollars = 0;
-                    let shadowExecutionDesc = "";
-                    const shadowTp1Target = activeE + customStopDist;
-
+                    let adjPLDollars = 0;
                     if (exitCond === "Stopped out") {
-                        shadowPLDollars = adjTotal * (sl - activeE);
-                        shadowExecutionDesc = `Shadow full position stopped out at SL (${sl.toFixed(2)}).`;
-                    } 
-                    else if (exitCond === "TP not hit, flattened") {
-                        shadowPLDollars = adjTotal * (flatPrice - activeE);
-                        shadowExecutionDesc = `Shadow flattened prior to TP at ${flatPrice.toFixed(2)}.`;
-                    } 
-                    else if (exitCond === "TP hit, stopped out") {
-                        const sBodyPL = adjBody * (shadowTp1Target - activeE);
-                        const sRunnerPL = adjRunner * (activeE - activeE);
-                        shadowPLDollars = sBodyPL + sRunnerPL;
-                        shadowExecutionDesc = `Shadow body hit TP1 (${shadowTp1Target.toFixed(2)}). Runner stopped at BE (${activeE.toFixed(2)}).`;
-                    } 
-                    else if (exitCond === "TP hit, flattened") {
-                        const sBodyPL = adjBody * (shadowTp1Target - activeE);
-                        const sRunnerPL = adjRunner * (flatPrice - activeE);
-                        shadowPLDollars = sBodyPL + sRunnerPL;
-                        shadowExecutionDesc = `Shadow body hit TP1 (${shadowTp1Target.toFixed(2)}). Runner flattened at ${flatPrice.toFixed(2)}.`;
+                        adjPLDollars = adjTotal * (sl - activeE);
+                    } else if (exitCond === "TP not hit, flattened") {
+                        adjPLDollars = adjTotal * (flatPrice - activeE);
+                    } else if (exitCond === "TP hit, stopped out") {
+                        adjPLDollars = (adjBody * (shadowTp1Target - activeE)) + (adjRunner * (activeE - activeE));
+                    } else if (exitCond === "TP hit, flattened") {
+                        adjPLDollars = (adjBody * (shadowTp1Target - activeE)) + (adjRunner * (flatPrice - activeE));
                     }
+                    const adjPLPercent = (adjPLDollars / b) * 100;
 
-                    const shadowPLPercent = (shadowPLDollars / b) * 100;
-
-                    document.getElementById(`off-metrics-0`).innerHTML = `<b>Shadow Trade Adjustments & P&L (% of Account):</b><br>
-                    Shadow Entry: ${activeE.toFixed(2)} | Adj Total: ${adjTotal} ${unitLabel} (Body: ${adjBody} | Runner: ${adjRunner})<br>
-                    Shadow Return: <span style="color: ${shadowPLPercent >= 0 ? '#22c55e' : '#ef4444'}; font-weight: bold;">${shadowPLPercent >= 0 ? '+' : ''}${shadowPLPercent.toFixed(3)}%</span><br>
-                    <span style="font-size: 0.9em; color: #94a3b8;">${shadowExecutionDesc}</span>`;
+                    // Render Dual Comparison inside bottom result field
+                    document.getElementById(`off-metrics-0`).innerHTML = `<b>Shadow Trade Comparisons & P&L (% of Account):</b><br>
+                    Shadow Entry: ${activeE.toFixed(2)}<br>
+                    1. Unadjusted Lots (${totalBase} ${unitLabel}): <span style="color: ${unadjPLPercent >= 0 ? '#22c55e' : '#ef4444'}; font-weight: bold;">${unadjPLPercent >= 0 ? '+' : ''}${unadjPLPercent.toFixed(3)}%</span><br>
+                    2. Recalculated Lots (${adjTotal} ${unitLabel} | Body: ${adjBody} | Runner: ${adjRunner}): <span style="color: ${adjPLPercent >= 0 ? '#22c55e' : '#ef4444'}; font-weight: bold;">${adjPLPercent >= 0 ? '+' : ''}${adjPLPercent.toFixed(3)}%</span>`;
                 } else {
                     document.getElementById(`off-metrics-0`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry must remain above stop loss.</span>`;
                 }
