@@ -36,16 +36,16 @@
                 html += `
                 <div class="card">
                     <div class="dashboard">
-                        Risk%: <input type="number" id="gRisk-${i}" value="0.75" step="0.05" oninput="calc(${i})">
-                        Min Sat: <input type="number" id="gMin-${i}" value="32.5" oninput="calc(${i})">
-                        Max Sat: <input type="number" id="gMax-${i}" value="52.5" oninput="calc(${i})">
+                        Risk%: <input type="number" id="gRisk-${i}" value="" step="0.05" oninput="calc(${i})">
+                        Min Sat: <input type="number" id="gMin-${i}" value="" oninput="calc(${i})">
+                        Max Sat: <input type="number" id="gMax-${i}" value="" oninput="calc(${i})">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="text" placeholder="Ticker" id="t-${i}" value="US30">
+                        <input type="text" placeholder="Ticker" id="t-${i}" value="">
                         <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
                     </div>
-                    <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" value="196328" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" value="533" oninput="calc(${i})"></div>
-                    <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-${i}" value="52125" oninput="calc(${i})"><input type="number" placeholder="15m Low" id="l-${i}" value="51916" oninput="calc(${i})"></div>
+                    <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" value="" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" value="" oninput="calc(${i})"></div>
+                    <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-${i}" value="" oninput="calc(${i})"><input type="number" placeholder="15m Low" id="l-${i}" value="" oninput="calc(${i})"></div>
                     
                     <div class="output" id="res-${i}">Calculations...</div>
                     
@@ -65,38 +65,38 @@
                     </div>
 
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Entry Price Hit" id="entry-price-${i}" style="flex:2;" value="52203" oninput="calc(${i})">
-                        <input type="time" placeholder="Time" id="entry-time-${i}" style="flex:1;" value="09:00">
+                        <input type="number" placeholder="Entry Price Hit" id="entry-price-${i}" style="flex:2;" value="" oninput="calc(${i})">
+                        <input type="time" placeholder="Time" id="entry-time-${i}" style="flex:1;" value="">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Shadow Entry Hit" id="shadow-price-${i}" style="flex:2;" value="52118" oninput="calc(${i})">
-                        <input type="time" placeholder="Time" id="shadow-time-${i}" style="flex:1;" value="08:55">
+                        <input type="number" placeholder="Shadow Entry Hit" id="shadow-price-${i}" style="flex:2;" value="" oninput="calc(${i})">
+                        <input type="time" placeholder="Time" id="shadow-time-${i}" style="flex:1;" value="">
                     </div>
 
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intraday High" id="ih-${i}" style="flex:2;" value="52417" oninput="calc(${i})">
-                        <input type="time" placeholder="Time" id="ih-time-${i}" style="flex:1;" value="11:45">
+                        <input type="number" placeholder="Intraday High" id="ih-${i}" style="flex:2;" value="" oninput="calc(${i})">
+                        <input type="time" placeholder="Time" id="ih-time-${i}" style="flex:1;" value="">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intraday Low" id="il-${i}" style="flex:2;" value="52109" oninput="calc(${i})">
-                        <input type="time" placeholder="Time" id="il-time-${i}" style="flex:1;" value="09:30">
+                        <input type="number" placeholder="Intraday Low" id="il-${i}" style="flex:2;" value="" oninput="calc(${i})">
+                        <input type="time" placeholder="Time" id="il-time-${i}" style="flex:1;" value="">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intra Trade High" id="ith-${i}" style="flex:2;" value="52417" oninput="calc(${i})">
-                        <input type="time" placeholder="Time" id="ith-time-${i}" style="flex:1;" value="11:45">
+                        <input type="number" placeholder="Intra Trade High" id="ith-${i}" style="flex:2;" value="" oninput="calc(${i})">
+                        <input type="time" placeholder="Time" id="ith-time-${i}" style="flex:1;" value="">
                     </div>
                     <div>
-                        <input type="number" placeholder="Flattened Price" id="ex-${i}" value="52280" oninput="calc(${i})">
+                        <input type="number" placeholder="Flattened Price" id="ex-${i}" value="" oninput="calc(${i})">
                     </div>
 
                     <div style="display:flex; gap:5px; margin-top:5px;">
-                        <input type="number" placeholder="Offset % (e.g. 25)" id="off-${i}" value="25" oninput="calc(${i})">
+                        <input type="number" placeholder="Offset % (e.g. 25)" id="off-${i}" value="" oninput="calc(${i})">
                         <input type="text" placeholder="Custom Entry Value" id="off-res-${i}" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
                     
                     <div class="output" id="pnl-res-${i}" style="border-left-color: #38bdf8; margin-top: 5px;">Trade P&L Simulation...</div>
                     <div class="output" id="off-metrics-${i}" style="border-left-color: #22c55e; margin-top: 5px;">Custom Entry Adjustments...</div>
-                    <textarea placeholder="Trade Notes" id="n1-${i}">Hit entry, did not hit tp, flattened for small gain</textarea>
+                    <textarea placeholder="Trade Notes" id="n1-${i}"></textarea>
                 </div>`;
             }
             grid.innerHTML = html;
@@ -109,9 +109,15 @@
             const h = parseFloat(document.getElementById(`h-${i}`).value);
             const l = parseFloat(document.getElementById(`l-${i}`).value);
             const brokerage = document.getElementById(`m-${i}`).value;
-            const r = parseFloat(document.getElementById(`gRisk-${i}`).value)/100;
+            const riskInput = document.getElementById(`gRisk-${i}`).value;
+            const r = riskInput === "" ? 0 : parseFloat(riskInput)/100;
             
-            if(!b || !a || !h || !l) return;
+            if(!b || !a || !h || !l || riskInput === "") {
+                document.getElementById(`res-${i}`).innerHTML = `Calculations...`;
+                document.getElementById(`pnl-res-${i}`).innerHTML = `Trade P&L Simulation...`;
+                document.getElementById(`off-metrics-${i}`).innerHTML = `Custom Entry Adjustments...`;
+                return;
+            }
             
             const baseE = h + (h * 0.001) + (a * 0.05);
             const sl = l - (a * 0.1);
@@ -126,7 +132,19 @@
             const runnerBase = (brokerage === "ETRADE") ? (totalBase - bodyBase) : parseFloat((totalBase - bodyBase).toFixed(2));
             
             const sat = ((h - l) / a) * 100;
-            const status = (sat >= parseFloat(document.getElementById(`gMin-${i}`).value) && sat <= parseFloat(document.getElementById(`gMax-${i}`).value)) ? "APPROVED" : "DISQUALIFIED";
+            const minSatVal = parseFloat(document.getElementById(`gMin-${i}`).value);
+            const maxSatVal = parseFloat(document.getElementById(`gMax-${i}`).value);
+            const minValid = !isNaN(minSatVal) && document.getElementById(`gMin-${i}`).value !== "";
+            const maxValid = !isNaN(maxSatVal) && document.getElementById(`gMax-${i}`).value !== "";
+            
+            let status = "DISQUALIFIED";
+            if (minValid && maxValid) {
+                if (sat >= minSatVal && sat <= maxSatVal) status = "APPROVED";
+            } else if (minValid) {
+                if (sat >= minSatVal) status = "APPROVED";
+            } else if (maxValid) {
+                if (sat <= maxSatVal) status = "APPROVED";
+            }
 
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
             Total: ${totalBase} ${unitLabel} | Body (1/3): ${bodyBase} | Runner (2/3): ${runnerBase}<br>
@@ -196,7 +214,7 @@
             const offsetInput = parseFloat(document.getElementById(`off-${i}`).value);
             let activeE = baseE;
             
-            if (!isNaN(offsetInput)) {
+            if (!isNaN(offsetInput) && document.getElementById(`off-${i}`).value !== "") {
                 activeE = baseE - (stopDistBase * (offsetInput / 100));
                 document.getElementById(`off-res-${i}`).value = activeE.toFixed(2);
 
@@ -303,14 +321,28 @@
                 const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
                 const h = parseFloat(document.getElementById(`h-${i}`).value) || 0;
                 const l = parseFloat(document.getElementById(`l-${i}`).value) || 0;
-                const r = parseFloat(document.getElementById(`gRisk-${i}`).value)/100;
+                const riskInput = document.getElementById(`gRisk-${i}`).value;
+                const r = riskInput === "" ? 0 : parseFloat(riskInput)/100;
                 const brokerage = document.getElementById(`m-${i}`).value;
                 const ticker = document.getElementById(`t-${i}`).value;
                 const baseE = h + (h * 0.001) + (a * 0.05);
                 const sl = l - (a * 0.1);
                 const stopDistBase = baseE - sl;
                 const sat = ((h - l) / a) * 100;
-                const status = (sat >= parseFloat(document.getElementById(`gMin-${i}`).value) && sat <= parseFloat(document.getElementById(`gMax-${i}`).value)) ? "APPROVED" : "DISQUALIFIED";
+                
+                const minSatVal = parseFloat(document.getElementById(`gMin-${i}`).value);
+                const maxSatVal = parseFloat(document.getElementById(`gMax-${i}`).value);
+                const minValid = !isNaN(minSatVal) && document.getElementById(`gMin-${i}`).value !== "";
+                const maxValid = !isNaN(maxSatVal) && document.getElementById(`gMax-${i}`).value !== "";
+                
+                let status = "DISQUALIFIED";
+                if (minValid && maxValid) {
+                    if (sat >= minSatVal && sat <= maxSatVal) status = "APPROVED";
+                } else if (minValid) {
+                    if (sat >= minSatVal) status = "APPROVED";
+                } else if (maxValid) {
+                    if (sat <= maxSatVal) status = "APPROVED";
+                }
 
                 const entryCond = document.getElementById(`entry-cond-${i}`).value;
                 const exitCond = document.getElementById(`exit-cond-${i}`).value;
@@ -361,7 +393,7 @@
                 let s_adjStd$, s_adjFull$, s_adjInv$;
                 s_unadjStd$ = s_unadjFull$ = s_unadjInv$ = s_adjStd$ = s_adjFull$ = s_adjInv$ = 0;
 
-                if (entryCond !== "Entry price not hit" && exitCond !== "No trade" && !isNaN(offsetInput) && stopDistBase > 0) {
+                if (entryCond !== "Entry price not hit" && exitCond !== "No trade" && !isNaN(offsetInput) && document.getElementById(`off-${i}`).value !== "" && stopDistBase > 0) {
                     const activeE = baseE - (stopDistBase * (offsetInput / 100));
                     const customStopDist = activeE - sl;
                     if (customStopDist > 0) {
