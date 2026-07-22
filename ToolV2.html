@@ -32,7 +32,7 @@
 <body>
     <h2>Engine 61</h2>
     <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export 23-Column Forensic CSV</button>
+    <button class="export-btn" onclick="exportCSV()">Export Comprehensive Forensic CSV</button>
 
     <script>
         function init() {
@@ -104,7 +104,7 @@
 
                     <!-- Bottom Result Screen: Dual Shadow Trade Comparisons -->
                     <div class="output" id="off-metrics-0" style="border-left-color: #22c55e; margin-top: 5px;">Custom Entry Adjustments: Enter Offset %</div>
-                    <textarea placeholder="Trade Notes" id="n1-0">Hit entry, did not hit tp1, flattened for small gain</textarea>
+                    <textarea placeholder="Trade Notes" id="n1-0">Hit entry, did not hit tp, flattened for small gain</textarea>
                 </div>
             `;
             calc(0);
@@ -140,19 +140,18 @@
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
             Total: ${totalBase} ${unitLabel} | Body (1/3): ${bodyBase} | Runner (2/3): ${runnerBase}<br>
             E: ${baseE.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
-            TP1 (Body Target): ${(baseE+stopDistBase).toFixed(2)} | TP2: ${(baseE+stopDistBase*2).toFixed(2)} | TP3: ${(baseE+stopDistBase*3).toFixed(2)}`;
+            TP (Body Target): ${(baseE+stopDistBase).toFixed(2)}`;
 
-            // 2. Regular Trade P&L Simulations (Standard Split vs. Full Close at TP1 vs. 1/3 Runner Split)
+            // 2. Regular Trade P&L Simulations
             const entryCond = document.getElementById(`entry-cond-${i}`).value;
             const exitCond = document.getElementById(`exit-cond-${i}`).value;
             const flatPrice = parseFloat(document.getElementById(`ex-${i}`).value) || baseE;
-            const tp1TargetBase = baseE + stopDistBase;
+            const tpTargetBase = baseE + stopDistBase;
 
             let regularPLDollars = 0;
             let regExecutionDesc = "";
-
-            let regFullTP1Dollars = 0;
-            let regInvertedRunnerDollars = 0; // Inverted split: 1/3 closed at TP1, 2/3 running/flattened/stopped
+            let regFullTPDollars = 0;
+            let regInvertedRunnerDollars = 0;
 
             if (entryCond === "Entry price not hit") {
                 regularPLDollars = 0;
@@ -160,28 +159,27 @@
             } else {
                 if (exitCond === "Stopped out") {
                     regularPLDollars = totalBase * (sl - baseE);
-                    regFullTP1Dollars = totalBase * (sl - baseE);
+                    regFullTPDollars = totalBase * (sl - baseE);
                     regInvertedRunnerDollars = totalBase * (sl - baseE);
                     regExecutionDesc = `Full position stopped out at initial SL (${sl.toFixed(2)}).`;
                 } 
                 else if (exitCond === "TP not hit, flattened") {
                     regularPLDollars = totalBase * (flatPrice - baseE);
-                    regFullTP1Dollars = totalBase * (flatPrice - baseE);
+                    regFullTPDollars = totalBase * (flatPrice - baseE);
                     regInvertedRunnerDollars = totalBase * (flatPrice - baseE);
                     regExecutionDesc = `Flattened prior to TP at ${flatPrice.toFixed(2)}.`;
                 } 
                 else if (exitCond === "TP hit, stopped out") {
-                    regularPLDollars = (bodyBase * (tp1TargetBase - baseE)) + (runnerBase * (baseE - baseE));
-                    regFullTP1Dollars = totalBase * (tp1TargetBase - baseE);
-                    // Inverted: 1/3 runner (bodyBase size) takes actual exit/runner behavior, 2/3 (runnerBase size) takes TP1
-                    regInvertedRunnerDollars = (bodyBase * (baseE - baseE)) + (runnerBase * (tp1TargetBase - baseE));
-                    regExecutionDesc = `Body hit TP1 (${tp1TargetBase.toFixed(2)}). Runner stopped out at Breakeven.`;
+                    regularPLDollars = (bodyBase * (tpTargetBase - baseE)) + (runnerBase * (baseE - baseE));
+                    regFullTPDollars = totalBase * (tpTargetBase - baseE);
+                    regInvertedRunnerDollars = (bodyBase * (baseE - baseE)) + (runnerBase * (tpTargetBase - baseE));
+                    regExecutionDesc = `Body hit TP (${tpTargetBase.toFixed(2)}). Runner stopped out at Breakeven.`;
                 } 
                 else if (exitCond === "TP hit, flattened") {
-                    regularPLDollars = (bodyBase * (tp1TargetBase - baseE)) + (runnerBase * (flatPrice - baseE));
-                    regFullTP1Dollars = totalBase * (tp1TargetBase - baseE);
-                    regInvertedRunnerDollars = (bodyBase * (flatPrice - baseE)) + (runnerBase * (tp1TargetBase - baseE));
-                    regExecutionDesc = `Body hit TP1 (${tp1TargetBase.toFixed(2)}). Runner flattened at ${flatPrice.toFixed(2)}.`;
+                    regularPLDollars = (bodyBase * (tpTargetBase - baseE)) + (runnerBase * (flatPrice - baseE));
+                    regFullTPDollars = totalBase * (tpTargetBase - baseE);
+                    regInvertedRunnerDollars = (bodyBase * (flatPrice - baseE)) + (runnerBase * (tpTargetBase - baseE));
+                    regExecutionDesc = `Body hit TP (${tpTargetBase.toFixed(2)}). Runner flattened at ${flatPrice.toFixed(2)}.`;
                 }
             }
 
@@ -189,9 +187,9 @@
             const regColor = regularPLDollars >= 0 ? '#22c55e' : '#ef4444';
             const regSign = regularPLDollars >= 0 ? '+' : '';
 
-            const regFullPct = (regFullTP1Dollars / b) * 100;
-            const regFullColor = regFullTP1Dollars >= 0 ? '#22c55e' : '#ef4444';
-            const regFullSign = regFullTP1Dollars >= 0 ? '+' : '';
+            const regFullPct = (regFullTPDollars / b) * 100;
+            const regFullColor = regFullTPDollars >= 0 ? '#22c55e' : '#ef4444';
+            const regFullSign = regFullTPDollars >= 0 ? '+' : '';
 
             const regInvPct = (regInvertedRunnerDollars / b) * 100;
             const regInvColor = regInvertedRunnerDollars >= 0 ? '#22c55e' : '#ef4444';
@@ -199,8 +197,8 @@
 
             document.getElementById(`pnl-res-0`).innerHTML = `<b>Regular Trade P&L Simulation:</b><br>
             Account Return (Standard Split): <span style="color: ${regColor}; font-weight: bold;">${regSign}${regularPLPercent.toFixed(3)}% (${regSign}$${regularPLDollars.toFixed(2)})</span><br>
-            Account Return (Full Position Sold at TP1): <span style="color: ${regFullColor}; font-weight: bold;">${regFullSign}${regFullPct.toFixed(3)}% (${regFullSign}$${regFullTP1Dollars.toFixed(2)})</span><br>
-            Account Return (1/3 Runner Split - 1/3 Closed at TP1, 2/3 Runner Action): <span style="color: ${regInvColor}; font-weight: bold;">${regInvSign}${regInvPct.toFixed(3)}% (${regInvSign}$${regInvertedRunnerDollars.toFixed(2)})</span><br>
+            Account Return (Full Position Sold at TP): <span style="color: ${regFullColor}; font-weight: bold;">${regFullSign}${regFullPct.toFixed(3)}% (${regFullSign}$${regFullTPDollars.toFixed(2)})</span><br>
+            Account Return (1/3 Runner Split): <span style="color: ${regInvColor}; font-weight: bold;">${regInvSign}${regInvPct.toFixed(3)}% (${regInvSign}$${regInvertedRunnerDollars.toFixed(2)})</span><br>
             <span style="font-size: 0.9em; color: #94a3b8;">${regExecutionDesc}</span>`;
 
             // 3. Shadow / Custom Offset Calculations & Dual Return Comparison
@@ -213,39 +211,39 @@
 
                 const customStopDist = activeE - sl;
                 if (customStopDist > 0) {
-                    const shadowTp1Target = activeE + customStopDist;
+                    const shadowTpTarget = activeE + customStopDist;
 
                     // A. Shadow Return with UNADJUSTED (Original) Lot Size
                     let unadjPLDollars = 0;
-                    let unadjFullTP1 = 0;
+                    let unadjFullTP = 0;
                     let unadjInvRunner = 0;
                     const unadjBody = bodyBase;
                     const unadjRunner = runnerBase;
 
                     if (exitCond === "Stopped out") {
                         unadjPLDollars = totalBase * (sl - activeE);
-                        unadjFullTP1 = totalBase * (sl - activeE);
+                        unadjFullTP = totalBase * (sl - activeE);
                         unadjInvRunner = totalBase * (sl - activeE);
                     } else if (exitCond === "TP not hit, flattened") {
                         unadjPLDollars = totalBase * (flatPrice - activeE);
-                        unadjFullTP1 = totalBase * (flatPrice - activeE);
+                        unadjFullTP = totalBase * (flatPrice - activeE);
                         unadjInvRunner = totalBase * (flatPrice - activeE);
                     } else if (exitCond === "TP hit, stopped out") {
-                        unadjPLDollars = (unadjBody * (shadowTp1Target - activeE)) + (unadjRunner * (activeE - activeE));
-                        unadjFullTP1 = totalBase * (shadowTp1Target - activeE);
-                        unadjInvRunner = (unadjBody * (activeE - activeE)) + (unadjRunner * (shadowTp1Target - activeE));
+                        unadjPLDollars = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (activeE - activeE));
+                        unadjFullTP = totalBase * (shadowTpTarget - activeE);
+                        unadjInvRunner = (unadjBody * (activeE - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
                     } else if (exitCond === "TP hit, flattened") {
-                        unadjPLDollars = (unadjBody * (shadowTp1Target - activeE)) + (unadjRunner * (flatPrice - activeE));
-                        unadjFullTP1 = totalBase * (shadowTp1Target - activeE);
-                        unadjInvRunner = (unadjBody * (flatPrice - activeE)) + (unadjRunner * (shadowTp1Target - activeE));
+                        unadjPLDollars = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (flatPrice - activeE));
+                        unadjFullTP = totalBase * (shadowTpTarget - activeE);
+                        unadjInvRunner = (unadjBody * (flatPrice - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
                     }
                     const unadjPLPercent = (unadjPLDollars / b) * 100;
                     const unadjColor = unadjPLDollars >= 0 ? '#22c55e' : '#ef4444';
                     const unadjSign = unadjPLDollars >= 0 ? '+' : '';
 
-                    const unadjFullPct = (unadjFullTP1 / b) * 100;
-                    const unadjFullCol = unadjFullTP1 >= 0 ? '#22c55e' : '#ef4444';
-                    const unadjFullSign = unadjFullTP1 >= 0 ? '+' : '';
+                    const unadjFullPct = (unadjFullTP / b) * 100;
+                    const unadjFullCol = unadjFullTP >= 0 ? '#22c55e' : '#ef4444';
+                    const unadjFullSign = unadjFullTP >= 0 ? '+' : '';
 
                     const unadjInvPct = (unadjInvRunner / b) * 100;
                     const unadjInvCol = unadjInvRunner >= 0 ? '#22c55e' : '#ef4444';
@@ -257,48 +255,48 @@
                     const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
 
                     let adjPLDollars = 0;
-                    let adjFullTP1 = 0;
+                    let adjFullTP = 0;
                     let adjInvRunner = 0;
 
                     if (exitCond === "Stopped out") {
                         adjPLDollars = adjTotal * (sl - activeE);
-                        adjFullTP1 = adjTotal * (sl - activeE);
+                        adjFullTP = adjTotal * (sl - activeE);
                         adjInvRunner = adjTotal * (sl - activeE);
                     } else if (exitCond === "TP not hit, flattened") {
                         adjPLDollars = adjTotal * (flatPrice - activeE);
-                        adjFullTP1 = adjTotal * (flatPrice - activeE);
+                        adjFullTP = adjTotal * (flatPrice - activeE);
                         adjInvRunner = adjTotal * (flatPrice - activeE);
                     } else if (exitCond === "TP hit, stopped out") {
-                        adjPLDollars = (adjBody * (shadowTp1Target - activeE)) + (adjRunner * (activeE - activeE));
-                        adjFullTP1 = adjTotal * (shadowTp1Target - activeE);
-                        adjInvRunner = (adjBody * (activeE - activeE)) + (adjRunner * (shadowTp1Target - activeE));
+                        adjPLDollars = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (activeE - activeE));
+                        adjFullTP = adjTotal * (shadowTpTarget - activeE);
+                        adjInvRunner = (adjBody * (activeE - activeE)) + (adjRunner * (shadowTpTarget - activeE));
                     } else if (exitCond === "TP hit, flattened") {
-                        adjPLDollars = (adjBody * (shadowTp1Target - activeE)) + (adjRunner * (flatPrice - activeE));
-                        adjFullTP1 = adjTotal * (shadowTp1Target - activeE);
-                        adjInvRunner = (adjBody * (flatPrice - activeE)) + (adjRunner * (shadowTp1Target - activeE));
+                        adjPLDollars = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (flatPrice - activeE));
+                        adjFullTP = adjTotal * (shadowTpTarget - activeE);
+                        adjInvRunner = (adjBody * (flatPrice - activeE)) + (adjRunner * (shadowTpTarget - activeE));
                     }
                     const adjPLPercent = (adjPLDollars / b) * 100;
                     const adjColor = adjPLDollars >= 0 ? '#22c55e' : '#ef4444';
                     const adjSign = adjPLDollars >= 0 ? '+' : '';
 
-                    const adjFullPct = (adjFullTP1 / b) * 100;
-                    const adjFullCol = adjFullTP1 >= 0 ? '#22c55e' : '#ef4444';
-                    const adjFullSign = adjFullTP1 >= 0 ? '+' : '';
+                    const adjFullPct = (adjFullTP / b) * 100;
+                    const adjFullCol = adjFullTP >= 0 ? '#22c55e' : '#ef4444';
+                    const adjFullSign = adjFullTP >= 0 ? '+' : '';
 
                     const adjInvPct = (adjInvRunner / b) * 100;
                     const adjInvCol = adjInvRunner >= 0 ? '#22c55e' : '#ef4444';
                     const adjInvSign = adjInvRunner >= 0 ? '+' : '';
 
-                    // Render Dual Comparison inside bottom result field with all scenario variations
+                    // Render Dual Comparison inside bottom result field
                     document.getElementById(`off-metrics-0`).innerHTML = `<b>Shadow Trade Comparisons & P&L:</b><br>
                     Shadow Entry: ${activeE.toFixed(2)}<br><br>
                     <b>1. Unadjusted Lots (${totalBase} ${unitLabel}):</b><br>
                     • Standard Split: <span style="color: ${unadjColor}; font-weight: bold;">${unadjSign}${unadjPLPercent.toFixed(3)}% (${unadjSign}$${unadjPLDollars.toFixed(2)})</span><br>
-                    • Full Position Sold at TP1: <span style="color: ${unadjFullCol}; font-weight: bold;">${unadjFullSign}${unadjFullPct.toFixed(3)}% (${unadjFullSign}$${unadjFullTP1.toFixed(2)})</span><br>
+                    • Full Position Sold at TP: <span style="color: ${unadjFullCol}; font-weight: bold;">${unadjFullSign}${unadjFullPct.toFixed(3)}% (${unadjFullSign}$${unadjFullTP.toFixed(2)})</span><br>
                     • 1/3 Runner Split: <span style="color: ${unadjInvCol}; font-weight: bold;">${unadjInvSign}${unadjInvPct.toFixed(3)}% (${unadjInvSign}$${unadjInvRunner.toFixed(2)})</span><br><br>
                     <b>2. Recalculated Lots (${adjTotal} ${unitLabel} | Body: ${adjBody} | Runner: ${adjRunner}):</b><br>
                     • Standard Split: <span style="color: ${adjColor}; font-weight: bold;">${adjSign}${adjPLPercent.toFixed(3)}% (${adjSign}$${adjPLDollars.toFixed(2)})</span><br>
-                    • Full Position Sold at TP1: <span style="color: ${adjFullCol}; font-weight: bold;">${adjFullSign}${adjFullPct.toFixed(3)}% (${adjFullSign}$${adjFullTP1.toFixed(2)})</span><br>
+                    • Full Position Sold at TP: <span style="color: ${adjFullCol}; font-weight: bold;">${adjFullSign}${adjFullPct.toFixed(3)}% (${adjFullSign}$${adjFullTP.toFixed(2)})</span><br>
                     • 1/3 Runner Split: <span style="color: ${adjInvCol}; font-weight: bold;">${adjInvSign}${adjInvPct.toFixed(3)}% (${adjInvSign}$${adjInvRunner.toFixed(2)})</span>`;
                 } else {
                     document.getElementById(`off-metrics-0`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry must remain above stop loss.</span>`;
@@ -310,7 +308,15 @@
         }
 
         function exportCSV() {
-            let csv = "Date,Status,Brokerage,Ticker,Balance,Risk%,ATR,15mHigh,15mLow,VolRatio%,Entry,SL,TP1,TP2,TP3,IntraHigh,IntraLow,Flatten,MaxPrice,ActualPL,Efficiency%,GainLoss%,TradeNotes\n";
+            let csv = "Date,Status,Brokerage,Ticker,Balance,Risk%,ATR,15mHigh,15mLow,VolRatio%,Entry,SL,TP," +
+                      "EntryCondition,ExitCondition," +
+                      "EntryPriceHit,EntryTime,ShadowEntryHit,ShadowTime," +
+                      "IntradayHigh,IntradayHighTime,IntradayLow,IntradayLowTime," +
+                      "IntraTradeHigh,IntraTradeHighTime,FlattenedPrice,Offset%," +
+                      "RegStandardPct,RegStandard$,RegFullTPPct,RegFullTP$,Reg13RunnerPct,Reg13Runner$,[" +
+                      "ShadowUnadj_StandardPct,ShadowUnadj_Standard$,ShadowUnadj_FullTPPct,ShadowUnadj_FullTP$,ShadowUnadj_13RunnerPct,ShadowUnadj_13Runner$,[" +
+                      "ShadowAdj_StandardPct,ShadowAdj_Standard$,ShadowAdj_FullTPPct,ShadowAdj_FullTP$,ShadowAdj_13RunnerPct,ShadowAdj_13Runner$,TradeNotes\n";
+
             for(let i=0; i<1; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
                 const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
@@ -318,21 +324,143 @@
                 const l = parseFloat(document.getElementById(`l-${i}`).value) || 0;
                 const r = parseFloat(document.getElementById('gRisk').value)/100;
                 const brokerage = document.getElementById(`m-${i}`).value;
-                const e = h + (h * 0.001) + (a * 0.05);
+                const ticker = document.getElementById(`t-${i}`).value;
+                const baseE = h + (h * 0.001) + (a * 0.05);
                 const sl = l - (a * 0.1);
-                const stopDist = e - sl;
-                
+                const stopDistBase = baseE - sl;
+                const sat = ((h - l) / a) * 100;
+                const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
+
+                // Inputs & timestamps
+                const entryCond = document.getElementById(`entry-cond-${i}`).value;
+                const exitCond = document.getElementById(`exit-cond-${i}`).value;
+                const entryPriceHit = document.getElementById(`entry-price-${i}`).value || 0;
+                const entryTime = document.getElementById(`entry-time-${i}`).value || "";
+                const shadowPriceHit = document.getElementById(`shadow-price-${i}`).value || 0;
+                const shadowTime = document.getElementById(`shadow-time-${i}`).value || "";
                 const ih = document.getElementById(`ih-${i}`).value || 0;
+                const ihTime = document.getElementById(`ih-time-${i}`).value || "";
                 const il = document.getElementById(`il-${i}`).value || 0;
-                const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
-                const maxP = parseFloat(document.getElementById(`ith-${i}`).value) || 0;
-                const status = ( ((h-l)/a)*100 >= parseFloat(document.getElementById('gMin').value) && ((h-l)/a)*100 <= parseFloat(document.getElementById('gMax').value) ) ? "APPROVED" : "DISQUALIFIED";
-                
-                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${(((h-l)/a)*100).toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+stopDist).toFixed(2)},${(e+stopDist*2).toFixed(2)},${(e+stopDist*3).toFixed(2)},${ih},${il},${flatP},${maxP},0,N/A,0%,"${document.getElementById(`n1-${i}`).value}"\n`;
+                const ilTime = document.getElementById(`il-time-${i}`).value || "";
+                const ith = document.getElementById(`ith-${i}`).value || 0;
+                const ithTime = document.getElementById(`ith-time-${i}`).value || "";
+                const flatPrice = parseFloat(document.getElementById(`ex-${i}`).value) || baseE;
+                const offsetInput = parseFloat(document.getElementById(`off-${i}`).value) || 0;
+                const notes = document.getElementById(`n1-${i}`).value.replace(/"/g, '""');
+
+                // Recalculate metrics for CSV output matching display logic
+                const totalBase = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDistBase) : parseFloat(((b * r) / stopDistBase).toFixed(2));
+                const bodyBase = (brokerage === "ETRADE") ? Math.floor(totalBase / 3) : parseFloat((totalBase / 3).toFixed(2));
+                const runnerBase = (brokerage === "ETRADE") ? (totalBase - bodyBase) : parseFloat((totalBase - bodyBase).toFixed(2));
+                const tpTargetBase = baseE + stopDistBase;
+
+                let regStd$ = 0, regFull$ = 0, regInv$ = 0;
+                if (entryCond !== "Entry price not hit" && stopDistBase > 0) {
+                    if (exitCond === "Stopped out") {
+                        regStd$ = totalBase * (sl - baseE);
+                        regFull$ = regStd$;
+                        regInv$ = regStd$;
+                    } else if (exitCond === "TP not hit, flattened") {
+                        regStd$ = totalBase * (flatPrice - baseE);
+                        regFull$ = regStd$;
+                        regInv$ = regStd$;
+                    } else if (exitCond === "TP hit, stopped out") {
+                        regStd$ = (bodyBase * (tpTargetBase - baseE)) + (runnerBase * (baseE - baseE));
+                        regFull$ = totalBase * (tpTargetBase - baseE);
+                        regInv$ = (bodyBase * (baseE - baseE)) + (runnerBase * (tpTargetBase - baseE));
+                    } else if (exitCond === "TP hit, flattened") {
+                        regStd$ = (bodyBase * (tpTargetBase - baseE)) + (runnerBase * (flatPrice - baseE));
+                        regFull$ = totalBase * (tpTargetBase - baseE);
+                        regInv$ = (bodyBase * (flatPrice - baseE)) + (runnerBase * (tpTargetBase - baseE));
+                    }
+                }
+                const regStdPct = (regStd$ / b) * 100;
+                const regFullPct = (regFull$ / b) * 100;
+                const regInvPct = (regInv$ / b) * 100;
+
+                // Shadow calculations
+                let s_unadjStd$, s_unadjFull$, s_unadjInv$;
+                let s_adjStd$, s_adjFull$, s_adjInv$;
+                s_unadjStd$ = s_unadjFull$ = s_unadjInv$ = s_adjStd$ = s_adjFull$ = s_adjInv$ = 0;
+
+                if (!isNaN(offsetInput) && stopDistBase > 0) {
+                    const activeE = baseE - (stopDistBase * (offsetInput / 100));
+                    const customStopDist = activeE - sl;
+                    if (customStopDist > 0) {
+                        const shadowTpTarget = activeE + customStopDist;
+                        const unadjBody = bodyBase;
+                        const unadjRunner = runnerBase;
+
+                        if (entryCond !== "Entry price not hit") {
+                            if (exitCond === "Stopped out") {
+                                s_unadjStd$ = totalBase * (sl - activeE);
+                                s_unadjFull$ = s_unadjStd$;
+                                s_unadjInv$ = s_unadjStd$;
+                            } else if (exitCond === "TP not hit, flattened") {
+                                s_unadjStd$ = totalBase * (flatPrice - activeE);
+                                s_unadjFull$ = s_unadjStd$;
+                                s_unadjInv$ = s_unadjStd$;
+                            } else if (exitCond === "TP hit, stopped out") {
+                                s_unadjStd$ = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (activeE - activeE));
+                                s_unadjFull$ = totalBase * (shadowTpTarget - activeE);
+                                s_unadjInv$ = (unadjBody * (activeE - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
+                            } else if (exitCond === "TP hit, flattened") {
+                                s_unadjStd$ = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (flatPrice - activeE));
+                                s_unadjFull$ = totalBase * (shadowTpTarget - activeE);
+                                s_unadjInv$ = (unadjBody * (flatPrice - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
+                            }
+
+                            const adjTotal = (brokerage === "ETRADE") ? Math.floor((b * r) / customStopDist) : parseFloat(((b * r) / customStopDist).toFixed(2));
+                            const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : parseFloat((adjTotal / 3).toFixed(2));
+                            const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
+
+                            if (exitCond === "Stopped out") {
+                                s_adjStd$ = adjTotal * (sl - activeE);
+                                s_adjFull$ = s_adjStd$;
+                                s_adjInv$ = s_adjStd$;
+                            } else if (exitCond === "TP not hit, flattened") {
+                                s_adjStd$ = adjTotal * (flatPrice - activeE);
+                                s_adjFull$ = s_adjStd$;
+                                s_adjInv$ = s_adjStd$;
+                            } else if (exitCond === "TP hit, stopped out") {
+                                s_adjStd$ = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (activeE - activeE));
+                                s_adjFull$ = adjTotal * (shadowTpTarget - activeE);
+                                s_adjInv$ = (adjBody * (activeE - activeE)) + (adjRunner * (shadowTpTarget - activeE));
+                            } else if (exitCond === "TP hit, flattened") {
+                                s_adjStd$ = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (flatPrice - activeE));
+                                s_adjFull$ = adjTotal * (shadowTpTarget - activeE);
+                                s_adjInv$ = (adjBody * (flatPrice - activeE)) + (adjRunner * (shadowTpTarget - activeE));
+                            }
+                        }
+                    }
+                }
+
+                const s_unadjStdPct = (s_unadjStd$ / b) * 100;
+                const s_unadjFullPct = (s_unadjFull$ / b) * 100;
+                const s_unadjInvPct = (s_unadjInv$ / b) * 100;
+                const s_adjStdPct = (s_adjStd$ / b) * 100;
+                const s_adjFullPct = (s_adjFull$ / b) * 100;
+                const s_adjInvPct = (s_adjInv$ / b) * 100;
+
+                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${ticker},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${baseE.toFixed(2)},${sl.toFixed(2)},${tpTargetBase.toFixed(2)},` +
+                       `"${entryCond}","${exitCond}",` +
+                       `${entryPriceHit},"${entryTime}",${shadowPriceHit},"${shadowTime}",` +
+                       `${ih},"${ihTime}",${il},"${ilTime}",` +
+                       `${ith},"${ithTime}",${flatPrice},${offsetInput},` +
+                       `${regStdPct.toFixed(3)}%,${regStd$.toFixed(2)},${regFullPct.toFixed(3)}%,${regFull$.toFixed(2)},${regInvPct.toFixed(3)}%,${regInv$.toFixed(2)},` +
+                       `${s_unadjStdPct.toFixed(3)}%,${s_unadjStd$.toFixed(2)},${s_unadjFullPct.toFixed(3)}%,${s_unadjFull$.toFixed(2)},${s_unadjInvPct.toFixed(3)}%,${s_unadjInv$.toFixed(2)},` +
+                       `${s_adjStdPct.toFixed(3)}%,${s_adjStd$.toFixed(2)},${s_adjFullPct.toFixed(3)}%,${s_adjFull$.toFixed(2)},${s_adjInvPct.toFixed(3)}%,${s_adjInv$.toFixed(2)},"${notes}"\n`;
             }
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Forensic_Log.csv'; a.click();
+            a.href = url;
+            a.download = 'Engine61_Comprehensive_Forensic_Log.csv';
+            a.click();
+            URL.revokeObjectURL(url);
         }
+
         window.onload = init;
     </script>
 </body>
