@@ -13,6 +13,18 @@
         .approved { color: #22c55e; font-weight: bold; }
         .disqualified { color: #ef4444; font-weight: bold; }
         input, select, textarea { width: 100%; padding: 6px; margin: 2px 0; background: #334155; color: #fff; border: 1px solid #475569; box-sizing: border-box; }
+        
+        /* Remove spinner arrows for Chrome, Safari, Edge, Opera */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        /* Remove spinner arrows for Firefox */
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
         .dashboard input { width: 50px; padding: 3px; font-size: 0.9em; }
         .export-btn { margin-top: 20px; padding: 15px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; max-width: 600px; font-weight: bold; }
     </style>
@@ -55,28 +67,28 @@
                         </select>
                     </div>
 
-                    <!-- Entry & Shadow Entry Timestamp Rows -->
+                    <!-- Entry & Shadow Entry Timestamp Rows (with time picker) -->
                     <div style="display:flex; gap:5px;">
                         <input type="number" placeholder="Entry Price Hit" id="entry-price-0" style="flex:2;" value="52203" oninput="calc(0)">
-                        <input type="text" placeholder="Time (e.g. 09:35)" id="entry-time-0" style="flex:1;" value="9:00">
+                        <input type="time" placeholder="Time" id="entry-time-0" style="flex:1;" value="09:00">
                     </div>
                     <div style="display:flex; gap:5px;">
                         <input type="number" placeholder="Shadow Entry Hit" id="shadow-price-0" style="flex:2;" value="52118" oninput="calc(0)">
-                        <input type="text" placeholder="Time (e.g. 09:45)" id="shadow-time-0" style="flex:1;" value="8:55">
+                        <input type="time" placeholder="Time" id="shadow-time-0" style="flex:1;" value="08:55">
                     </div>
 
-                    <!-- Price & Timestamp Input Rows -->
+                    <!-- Price & Timestamp Input Rows (with time picker) -->
                     <div style="display:flex; gap:5px;">
                         <input type="number" placeholder="Intraday High" id="ih-0" style="flex:2;" value="52417" oninput="calc(0)">
-                        <input type="text" placeholder="Time (e.g. 10:30)" id="ih-time-0" style="flex:1;" value="11:45">
+                        <input type="time" placeholder="Time" id="ih-time-0" style="flex:1;" value="11:45">
                     </div>
                     <div style="display:flex; gap:5px;">
                         <input type="number" placeholder="Intraday Low" id="il-0" style="flex:2;" value="52109" oninput="calc(0)">
-                        <input type="text" placeholder="Time (e.g. 11:15)" id="il-time-0" style="flex:1;" value="9:30">
+                        <input type="time" placeholder="Time" id="il-time-0" style="flex:1;" value="09:30">
                     </div>
                     <div style="display:flex; gap:5px;">
                         <input type="number" placeholder="Intra Trade High" id="ith-0" style="flex:2;" value="52417" oninput="calc(0)">
-                        <input type="text" placeholder="Time (e.g. 13:45)" id="ith-time-0" style="flex:1;" value="11:45">
+                        <input type="time" placeholder="Time" id="ith-time-0" style="flex:1;" value="11:45">
                     </div>
                     <div>
                         <input type="number" placeholder="Flattened Price" id="ex-0" value="52280" oninput="calc(0)">
