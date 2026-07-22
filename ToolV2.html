@@ -37,7 +37,7 @@
                     <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-0" value="196328" oninput="calc(0)"><input type="number" placeholder="ATR" id="a-0" value="533" oninput="calc(0)"></div>
                     <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-0" value="52125" oninput="calc(0)"><input type="number" placeholder="15m Low" id="l-0" value="51916" oninput="calc(0)"></div>
                     
-                    <!-- Top Result Screen: Strictly based off base calculations -->
+                    <!-- Top Result Screen: Base Calculations -->
                     <div class="output" id="res-0">Calculations...</div>
                     
                     <!-- Entry & Exit Condition Dropdowns -->
@@ -45,7 +45,7 @@
                         <select id="entry-cond-0" onchange="calc(0)">
                             <option value="Entry price not hit">Entry price not hit</option>
                             <option value="Shadow entry hit">Shadow entry hit</option>
-                            <option value="Both entry prices hit">Both entry prices hit</option>
+                            <option value="Both entry prices hit" selected>Both entry prices hit</option>
                         </select>
                         <select id="exit-cond-0" onchange="calc(0)">
                             <option value="Stopped out">Stopped out</option>
@@ -87,10 +87,10 @@
                         <input type="text" placeholder="Custom Entry Value" id="off-res-0" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
                     
-                    <!-- P&L / Trade Simulation Output Box (% of Account) -->
+                    <!-- Regular Trade P&L Simulation (% of Account) -->
                     <div class="output" id="pnl-res-0" style="border-left-color: #38bdf8; margin-top: 5px;">Trade P&L Simulation: Awaiting criteria inputs...</div>
 
-                    <!-- Bottom Result Screen: Displays new lot sizing based on offset percentage -->
+                    <!-- Bottom Result Screen: Shadow Trade Sizing & Side-by-Side Return -->
                     <div class="output" id="off-metrics-0" style="border-left-color: #22c55e; margin-top: 5px;">Custom Entry Adjustments: Enter Offset %</div>
                     <textarea placeholder="Trade Notes" id="n1-0">Hit entry, did not hit tp1, flattened for small gain</textarea>
                 </div>
@@ -108,7 +108,7 @@
             
             if(!b || !a || !h || !l) return;
             
-            // 1. Base Calculations for the Top Result Box
+            // 1. Base Calculations for Regular Trade
             const baseE = h + (h * 0.001) + (a * 0.05);
             const sl = l - (a * 0.1);
             const stopDistBase = baseE - sl;
@@ -124,13 +124,55 @@
             const sat = ((h - l) / a) * 100;
             const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
 
-            // Render Top Result Box strictly using base metrics
+            // Render Top Result Box (Regular Trade Specs)
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
             Total: ${totalBase} ${unitLabel} | Body (1/3): ${bodyBase} | Runner (2/3): ${runnerBase}<br>
             E: ${baseE.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
             TP1 (Body Target): ${(baseE+stopDistBase).toFixed(2)} | TP2: ${(baseE+stopDistBase*2).toFixed(2)} | TP3: ${(baseE+stopDistBase*3).toFixed(2)}`;
 
-            // 2. Offset Calculations for the Bottom Result Box
+            // 2. Regular Trade P&L Simulation (% of Account)
+            const entryCond = document.getElementById(`entry-cond-${i}`).value;
+            const exitCond = document.getElementById(`exit-cond-${i}`).value;
+            const flatPrice = parseFloat(document.getElementById(`ex-${i}`).value) || baseE;
+
+            let regularPLDollars = 0;
+            let regExecutionDesc = "";
+
+            if (entryCond === "Entry price not hit") {
+                regularPLDollars = 0;
+                regExecutionDesc = "No primary entry triggered.";
+            } else {
+                const tp1Target = baseE + stopDistBase; 
+
+                if (exitCond === "Stopped out") {
+                    regularPLDollars = totalBase * (sl - baseE);
+                    regExecutionDesc = `Full position stopped out at initial SL (${sl.toFixed(2)}).`;
+                } 
+                else if (exitCond === "TP not hit, flattened") {
+                    regularPLDollars = totalBase * (flatPrice - baseE);
+                    regExecutionDesc = `Flattened prior to TP at ${flatPrice.toFixed(2)}.`;
+                } 
+                else if (exitCond === "TP hit, stopped out") {
+                    const bodyPL = bodyBase * (tp1Target - baseE);
+                    const runnerPL = runnerBase * (baseE - baseE); 
+                    regularPLDollars = bodyPL + runnerPL;
+                    regExecutionDesc = `Body hit TP1 (${tp1Target.toFixed(2)}). Runner stopped out at Breakeven/Entry (${baseE.toFixed(2)}).`;
+                } 
+                else if (exitCond === "TP hit, flattened") {
+                    const bodyPL = bodyBase * (tp1Target - baseE);
+                    const runnerPL = runnerBase * (flatPrice - baseE);
+                    regularPLDollars = bodyPL + runnerPL;
+                    regExecutionDesc = `Body hit TP1 (${tp1Target.toFixed(2)}). Runner flattened at ${flatPrice.toFixed(2)}.`;
+                }
+            }
+
+            const regularPLPercent = (regularPLDollars / b) * 100;
+
+            document.getElementById(`pnl-res-0`).innerHTML = `<b>Regular Trade P&L Simulation (% of Account):</b><br>
+            Account Return: <span style="color: ${regularPLPercent >= 0 ? '#22c55e' : '#ef4444'}; font-weight: bold;">${regularPLPercent >= 0 ? '+' : ''}${regularPLPercent.toFixed(3)}%</span><br>
+            <span style="font-size: 0.9em; color: #94a3b8;">${regExecutionDesc}</span>`;
+
+            // 3. Shadow / Custom Offset Calculations & Side-by-Side Account Return
             const offsetInput = parseFloat(document.getElementById(`off-${i}`).value);
             let activeE = baseE;
             
@@ -144,9 +186,37 @@
                     const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : parseFloat((adjTotal / 3).toFixed(2));
                     const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
 
-                    document.getElementById(`off-metrics-0`).innerHTML = `<b>Custom Entry Adjustments (New Lot Sizing):</b><br>
-                    New Entry: ${activeE.toFixed(2)} | Adj Total: ${adjTotal} ${unitLabel}<br>
-                    Adj Body (1/3): ${adjBody} | Adj Runner (2/3): ${adjRunner}`;
+                    let shadowPLDollars = 0;
+                    let shadowExecutionDesc = "";
+                    const shadowTp1Target = activeE + customStopDist;
+
+                    if (exitCond === "Stopped out") {
+                        shadowPLDollars = adjTotal * (sl - activeE);
+                        shadowExecutionDesc = `Shadow full position stopped out at SL (${sl.toFixed(2)}).`;
+                    } 
+                    else if (exitCond === "TP not hit, flattened") {
+                        shadowPLDollars = adjTotal * (flatPrice - activeE);
+                        shadowExecutionDesc = `Shadow flattened prior to TP at ${flatPrice.toFixed(2)}.`;
+                    } 
+                    else if (exitCond === "TP hit, stopped out") {
+                        const sBodyPL = adjBody * (shadowTp1Target - activeE);
+                        const sRunnerPL = adjRunner * (activeE - activeE);
+                        shadowPLDollars = sBodyPL + sRunnerPL;
+                        shadowExecutionDesc = `Shadow body hit TP1 (${shadowTp1Target.toFixed(2)}). Runner stopped at BE (${activeE.toFixed(2)}).`;
+                    } 
+                    else if (exitCond === "TP hit, flattened") {
+                        const sBodyPL = adjBody * (shadowTp1Target - activeE);
+                        const sRunnerPL = adjRunner * (flatPrice - activeE);
+                        shadowPLDollars = sBodyPL + sRunnerPL;
+                        shadowExecutionDesc = `Shadow body hit TP1 (${shadowTp1Target.toFixed(2)}). Runner flattened at ${flatPrice.toFixed(2)}.`;
+                    }
+
+                    const shadowPLPercent = (shadowPLDollars / b) * 100;
+
+                    document.getElementById(`off-metrics-0`).innerHTML = `<b>Shadow Trade Adjustments & P&L (% of Account):</b><br>
+                    Shadow Entry: ${activeE.toFixed(2)} | Adj Total: ${adjTotal} ${unitLabel} (Body: ${adjBody} | Runner: ${adjRunner})<br>
+                    Shadow Return: <span style="color: ${shadowPLPercent >= 0 ? '#22c55e' : '#ef4444'}; font-weight: bold;">${shadowPLPercent >= 0 ? '+' : ''}${shadowPLPercent.toFixed(3)}%</span><br>
+                    <span style="font-size: 0.9em; color: #94a3b8;">${shadowExecutionDesc}</span>`;
                 } else {
                     document.getElementById(`off-metrics-0`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry must remain above stop loss.</span>`;
                 }
@@ -154,48 +224,6 @@
                 document.getElementById(`off-res-0`).value = "";
                 document.getElementById(`off-metrics-0`).innerHTML = `Custom Entry Adjustments: Enter Offset %`;
             }
-
-            // 3. Trade P&L Simulation (% of Account)
-            const entryCond = document.getElementById(`entry-cond-${i}`).value;
-            const exitCond = document.getElementById(`exit-cond-${i}`).value;
-            const flatPrice = parseFloat(document.getElementById(`ex-${i}`).value) || activeE;
-
-            let regularPLDollars = 0;
-            let executionDesc = "";
-
-            if (entryCond === "Entry price not hit") {
-                regularPLDollars = 0;
-                executionDesc = "No primary entry triggered.";
-            } else {
-                const tp1Target = activeE + customStopDist; 
-
-                if (exitCond === "Stopped out") {
-                    regularPLDollars = adjTotal * (sl - activeE);
-                    executionDesc = `Full position stopped out at initial SL (${sl.toFixed(2)}).`;
-                } 
-                else if (exitCond === "TP not hit, flattened") {
-                    regularPLDollars = adjTotal * (flatPrice - activeE);
-                    executionDesc = `Flattened prior to TP at ${flatPrice.toFixed(2)}.`;
-                } 
-                else if (exitCond === "TP hit, stopped out") {
-                    const bodyPL = adjBody * (tp1Target - activeE);
-                    const runnerPL = adjRunner * (activeE - activeE); 
-                    regularPLDollars = bodyPL + runnerPL;
-                    executionDesc = `Body hit TP1 (${tp1Target.toFixed(2)}). Runner stopped out at Breakeven/Entry (${activeE.toFixed(2)}).`;
-                } 
-                else if (exitCond === "TP hit, flattened") {
-                    const bodyPL = adjBody * (tp1Target - activeE);
-                    const runnerPL = adjRunner * (flatPrice - activeE);
-                    regularPLDollars = bodyPL + runnerPL;
-                    executionDesc = `Body hit TP1 (${tp1Target.toFixed(2)}). Runner flattened at ${flatPrice.toFixed(2)}.`;
-                }
-            }
-
-            const regularPLPercent = (regularPLDollars / b) * 100;
-
-            document.getElementById(`pnl-res-0`).innerHTML = `<b>Trade P&L Simulation (% of Account):</b><br>
-            Account Return: <span style="color: ${regularPLPercent >= 0 ? '#22c55e' : '#ef4444'}; font-weight: bold;">${regularPLPercent >= 0 ? '+' : ''}${regularPLPercent.toFixed(3)}%</span><br>
-            <span style="font-size: 0.9em; color: #94a3b8;">${executionDesc}</span>`;
         }
 
         function exportCSV() {
