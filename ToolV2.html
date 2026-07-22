@@ -143,11 +143,11 @@
             let regFullTPDollars = 0;
             let regInvertedRunnerDollars = 0;
 
-            if (entryCond === "Entry price not hit" || exitCond === "No trade") {
+            if (entryCond === "Entry price not hit" || exitCond === "No trade" || entryCond === "Shadow entry hit") {
                 regularPLDollars = 0;
                 regFullTPDollars = 0;
                 regInvertedRunnerDollars = 0;
-                regExecutionDesc = "No trade executed; zero P&L impact.";
+                regExecutionDesc = entryCond === "Shadow entry hit" ? "Regular entry not hit (Shadow entry active only)." : "No trade executed; zero P&L impact.";
             } else {
                 if (exitCond === "Stopped out") {
                     regularPLDollars = totalBase * (sl - baseE);
@@ -277,8 +277,8 @@
 
                     document.getElementById(`off-metrics-${i}`).innerHTML = `<b>Shadow Trade Comparisons & P&L:</b><br>
                     Shadow E: ${activeE.toFixed(2)}<br>
-                    <b>1. Unadj (${totalBase} ${unitLabel}):</b> Std: <span style="color:${unadjColor}">${unadjSign}${unadjPLPercent.toFixed(2)}%</span> | Full: <span style="color:${unadjFullCol}">${unadjFullSign}${unadjFullPct.toFixed(2)}%</span> | Inv: <span style="color:${unadjInvCol}">${unadjInvSign}${unadjInvPct.toFixed(2)}%</span><br>
-                    <b>2. Recalc (${adjTotal} ${unitLabel}):</b> Std: <span style="color:${adjColor}">${adjSign}${adjPLPercent.toFixed(2)}%</span> | Full: <span style="color:${adjFullCol}">${adjFullSign}${adjFullPct.toFixed(2)}%</span> | Inv: <span style="color:${adjInvCol}">${adjInvSign}${adjInvPct.toFixed(2)}%</span>`;
+                    <b>1. Unadj (${totalBase} ${unitLabel}):</b> Std: <span style="color:${unadjColor}">${unadjSign}${unadjPLPercent.toFixed(2)}% ($${unadjPLDollars.toFixed(2)})</span> | Full: <span style="color:${unadjFullCol}">${unadjFullSign}${unadjFullPct.toFixed(2)}% ($${unadjFullTP.toFixed(2)})</span> | Inv: <span style="color:${unadjInvCol}">${unadjInvSign}${unadjInvPct.toFixed(2)}% ($${unadjInvRunner.toFixed(2)})</span><br>
+                    <b>2. Recalc (${adjTotal} ${unitLabel}):</b> Std: <span style="color:${adjColor}">${adjSign}${adjPLPercent.toFixed(2)}% ($${adjPLDollars.toFixed(2)})</span> | Full: <span style="color:${adjFullCol}">${adjFullSign}${adjFullPct.toFixed(2)}% ($${adjFullTP.toFixed(2)})</span> | Inv: <span style="color:${adjInvCol}">${adjInvSign}${adjInvPct.toFixed(2)}% ($${adjInvRunner.toFixed(2)})</span>`;
                 } else {
                     document.getElementById(`off-metrics-${i}`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry below stop loss.</span>`;
                 }
@@ -334,7 +334,7 @@
                 const tpTargetBase = baseE + stopDistBase;
 
                 let regStd$ = 0, regFull$ = 0, regInv$ = 0;
-                if (entryCond !== "Entry price not hit" && exitCond !== "No trade" && stopDistBase > 0) {
+                if (entryCond !== "Entry price not hit" && entryCond !== "Shadow entry hit" && exitCond !== "No trade" && stopDistBase > 0) {
                     if (exitCond === "Stopped out") {
                         regStd$ = totalBase * (sl - baseE);
                         regFull$ = regStd$;
