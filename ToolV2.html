@@ -67,7 +67,7 @@
                         </select>
                     </div>
 
-                    <!-- Entry & Shadow Entry Timestamp Rows (with time picker) -->
+                    <!-- Entry & Shadow Entry Timestamp Rows -->
                     <div style="display:flex; gap:5px;">
                         <input type="number" placeholder="Entry Price Hit" id="entry-price-0" style="flex:2;" value="52203" oninput="calc(0)">
                         <input type="time" placeholder="Time" id="entry-time-0" style="flex:1;" value="09:00">
@@ -77,7 +77,7 @@
                         <input type="time" placeholder="Time" id="shadow-time-0" style="flex:1;" value="08:55">
                     </div>
 
-                    <!-- Price & Timestamp Input Rows (with time picker) -->
+                    <!-- Price & Timestamp Input Rows -->
                     <div style="display:flex; gap:5px;">
                         <input type="number" placeholder="Intraday High" id="ih-0" style="flex:2;" value="52417" oninput="calc(0)">
                         <input type="time" placeholder="Time" id="ih-time-0" style="flex:1;" value="11:45">
@@ -99,10 +99,10 @@
                         <input type="text" placeholder="Custom Entry Value" id="off-res-0" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
                     
-                    <!-- Regular Trade P&L Simulation (% and Dollar Amount) -->
+                    <!-- Regular Trade P&L Simulation -->
                     <div class="output" id="pnl-res-0" style="border-left-color: #38bdf8; margin-top: 5px;">Trade P&L Simulation: Awaiting criteria inputs...</div>
 
-                    <!-- Bottom Result Screen: Dual Shadow Trade Comparisons (% and Dollar Amounts) -->
+                    <!-- Bottom Result Screen: Dual Shadow Trade Comparisons -->
                     <div class="output" id="off-metrics-0" style="border-left-color: #22c55e; margin-top: 5px;">Custom Entry Adjustments: Enter Offset %</div>
                     <textarea placeholder="Trade Notes" id="n1-0">Hit entry, did not hit tp1, flattened for small gain</textarea>
                 </div>
@@ -142,39 +142,46 @@
             E: ${baseE.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
             TP1 (Body Target): ${(baseE+stopDistBase).toFixed(2)} | TP2: ${(baseE+stopDistBase*2).toFixed(2)} | TP3: ${(baseE+stopDistBase*3).toFixed(2)}`;
 
-            // 2. Regular Trade P&L Simulation (% and Dollars)
+            // 2. Regular Trade P&L Simulations (Standard Split vs. Full Close at TP1 vs. 1/3 Runner Split)
             const entryCond = document.getElementById(`entry-cond-${i}`).value;
             const exitCond = document.getElementById(`exit-cond-${i}`).value;
             const flatPrice = parseFloat(document.getElementById(`ex-${i}`).value) || baseE;
+            const tp1TargetBase = baseE + stopDistBase;
 
             let regularPLDollars = 0;
             let regExecutionDesc = "";
+
+            let regFullTP1Dollars = 0;
+            let regInvertedRunnerDollars = 0; // Inverted split: 1/3 closed at TP1, 2/3 running/flattened/stopped
 
             if (entryCond === "Entry price not hit") {
                 regularPLDollars = 0;
                 regExecutionDesc = "No primary entry triggered.";
             } else {
-                const tp1Target = baseE + stopDistBase; 
-
                 if (exitCond === "Stopped out") {
                     regularPLDollars = totalBase * (sl - baseE);
+                    regFullTP1Dollars = totalBase * (sl - baseE);
+                    regInvertedRunnerDollars = totalBase * (sl - baseE);
                     regExecutionDesc = `Full position stopped out at initial SL (${sl.toFixed(2)}).`;
                 } 
                 else if (exitCond === "TP not hit, flattened") {
                     regularPLDollars = totalBase * (flatPrice - baseE);
+                    regFullTP1Dollars = totalBase * (flatPrice - baseE);
+                    regInvertedRunnerDollars = totalBase * (flatPrice - baseE);
                     regExecutionDesc = `Flattened prior to TP at ${flatPrice.toFixed(2)}.`;
                 } 
                 else if (exitCond === "TP hit, stopped out") {
-                    const bodyPL = bodyBase * (tp1Target - baseE);
-                    const runnerPL = runnerBase * (baseE - baseE); 
-                    regularPLDollars = bodyPL + runnerPL;
-                    regExecutionDesc = `Body hit TP1 (${tp1Target.toFixed(2)}). Runner stopped out at Breakeven/Entry (${baseE.toFixed(2)}).`;
+                    regularPLDollars = (bodyBase * (tp1TargetBase - baseE)) + (runnerBase * (baseE - baseE));
+                    regFullTP1Dollars = totalBase * (tp1TargetBase - baseE);
+                    // Inverted: 1/3 runner (bodyBase size) takes actual exit/runner behavior, 2/3 (runnerBase size) takes TP1
+                    regInvertedRunnerDollars = (bodyBase * (baseE - baseE)) + (runnerBase * (tp1TargetBase - baseE));
+                    regExecutionDesc = `Body hit TP1 (${tp1TargetBase.toFixed(2)}). Runner stopped out at Breakeven.`;
                 } 
                 else if (exitCond === "TP hit, flattened") {
-                    const bodyPL = bodyBase * (tp1Target - baseE);
-                    const runnerPL = runnerBase * (flatPrice - baseE);
-                    regularPLDollars = bodyPL + runnerPL;
-                    regExecutionDesc = `Body hit TP1 (${tp1Target.toFixed(2)}). Runner flattened at ${flatPrice.toFixed(2)}.`;
+                    regularPLDollars = (bodyBase * (tp1TargetBase - baseE)) + (runnerBase * (flatPrice - baseE));
+                    regFullTP1Dollars = totalBase * (tp1TargetBase - baseE);
+                    regInvertedRunnerDollars = (bodyBase * (flatPrice - baseE)) + (runnerBase * (tp1TargetBase - baseE));
+                    regExecutionDesc = `Body hit TP1 (${tp1TargetBase.toFixed(2)}). Runner flattened at ${flatPrice.toFixed(2)}.`;
                 }
             }
 
@@ -182,11 +189,21 @@
             const regColor = regularPLDollars >= 0 ? '#22c55e' : '#ef4444';
             const regSign = regularPLDollars >= 0 ? '+' : '';
 
+            const regFullPct = (regFullTP1Dollars / b) * 100;
+            const regFullColor = regFullTP1Dollars >= 0 ? '#22c55e' : '#ef4444';
+            const regFullSign = regFullTP1Dollars >= 0 ? '+' : '';
+
+            const regInvPct = (regInvertedRunnerDollars / b) * 100;
+            const regInvColor = regInvertedRunnerDollars >= 0 ? '#22c55e' : '#ef4444';
+            const regInvSign = regInvertedRunnerDollars >= 0 ? '+' : '';
+
             document.getElementById(`pnl-res-0`).innerHTML = `<b>Regular Trade P&L Simulation:</b><br>
-            Account Return: <span style="color: ${regColor}; font-weight: bold;">${regSign}${regularPLPercent.toFixed(3)}% (${regSign}$${regularPLDollars.toFixed(2)})</span><br>
+            Account Return (Standard Split): <span style="color: ${regColor}; font-weight: bold;">${regSign}${regularPLPercent.toFixed(3)}% (${regSign}$${regularPLDollars.toFixed(2)})</span><br>
+            Account Return (Full Position Sold at TP1): <span style="color: ${regFullColor}; font-weight: bold;">${regFullSign}${regFullPct.toFixed(3)}% (${regFullSign}$${regFullTP1Dollars.toFixed(2)})</span><br>
+            Account Return (1/3 Runner Split - 1/3 Closed at TP1, 2/3 Runner Action): <span style="color: ${regInvColor}; font-weight: bold;">${regInvSign}${regInvPct.toFixed(3)}% (${regInvSign}$${regInvertedRunnerDollars.toFixed(2)})</span><br>
             <span style="font-size: 0.9em; color: #94a3b8;">${regExecutionDesc}</span>`;
 
-            // 3. Shadow / Custom Offset Calculations & Dual Return Comparison (% and Dollars)
+            // 3. Shadow / Custom Offset Calculations & Dual Return Comparison
             const offsetInput = parseFloat(document.getElementById(`off-${i}`).value);
             let activeE = baseE;
             
@@ -200,21 +217,39 @@
 
                     // A. Shadow Return with UNADJUSTED (Original) Lot Size
                     let unadjPLDollars = 0;
+                    let unadjFullTP1 = 0;
+                    let unadjInvRunner = 0;
                     const unadjBody = bodyBase;
                     const unadjRunner = runnerBase;
 
                     if (exitCond === "Stopped out") {
                         unadjPLDollars = totalBase * (sl - activeE);
+                        unadjFullTP1 = totalBase * (sl - activeE);
+                        unadjInvRunner = totalBase * (sl - activeE);
                     } else if (exitCond === "TP not hit, flattened") {
                         unadjPLDollars = totalBase * (flatPrice - activeE);
+                        unadjFullTP1 = totalBase * (flatPrice - activeE);
+                        unadjInvRunner = totalBase * (flatPrice - activeE);
                     } else if (exitCond === "TP hit, stopped out") {
                         unadjPLDollars = (unadjBody * (shadowTp1Target - activeE)) + (unadjRunner * (activeE - activeE));
+                        unadjFullTP1 = totalBase * (shadowTp1Target - activeE);
+                        unadjInvRunner = (unadjBody * (activeE - activeE)) + (unadjRunner * (shadowTp1Target - activeE));
                     } else if (exitCond === "TP hit, flattened") {
                         unadjPLDollars = (unadjBody * (shadowTp1Target - activeE)) + (unadjRunner * (flatPrice - activeE));
+                        unadjFullTP1 = totalBase * (shadowTp1Target - activeE);
+                        unadjInvRunner = (unadjBody * (flatPrice - activeE)) + (unadjRunner * (shadowTp1Target - activeE));
                     }
                     const unadjPLPercent = (unadjPLDollars / b) * 100;
                     const unadjColor = unadjPLDollars >= 0 ? '#22c55e' : '#ef4444';
                     const unadjSign = unadjPLDollars >= 0 ? '+' : '';
+
+                    const unadjFullPct = (unadjFullTP1 / b) * 100;
+                    const unadjFullCol = unadjFullTP1 >= 0 ? '#22c55e' : '#ef4444';
+                    const unadjFullSign = unadjFullTP1 >= 0 ? '+' : '';
+
+                    const unadjInvPct = (unadjInvRunner / b) * 100;
+                    const unadjInvCol = unadjInvRunner >= 0 ? '#22c55e' : '#ef4444';
+                    const unadjInvSign = unadjInvRunner >= 0 ? '+' : '';
 
                     // B. Shadow Return with RECALCULATED (Adjusted) Lot Size
                     const adjTotal = (brokerage === "ETRADE") ? Math.floor((b * r) / customStopDist) : parseFloat(((b * r) / customStopDist).toFixed(2));
@@ -222,24 +257,49 @@
                     const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
 
                     let adjPLDollars = 0;
+                    let adjFullTP1 = 0;
+                    let adjInvRunner = 0;
+
                     if (exitCond === "Stopped out") {
                         adjPLDollars = adjTotal * (sl - activeE);
+                        adjFullTP1 = adjTotal * (sl - activeE);
+                        adjInvRunner = adjTotal * (sl - activeE);
                     } else if (exitCond === "TP not hit, flattened") {
                         adjPLDollars = adjTotal * (flatPrice - activeE);
+                        adjFullTP1 = adjTotal * (flatPrice - activeE);
+                        adjInvRunner = adjTotal * (flatPrice - activeE);
                     } else if (exitCond === "TP hit, stopped out") {
                         adjPLDollars = (adjBody * (shadowTp1Target - activeE)) + (adjRunner * (activeE - activeE));
+                        adjFullTP1 = adjTotal * (shadowTp1Target - activeE);
+                        adjInvRunner = (adjBody * (activeE - activeE)) + (adjRunner * (shadowTp1Target - activeE));
                     } else if (exitCond === "TP hit, flattened") {
                         adjPLDollars = (adjBody * (shadowTp1Target - activeE)) + (adjRunner * (flatPrice - activeE));
+                        adjFullTP1 = adjTotal * (shadowTp1Target - activeE);
+                        adjInvRunner = (adjBody * (flatPrice - activeE)) + (adjRunner * (shadowTp1Target - activeE));
                     }
                     const adjPLPercent = (adjPLDollars / b) * 100;
                     const adjColor = adjPLDollars >= 0 ? '#22c55e' : '#ef4444';
                     const adjSign = adjPLDollars >= 0 ? '+' : '';
 
-                    // Render Dual Comparison inside bottom result field with both % and $ amounts
+                    const adjFullPct = (adjFullTP1 / b) * 100;
+                    const adjFullCol = adjFullTP1 >= 0 ? '#22c55e' : '#ef4444';
+                    const adjFullSign = adjFullTP1 >= 0 ? '+' : '';
+
+                    const adjInvPct = (adjInvRunner / b) * 100;
+                    const adjInvCol = adjInvRunner >= 0 ? '#22c55e' : '#ef4444';
+                    const adjInvSign = adjInvRunner >= 0 ? '+' : '';
+
+                    // Render Dual Comparison inside bottom result field with all scenario variations
                     document.getElementById(`off-metrics-0`).innerHTML = `<b>Shadow Trade Comparisons & P&L:</b><br>
-                    Shadow Entry: ${activeE.toFixed(2)}<br>
-                    1. Unadjusted Lots (${totalBase} ${unitLabel}): <span style="color: ${unadjColor}; font-weight: bold;">${unadjSign}${unadjPLPercent.toFixed(3)}% (${unadjSign}$${unadjPLDollars.toFixed(2)})</span><br>
-                    2. Recalculated Lots (${adjTotal} ${unitLabel} | Body: ${adjBody} | Runner: ${adjRunner}): <span style="color: ${adjColor}; font-weight: bold;">${adjSign}${adjPLPercent.toFixed(3)}% (${adjSign}$${adjPLDollars.toFixed(2)})</span>`;
+                    Shadow Entry: ${activeE.toFixed(2)}<br><br>
+                    <b>1. Unadjusted Lots (${totalBase} ${unitLabel}):</b><br>
+                    • Standard Split: <span style="color: ${unadjColor}; font-weight: bold;">${unadjSign}${unadjPLPercent.toFixed(3)}% (${unadjSign}$${unadjPLDollars.toFixed(2)})</span><br>
+                    • Full Position Sold at TP1: <span style="color: ${unadjFullCol}; font-weight: bold;">${unadjFullSign}${unadjFullPct.toFixed(3)}% (${unadjFullSign}$${unadjFullTP1.toFixed(2)})</span><br>
+                    • 1/3 Runner Split: <span style="color: ${unadjInvCol}; font-weight: bold;">${unadjInvSign}${unadjInvPct.toFixed(3)}% (${unadjInvSign}$${unadjInvRunner.toFixed(2)})</span><br><br>
+                    <b>2. Recalculated Lots (${adjTotal} ${unitLabel} | Body: ${adjBody} | Runner: ${adjRunner}):</b><br>
+                    • Standard Split: <span style="color: ${adjColor}; font-weight: bold;">${adjSign}${adjPLPercent.toFixed(3)}% (${adjSign}$${adjPLDollars.toFixed(2)})</span><br>
+                    • Full Position Sold at TP1: <span style="color: ${adjFullCol}; font-weight: bold;">${adjFullSign}${adjFullPct.toFixed(3)}% (${adjFullSign}$${adjFullTP1.toFixed(2)})</span><br>
+                    • 1/3 Runner Split: <span style="color: ${adjInvCol}; font-weight: bold;">${adjInvSign}${adjInvPct.toFixed(3)}% (${adjInvSign}$${adjInvRunner.toFixed(2)})</span>`;
                 } else {
                     document.getElementById(`off-metrics-0`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry must remain above stop loss.</span>`;
                 }
