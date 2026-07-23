@@ -95,8 +95,12 @@
                     </div>
 
                     <div style="display:flex; gap:5px; margin-top:5px;">
-                        <input type="number" placeholder="Offset % (e.g. 35)" id="off-${i}" value="35" oninput="calc(${i})">
+                        <input type="number" placeholder="Entry Offset % (e.g. 35)" id="off-${i}" value="35" oninput="calc(${i})">
                         <input type="text" placeholder="Custom Entry Value" id="off-res-${i}" readonly style="background:#1e293b; color:#94a3b8;">
+                    </div>
+                    <div style="display:flex; gap:5px; margin-top:2px;">
+                        <input type="number" placeholder="TP Offset % (e.g. 25)" id="tp-off-${i}" value="25" oninput="calc(${i})">
+                        <input type="text" placeholder="Custom TP Value" id="tp-off-res-${i}" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
                     
                     <div class="output" id="pnl-res-${i}" style="border-left-color: #38bdf8; margin-top: 5px;">Trade P&L Simulation...</div>
@@ -226,15 +230,23 @@
             <span style="font-size: 0.85em; color: #94a3b8;">${regExecutionDesc}</span>`;
 
             const offsetInput = parseFloat(document.getElementById(`off-${i}`).value);
+            const tpOffsetInput = parseFloat(document.getElementById(`tp-off-${i}`).value);
+
             let activeE = baseE;
             
             if (!isNaN(offsetInput) && document.getElementById(`off-${i}`).value !== "") {
                 activeE = baseE - (stopDistBase * (offsetInput / 100));
                 document.getElementById(`off-res-${i}`).value = activeE.toFixed(2);
 
+                // Independent TP offset calculation
+                let shadowTpTarget = baseE + stopDistBase; // fallback default
+                if (!isNaN(tpOffsetInput) && document.getElementById(`tp-off-${i}`).value !== "") {
+                    shadowTpTarget = baseE + (stopDistBase * (1 - (tpOffsetInput / 100)));
+                }
+                document.getElementById(`tp-off-res-${i}`).value = shadowTpTarget.toFixed(2);
+
                 const customStopDist = activeE - sl;
                 if (customStopDist > 0) {
-                    const shadowTpTarget = activeE + customStopDist;
                     const effectiveCustomStopDist = customStopDist * contractMultiplier;
 
                     let unadjPLDollars = 0, unadjFullTP = 0, unadjInvRunner = 0;
@@ -271,9 +283,7 @@
                     const unadjInvCol = unadjInvRunner >= 0 ? '#22c55e' : '#ef4444';
                     const unadjInvSign = unadjInvRunner >= 0 ? '+' : '';
 
-                    // Recalculates lot/share size proportional to the new distance, capped by initial risk size
-                    const rawAdjTotal = (brokerage === "ETRADE") ? Math.floor(maxAllowedRiskDollars / effectiveCustomStopDist) : parseFloat((maxAllowedRiskDollars / effectiveCustomStopDist).toFixed(2));
-                    const adjTotal = Math.min(rawAdjTotal, totalBase);
+                    const adjTotal = (brokerage === "ETRADE") ? Math.floor(maxAllowedRiskDollars / effectiveCustomStopDist) : parseFloat((maxAllowedRiskDollars / effectiveCustomStopDist).toFixed(2));
 
                     const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : parseFloat((adjTotal / 3).toFixed(2));
                     const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
@@ -312,7 +322,7 @@
                     const adjInvSign = adjInvRunner >= 0 ? '+' : '';
 
                     document.getElementById(`off-metrics-${i}`).innerHTML = `<b>Shadow Trade Comparisons & P&L:</b><br>
-                    Shadow E: ${activeE.toFixed(2)}<br>
+                    Shadow E: ${activeE.toFixed(2)} | Shadow TP: ${shadowTpTarget.toFixed(2)}<br>
                     <b>1. Unadj (${totalBase} ${unitLabel}):</b> Std: <span style="color:${unadjColor}">${unadjSign}${unadjPLPercent.toFixed(2)}% ($${unadjPLDollars.toFixed(2)})</span> | Full: <span style="color:${unadjFullCol}">${unadjFullSign}${unadjFullPct.toFixed(2)}% ($${unadjFullTP.toFixed(2)})</span> | Inv: <span style="color:${unadjInvCol}">${unadjInvSign}${unadjInvPct.toFixed(2)}% ($${unadjInvRunner.toFixed(2)})</span><br>
                     <b>2. Recalc (${adjTotal} ${unitLabel}):</b> Std: <span style="color:${adjColor}">${adjSign}${adjPLPercent.toFixed(2)}% ($${adjPLDollars.toFixed(2)})</span> | Full: <span style="color:${adjFullCol}">${adjFullSign}${adjFullPct.toFixed(2)}% ($${adjFullTP.toFixed(2)})</span> | Inv: <span style="color:${adjInvCol}">${adjInvSign}${adjInvPct.toFixed(2)}% ($${adjInvRunner.toFixed(2)})</span>`;
                 } else {
@@ -320,6 +330,7 @@
                 }
             } else {
                 document.getElementById(`off-res-${i}`).value = "";
+                document.getElementById(`tp-off-res-${i}`).value = "";
                 document.getElementById(`off-metrics-${i}`).innerHTML = `Custom Entry Adjustments: Enter Offset %`;
             }
         }
@@ -329,7 +340,7 @@
                       "EntryCondition,ExitCondition," +
                       "EntryPriceHit,EntryTime,ShadowEntryHit,ShadowTime," +
                       "IntradayHigh,IntradayHighTime,IntradayLow,IntradayLowTime," +
-                      "IntraTradeHigh,IntraTradeHighTime,IntraTradeLow,IntraTradeLowTime,FlattenedPrice,Offset%," +
+                      "IntraTradeHigh,IntraTradeHighTime,IntraTradeLow,IntraTradeLowTime,FlattenedPrice,Offset%,TPOffset%," +
                       "RegStandardPct,RegStandard$,RegFullTPPct,RegFullTP$,Reg13RunnerPct,Reg13Runner$,[" +
                       "ShadowUnadj_StandardPct,ShadowUnadj_Standard$,ShadowUnadj_FullTPPct,ShadowUnadj_FullTP$,ShadowUnadj_13RunnerPct,ShadowUnadj_13Runner$,[" +
                       "ShadowAdj_StandardPct,ShadowAdj_Standard$,ShadowAdj_FullTPPct,ShadowAdj_FullTP$,ShadowAdj_13RunnerPct,ShadowAdj_13Runner$,TradeNotes\n";
@@ -378,6 +389,7 @@
                 const itlTime = document.getElementById(`itl-time-${i}`).value || "";
                 const flatPrice = parseFloat(document.getElementById(`ex-${i}`).value) || baseE;
                 const offsetInput = parseFloat(document.getElementById(`off-${i}`).value) || 0;
+                const tpOffsetInput = parseFloat(document.getElementById(`tp-off-${i}`).value) || 0;
                 const notes = document.getElementById(`n1-${i}`).value.replace(/"/g, '""');
 
                 let contractMultiplier = 1;
@@ -422,9 +434,13 @@
 
                 if (entryCond !== "Entry price not hit" && entryCond !== "Only regular entry price is hit" && exitCond !== "No trade" && !isNaN(offsetInput) && document.getElementById(`off-${i}`).value !== "" && stopDistBase > 0) {
                     const activeE = baseE - (stopDistBase * (offsetInput / 100));
+                    let shadowTpTarget = baseE + stopDistBase;
+                    if (!isNaN(tpOffsetInput) && document.getElementById(`tp-off-${i}`).value !== "") {
+                        shadowTpTarget = baseE + (stopDistBase * (1 - (tpOffsetInput / 100)));
+                    }
+
                     const customStopDist = activeE - sl;
                     if (customStopDist > 0) {
-                        const shadowTpTarget = activeE + customStopDist;
                         const unadjBody = bodyBase;
                         const unadjRunner = runnerBase;
 
@@ -447,8 +463,7 @@
                         }
 
                         const effectiveCustomStopDist = customStopDist * contractMultiplier;
-                        const rawAdjTotal = (brokerage === "ETRADE") ? Math.floor(maxAllowedRiskDollars / effectiveCustomStopDist) : parseFloat((maxAllowedRiskDollars / effectiveCustomStopDist).toFixed(2));
-                        const adjTotal = Math.min(rawAdjTotal, totalBase);
+                        const adjTotal = (brokerage === "ETRADE") ? Math.floor(maxAllowedRiskDollars / effectiveCustomStopDist) : parseFloat((maxAllowedRiskDollars / effectiveCustomStopDist).toFixed(2));
                         const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : parseFloat((adjTotal / 3).toFixed(2));
                         const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
 
@@ -483,7 +498,7 @@
                        `"${entryCond}","${exitCond}",` +
                        `${entryPriceHit},"${entryTime}",${shadowPriceHit},"${shadowTime}",` +
                        `${ih},"${ihTime}",${il},"${ilTime}",` +
-                       `${ith},"${ithTime}",${itl},"${itlTime}",${flatPrice},${offsetInput},` +
+                       `${ith},"${ithTime}",${itl},"${itlTime}",${flatPrice},${offsetInput},${tpOffsetInput},` +
                        `${regStdPct.toFixed(3)}%,${regStd$.toFixed(2)},${regFullPct.toFixed(3)}%,${regFull$.toFixed(2)},${regInvPct.toFixed(3)}%,${regInv$.toFixed(2)},` +
                        `${s_unadjStdPct.toFixed(3)}%,${s_unadjStd$.toFixed(2)},${s_unadjFullPct.toFixed(3)}%,${s_unadjFull$.toFixed(2)},${s_unadjInvPct.toFixed(3)}%,${s_unadjInv$.toFixed(2)},` +
                        `${s_adjStdPct.toFixed(3)}%,${s_adjStd$.toFixed(2)},${s_adjFullPct.toFixed(3)}%,${s_adjFull$.toFixed(2)},${s_adjInvPct.toFixed(3)}%,${s_adjInv$.toFixed(2)},"${notes}"\n`;
