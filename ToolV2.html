@@ -51,14 +51,15 @@
                     
                     <div style="display:flex; gap:5px;">
                         <select id="entry-cond-${i}" onchange="calc(${i})">
-                            <option value="Entry price not hit">Entry price not hit</option>
+                            <option value="Entry price not hit" selected>Entry price not hit</option>
+                            <option value="Only regular entry price is hit">Only regular entry price is hit</option>
                             <option value="Shadow entry hit">Shadow entry hit</option>
-                            <option value="Both entry prices hit" selected>Both entry prices hit</option>
+                            <option value="Both entry prices hit">Both entry prices hit</option>
                         </select>
                         <select id="exit-cond-${i}" onchange="calc(${i})">
-                            <option value="No trade">No trade</option>
+                            <option value="No trade" selected>No trade</option>
                             <option value="Stopped out">Stopped out</option>
-                            <option value="TP not hit, flattened" selected>TP not hit, flattened</option>
+                            <option value="TP not hit, flattened">TP not hit, flattened</option>
                             <option value="TP hit, stopped out">TP hit, stopped out</option>
                             <option value="TP hit, flattened">TP hit, flattened</option>
                         </select>
@@ -84,6 +85,10 @@
                     <div style="display:flex; gap:5px;">
                         <input type="number" placeholder="Intra Trade High" id="ith-${i}" style="flex:2;" value="" oninput="calc(${i})">
                         <input type="time" placeholder="Time" id="ith-time-${i}" style="flex:1;" value="">
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" placeholder="Intra Trade Low" id="itl-${i}" style="flex:2;" value="" oninput="calc(${i})">
+                        <input type="time" placeholder="Time" id="itl-time-${i}" style="flex:1;" value="">
                     </div>
                     <div>
                         <input type="number" placeholder="Flattened Price" id="ex-${i}" value="" oninput="calc(${i})">
@@ -225,7 +230,7 @@
                     let unadjPLDollars = 0, unadjFullTP = 0, unadjInvRunner = 0;
                     const unadjBody = bodyBase, unadjRunner = runnerBase;
 
-                    if (entryCond !== "Entry price not hit" && exitCond !== "No trade") {
+                    if (entryCond !== "Entry price not hit" && entryCond !== "Only regular entry price is hit" && exitCond !== "No trade") {
                         if (exitCond === "Stopped out") {
                             unadjPLDollars = totalBase * (sl - activeE);
                             unadjFullTP = totalBase * (sl - activeE);
@@ -262,7 +267,7 @@
 
                     let adjPLDollars = 0, adjFullTP = 0, adjInvRunner = 0;
 
-                    if (entryCond !== "Entry price not hit" && exitCond !== "No trade") {
+                    if (entryCond !== "Entry price not hit" && entryCond !== "Only regular entry price is hit" && exitCond !== "No trade") {
                         if (exitCond === "Stopped out") {
                             adjPLDollars = adjTotal * (sl - activeE);
                             adjFullTP = adjTotal * (sl - activeE);
@@ -311,7 +316,7 @@
                       "EntryCondition,ExitCondition," +
                       "EntryPriceHit,EntryTime,ShadowEntryHit,ShadowTime," +
                       "IntradayHigh,IntradayHighTime,IntradayLow,IntradayLowTime," +
-                      "IntraTradeHigh,IntraTradeHighTime,FlattenedPrice,Offset%," +
+                      "IntraTradeHigh,IntraTradeHighTime,IntraTradeLow,IntraTradeLowTime,FlattenedPrice,Offset%," +
                       "RegStandardPct,RegStandard$,RegFullTPPct,RegFullTP$,Reg13RunnerPct,Reg13Runner$,[" +
                       "ShadowUnadj_StandardPct,ShadowUnadj_Standard$,ShadowUnadj_FullTPPct,ShadowUnadj_FullTP$,ShadowUnadj_13RunnerPct,ShadowUnadj_13Runner$,[" +
                       "ShadowAdj_StandardPct,ShadowAdj_Standard$,ShadowAdj_FullTPPct,ShadowAdj_FullTP$,ShadowAdj_13RunnerPct,ShadowAdj_13Runner$,TradeNotes\n";
@@ -356,6 +361,8 @@
                 const ilTime = document.getElementById(`il-time-${i}`).value || "";
                 const ith = document.getElementById(`ith-${i}`).value || 0;
                 const ithTime = document.getElementById(`ith-time-${i}`).value || "";
+                const itl = document.getElementById(`itl-${i}`).value || 0;
+                const itlTime = document.getElementById(`itl-time-${i}`).value || "";
                 const flatPrice = parseFloat(document.getElementById(`ex-${i}`).value) || baseE;
                 const offsetInput = parseFloat(document.getElementById(`off-${i}`).value) || 0;
                 const notes = document.getElementById(`n1-${i}`).value.replace(/"/g, '""');
@@ -393,7 +400,7 @@
                 let s_adjStd$, s_adjFull$, s_adjInv$;
                 s_unadjStd$ = s_unadjFull$ = s_unadjInv$ = s_adjStd$ = s_adjFull$ = s_adjInv$ = 0;
 
-                if (entryCond !== "Entry price not hit" && exitCond !== "No trade" && !isNaN(offsetInput) && document.getElementById(`off-${i}`).value !== "" && stopDistBase > 0) {
+                if (entryCond !== "Entry price not hit" && entryCond !== "Only regular entry price is hit" && exitCond !== "No trade" && !isNaN(offsetInput) && document.getElementById(`off-${i}`).value !== "" && stopDistBase > 0) {
                     const activeE = baseE - (stopDistBase * (offsetInput / 100));
                     const customStopDist = activeE - sl;
                     if (customStopDist > 0) {
@@ -454,7 +461,7 @@
                        `"${entryCond}","${exitCond}",` +
                        `${entryPriceHit},"${entryTime}",${shadowPriceHit},"${shadowTime}",` +
                        `${ih},"${ihTime}",${il},"${ilTime}",` +
-                       `${ith},"${ithTime}",${flatPrice},${offsetInput},` +
+                       `${ith},"${ithTime}",${itl},"${itlTime}",${flatPrice},${offsetInput},` +
                        `${regStdPct.toFixed(3)}%,${regStd$.toFixed(2)},${regFullPct.toFixed(3)}%,${regFull$.toFixed(2)},${regInvPct.toFixed(3)}%,${regInv$.toFixed(2)},` +
                        `${s_unadjStdPct.toFixed(3)}%,${s_unadjStd$.toFixed(2)},${s_unadjFullPct.toFixed(3)}%,${s_unadjFull$.toFixed(2)},${s_unadjInvPct.toFixed(3)}%,${s_unadjInv$.toFixed(2)},` +
                        `${s_adjStdPct.toFixed(3)}%,${s_adjStd$.toFixed(2)},${s_adjFullPct.toFixed(3)}%,${s_adjFull$.toFixed(2)},${s_adjInvPct.toFixed(3)}%,${s_adjInv$.toFixed(2)},"${notes}"\n`;
