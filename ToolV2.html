@@ -41,7 +41,7 @@
                         Max Sat: <input type="number" id="gMax-${i}" value="52.5" oninput="calc(${i})">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="text" placeholder="Ticker" id="t-${i}" value="">
+                        <input type="text" placeholder="Ticker" id="t-${i}" value="" oninput="calc(${i})">
                         <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
                     </div>
                     <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" value="" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" value="" oninput="calc(${i})"></div>
@@ -114,6 +114,7 @@
             const h = parseFloat(document.getElementById(`h-${i}`).value);
             const l = parseFloat(document.getElementById(`l-${i}`).value);
             const brokerage = document.getElementById(`m-${i}`).value;
+            const ticker = (document.getElementById(`t-${i}`).value || "").trim().toUpperCase();
             const riskInput = document.getElementById(`gRisk-${i}`).value;
             const r = riskInput === "" ? 0 : parseFloat(riskInput)/100;
             
@@ -130,7 +131,16 @@
             
             if (stopDistBase <= 0) return;
 
-            const totalBase = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDistBase) : parseFloat(((b * r) / stopDistBase).toFixed(2));
+            const maxAllowedRiskDollars = b * r;
+            
+            // Check contract multiplier for XUSD or gold-type symbols under MT5
+            let contractMultiplier = 1;
+            if (brokerage === "MT5" && (ticker.includes("XUSD") || ticker.includes("XAU"))) {
+                contractMultiplier = 100;
+            }
+
+            const effectiveStopDistBase = stopDistBase * contractMultiplier;
+            const totalBase = (brokerage === "ETRADE") ? Math.floor(maxAllowedRiskDollars / effectiveStopDistBase) : parseFloat((maxAllowedRiskDollars / effectiveStopDistBase).toFixed(2));
             const unitLabel = (brokerage === "MT5") ? "Lots" : "Shares";
             
             const bodyBase = (brokerage === "ETRADE") ? Math.floor(totalBase / 3) : parseFloat((totalBase / 3).toFixed(2));
@@ -173,27 +183,27 @@
                 regExecutionDesc = entryCond === "Shadow entry hit" ? "Regular entry not hit (Shadow entry active only)." : "No trade executed; zero P&L impact.";
             } else {
                 if (exitCond === "Stopped out") {
-                    regularPLDollars = totalBase * (sl - baseE);
-                    regFullTPDollars = totalBase * (sl - baseE);
-                    regInvertedRunnerDollars = totalBase * (sl - baseE);
+                    regularPLDollars = totalBase * contractMultiplier * (sl - baseE);
+                    regFullTPDollars = totalBase * contractMultiplier * (sl - baseE);
+                    regInvertedRunnerDollars = totalBase * contractMultiplier * (sl - baseE);
                     regExecutionDesc = `Full position stopped out at initial SL (${sl.toFixed(2)}).`;
                 } 
                 else if (exitCond === "TP not hit, flattened") {
-                    regularPLDollars = totalBase * (flatPrice - baseE);
-                    regFullTPDollars = totalBase * (flatPrice - baseE);
-                    regInvertedRunnerDollars = totalBase * (flatPrice - baseE);
+                    regularPLDollars = totalBase * contractMultiplier * (flatPrice - baseE);
+                    regFullTPDollars = totalBase * contractMultiplier * (flatPrice - baseE);
+                    regInvertedRunnerDollars = totalBase * contractMultiplier * (flatPrice - baseE);
                     regExecutionDesc = `Flattened prior to TP at ${flatPrice.toFixed(2)}.`;
                 } 
                 else if (exitCond === "TP hit, stopped out") {
-                    regularPLDollars = (bodyBase * (tpTargetBase - baseE)) + (runnerBase * (baseE - baseE));
-                    regFullTPDollars = totalBase * (tpTargetBase - baseE);
-                    regInvertedRunnerDollars = (bodyBase * (baseE - baseE)) + (runnerBase * (tpTargetBase - baseE));
+                    regularPLDollars = (bodyBase * contractMultiplier * (tpTargetBase - baseE)) + (runnerBase * contractMultiplier * (baseE - baseE));
+                    regFullTPDollars = totalBase * contractMultiplier * (tpTargetBase - baseE);
+                    regInvertedRunnerDollars = (bodyBase * contractMultiplier * (baseE - baseE)) + (runnerBase * contractMultiplier * (tpTargetBase - baseE));
                     regExecutionDesc = `Body hit TP (${tpTargetBase.toFixed(2)}). Runner stopped out at Breakeven.`;
                 } 
                 else if (exitCond === "TP hit, flattened") {
-                    regularPLDollars = (bodyBase * (tpTargetBase - baseE)) + (runnerBase * (flatPrice - baseE));
-                    regFullTPDollars = totalBase * (tpTargetBase - baseE);
-                    regInvertedRunnerDollars = (bodyBase * (flatPrice - baseE)) + (runnerBase * (tpTargetBase - baseE));
+                    regularPLDollars = (bodyBase * contractMultiplier * (tpTargetBase - baseE)) + (runnerBase * contractMultiplier * (flatPrice - baseE));
+                    regFullTPDollars = totalBase * contractMultiplier * (tpTargetBase - baseE);
+                    regInvertedRunnerDollars = (bodyBase * contractMultiplier * (flatPrice - baseE)) + (runnerBase * contractMultiplier * (tpTargetBase - baseE));
                     regExecutionDesc = `Body hit TP (${tpTargetBase.toFixed(2)}). Runner flattened at ${flatPrice.toFixed(2)}.`;
                 }
             }
@@ -226,27 +236,28 @@
                 const customStopDist = activeE - sl;
                 if (customStopDist > 0) {
                     const shadowTpTarget = activeE + customStopDist;
+                    const effectiveCustomStopDist = customStopDist * contractMultiplier;
 
                     let unadjPLDollars = 0, unadjFullTP = 0, unadjInvRunner = 0;
                     const unadjBody = bodyBase, unadjRunner = runnerBase;
 
                     if (entryCond !== "Entry price not hit" && entryCond !== "Only regular entry price is hit" && exitCond !== "No trade") {
                         if (exitCond === "Stopped out") {
-                            unadjPLDollars = totalBase * (sl - activeE);
-                            unadjFullTP = totalBase * (sl - activeE);
-                            unadjInvRunner = totalBase * (sl - activeE);
+                            unadjPLDollars = totalBase * contractMultiplier * (sl - activeE);
+                            unadjFullTP = totalBase * contractMultiplier * (sl - activeE);
+                            unadjInvRunner = totalBase * contractMultiplier * (sl - activeE);
                         } else if (exitCond === "TP not hit, flattened") {
-                            unadjPLDollars = totalBase * (flatPrice - activeE);
-                            unadjFullTP = totalBase * (flatPrice - activeE);
-                            unadjInvRunner = totalBase * (flatPrice - activeE);
+                            unadjPLDollars = totalBase * contractMultiplier * (flatPrice - activeE);
+                            unadjFullTP = totalBase * contractMultiplier * (flatPrice - activeE);
+                            unadjInvRunner = totalBase * contractMultiplier * (flatPrice - activeE);
                         } else if (exitCond === "TP hit, stopped out") {
-                            unadjPLDollars = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (activeE - activeE));
-                            unadjFullTP = totalBase * (shadowTpTarget - activeE);
-                            unadjInvRunner = (unadjBody * (activeE - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
+                            unadjPLDollars = (unadjBody * contractMultiplier * (shadowTpTarget - activeE)) + (unadjRunner * contractMultiplier * (activeE - activeE));
+                            unadjFullTP = totalBase * contractMultiplier * (shadowTpTarget - activeE);
+                            unadjInvRunner = (unadjBody * contractMultiplier * (activeE - activeE)) + (unadjRunner * contractMultiplier * (shadowTpTarget - activeE));
                         } else if (exitCond === "TP hit, flattened") {
-                            unadjPLDollars = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (flatPrice - activeE));
-                            unadjFullTP = totalBase * (shadowTpTarget - activeE);
-                            unadjInvRunner = (unadjBody * (flatPrice - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
+                            unadjPLDollars = (unadjBody * contractMultiplier * (shadowTpTarget - activeE)) + (unadjRunner * contractMultiplier * (flatPrice - activeE));
+                            unadjFullTP = totalBase * contractMultiplier * (shadowTpTarget - activeE);
+                            unadjInvRunner = (unadjBody * contractMultiplier * (flatPrice - activeE)) + (unadjRunner * contractMultiplier * (shadowTpTarget - activeE));
                         }
                     }
                     const unadjPLPercent = (unadjPLDollars / b) * 100;
@@ -261,7 +272,9 @@
                     const unadjInvCol = unadjInvRunner >= 0 ? '#22c55e' : '#ef4444';
                     const unadjInvSign = unadjInvRunner >= 0 ? '+' : '';
 
-                    const adjTotal = (brokerage === "ETRADE") ? Math.floor((b * r) / customStopDist) : parseFloat(((b * r) / customStopDist).toFixed(2));
+                    const rawAdjTotal = (brokerage === "ETRADE") ? Math.floor(maxAllowedRiskDollars / effectiveCustomStopDist) : parseFloat((maxAllowedRiskDollars / effectiveCustomStopDist).toFixed(2));
+                    const adjTotal = Math.min(rawAdjTotal, totalBase);
+
                     const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : parseFloat((adjTotal / 3).toFixed(2));
                     const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
 
@@ -269,21 +282,21 @@
 
                     if (entryCond !== "Entry price not hit" && entryCond !== "Only regular entry price is hit" && exitCond !== "No trade") {
                         if (exitCond === "Stopped out") {
-                            adjPLDollars = adjTotal * (sl - activeE);
-                            adjFullTP = adjTotal * (sl - activeE);
-                            adjInvRunner = adjTotal * (sl - activeE);
+                            adjPLDollars = adjTotal * contractMultiplier * (sl - activeE);
+                            adjFullTP = adjTotal * contractMultiplier * (sl - activeE);
+                            adjInvRunner = adjTotal * contractMultiplier * (sl - activeE);
                         } else if (exitCond === "TP not hit, flattened") {
-                            adjPLDollars = adjTotal * (flatPrice - activeE);
-                            adjFullTP = adjTotal * (flatPrice - activeE);
-                            adjInvRunner = adjTotal * (flatPrice - activeE);
+                            adjPLDollars = adjTotal * contractMultiplier * (flatPrice - activeE);
+                            adjFullTP = adjTotal * contractMultiplier * (flatPrice - activeE);
+                            adjInvRunner = adjTotal * contractMultiplier * (flatPrice - activeE);
                         } else if (exitCond === "TP hit, stopped out") {
-                            adjPLDollars = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (activeE - activeE));
-                            adjFullTP = adjTotal * (shadowTpTarget - activeE);
-                            adjInvRunner = (adjBody * (activeE - activeE)) + (adjRunner * (shadowTpTarget - activeE));
+                            adjPLDollars = (adjBody * contractMultiplier * (shadowTpTarget - activeE)) + (adjRunner * contractMultiplier * (activeE - activeE));
+                            adjFullTP = adjTotal * contractMultiplier * (shadowTpTarget - activeE);
+                            adjInvRunner = (adjBody * contractMultiplier * (activeE - activeE)) + (adjRunner * contractMultiplier * (shadowTpTarget - activeE));
                         } else if (exitCond === "TP hit, flattened") {
-                            adjPLDollars = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (flatPrice - activeE));
-                            adjFullTP = adjTotal * (shadowTpTarget - activeE);
-                            adjInvRunner = (adjBody * (flatPrice - activeE)) + (adjRunner * (shadowTpTarget - activeE));
+                            adjPLDollars = (adjBody * contractMultiplier * (shadowTpTarget - activeE)) + (adjRunner * contractMultiplier * (flatPrice - activeE));
+                            adjFullTP = adjTotal * contractMultiplier * (shadowTpTarget - activeE);
+                            adjInvRunner = (adjBody * contractMultiplier * (flatPrice - activeE)) + (adjRunner * contractMultiplier * (shadowTpTarget - activeE));
                         }
                     }
                     const adjPLPercent = (adjPLDollars / b) * 100;
@@ -329,7 +342,7 @@
                 const riskInput = document.getElementById(`gRisk-${i}`).value;
                 const r = riskInput === "" ? 0 : parseFloat(riskInput)/100;
                 const brokerage = document.getElementById(`m-${i}`).value;
-                const ticker = document.getElementById(`t-${i}`).value;
+                const ticker = (document.getElementById(`t-${i}`).value || "").trim().toUpperCase();
                 const baseE = h + (h * 0.001) + (a * 0.05);
                 const sl = l - (a * 0.1);
                 const stopDistBase = baseE - sl;
@@ -367,7 +380,14 @@
                 const offsetInput = parseFloat(document.getElementById(`off-${i}`).value) || 0;
                 const notes = document.getElementById(`n1-${i}`).value.replace(/"/g, '""');
 
-                const totalBase = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDistBase) : parseFloat(((b * r) / stopDistBase).toFixed(2));
+                let contractMultiplier = 1;
+                if (brokerage === "MT5" && (ticker.includes("XUSD") || ticker.includes("XAU"))) {
+                    contractMultiplier = 100;
+                }
+
+                const maxAllowedRiskDollars = b * r;
+                const effectiveStopDistBase = stopDistBase * contractMultiplier;
+                const totalBase = (brokerage === "ETRADE") ? Math.floor(maxAllowedRiskDollars / effectiveStopDistBase) : parseFloat((maxAllowedRiskDollars / effectiveStopDistBase).toFixed(2));
                 const bodyBase = (brokerage === "ETRADE") ? Math.floor(totalBase / 3) : parseFloat((totalBase / 3).toFixed(2));
                 const runnerBase = (brokerage === "ETRADE") ? (totalBase - bodyBase) : parseFloat((totalBase - bodyBase).toFixed(2));
                 const tpTargetBase = baseE + stopDistBase;
@@ -375,21 +395,21 @@
                 let regStd$ = 0, regFull$ = 0, regInv$ = 0;
                 if (entryCond !== "Entry price not hit" && entryCond !== "Shadow entry hit" && exitCond !== "No trade" && stopDistBase > 0) {
                     if (exitCond === "Stopped out") {
-                        regStd$ = totalBase * (sl - baseE);
+                        regStd$ = totalBase * contractMultiplier * (sl - baseE);
                         regFull$ = regStd$;
                         regInv$ = regStd$;
                     } else if (exitCond === "TP not hit, flattened") {
-                        regStd$ = totalBase * (flatPrice - baseE);
+                        regStd$ = totalBase * contractMultiplier * (flatPrice - baseE);
                         regFull$ = regStd$;
                         regInv$ = regStd$;
                     } else if (exitCond === "TP hit, stopped out") {
-                        regStd$ = (bodyBase * (tpTargetBase - baseE)) + (runnerBase * (baseE - baseE));
-                        regFull$ = totalBase * (tpTargetBase - baseE);
-                        regInv$ = (bodyBase * (baseE - baseE)) + (runnerBase * (tpTargetBase - baseE));
+                        regStd$ = (bodyBase * contractMultiplier * (tpTargetBase - baseE)) + (runnerBase * contractMultiplier * (baseE - baseE));
+                        regFull$ = totalBase * contractMultiplier * (tpTargetBase - baseE);
+                        regInv$ = (bodyBase * contractMultiplier * (baseE - baseE)) + (runnerBase * contractMultiplier * (tpTargetBase - baseE));
                     } else if (exitCond === "TP hit, flattened") {
-                        regStd$ = (bodyBase * (tpTargetBase - baseE)) + (runnerBase * (flatPrice - baseE));
-                        regFull$ = totalBase * (tpTargetBase - baseE);
-                        regInv$ = (bodyBase * (flatPrice - baseE)) + (runnerBase * (tpTargetBase - baseE));
+                        regStd$ = (bodyBase * contractMultiplier * (tpTargetBase - baseE)) + (runnerBase * contractMultiplier * (flatPrice - baseE));
+                        regFull$ = totalBase * contractMultiplier * (tpTargetBase - baseE);
+                        regInv$ = (bodyBase * contractMultiplier * (flatPrice - baseE)) + (runnerBase * contractMultiplier * (tpTargetBase - baseE));
                     }
                 }
                 const regStdPct = (regStd$ / b) * 100;
@@ -409,43 +429,45 @@
                         const unadjRunner = runnerBase;
 
                         if (exitCond === "Stopped out") {
-                            s_unadjStd$ = totalBase * (sl - activeE);
+                            s_unadjStd$ = totalBase * contractMultiplier * (sl - activeE);
                             s_unadjFull$ = s_unadjStd$;
                             s_unadjInv$ = s_unadjStd$;
                         } else if (exitCond === "TP not hit, flattened") {
-                            s_unadjStd$ = totalBase * (flatPrice - activeE);
+                            s_unadjStd$ = totalBase * contractMultiplier * (flatPrice - activeE);
                             s_unadjFull$ = s_unadjStd$;
                             s_unadjInv$ = s_unadjStd$;
                         } else if (exitCond === "TP hit, stopped out") {
-                            s_unadjStd$ = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (activeE - activeE));
-                            s_unadjFull$ = totalBase * (shadowTpTarget - activeE);
-                            s_unadjInv$ = (unadjBody * (activeE - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
+                            s_unadjStd$ = (unadjBody * contractMultiplier * (shadowTpTarget - activeE)) + (unadjRunner * contractMultiplier * (activeE - activeE));
+                            s_unadjFull$ = totalBase * contractMultiplier * (shadowTpTarget - activeE);
+                            s_unadjInv$ = (unadjBody * contractMultiplier * (activeE - activeE)) + (unadjRunner * contractMultiplier * (shadowTpTarget - activeE));
                         } else if (exitCond === "TP hit, flattened") {
-                            s_unadjStd$ = (unadjBody * (shadowTpTarget - activeE)) + (unadjRunner * (flatPrice - activeE));
-                            s_unadjFull$ = totalBase * (shadowTpTarget - activeE);
-                            s_unadjInv$ = (unadjBody * (flatPrice - activeE)) + (unadjRunner * (shadowTpTarget - activeE));
+                            s_unadjStd$ = (unadjBody * contractMultiplier * (shadowTpTarget - activeE)) + (unadjRunner * contractMultiplier * (flatPrice - activeE));
+                            s_unadjFull$ = totalBase * contractMultiplier * (shadowTpTarget - activeE);
+                            s_unadjInv$ = (unadjBody * contractMultiplier * (flatPrice - activeE)) + (unadjRunner * contractMultiplier * (shadowTpTarget - activeE));
                         }
 
-                        const adjTotal = (brokerage === "ETRADE") ? Math.floor((b * r) / customStopDist) : parseFloat(((b * r) / customStopDist).toFixed(2));
+                        const effectiveCustomStopDist = customStopDist * contractMultiplier;
+                        const rawAdjTotal = (brokerage === "ETRADE") ? Math.floor(maxAllowedRiskDollars / effectiveCustomStopDist) : parseFloat((maxAllowedRiskDollars / effectiveCustomStopDist).toFixed(2));
+                        const adjTotal = Math.min(rawAdjTotal, totalBase);
                         const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : parseFloat((adjTotal / 3).toFixed(2));
                         const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
 
                         if (exitCond === "Stopped out") {
-                            s_adjStd$ = adjTotal * (sl - activeE);
+                            s_adjStd$ = adjTotal * contractMultiplier * (sl - activeE);
                             s_adjFull$ = s_adjStd$;
                             s_adjInv$ = s_adjStd$;
                         } else if (exitCond === "TP not hit, flattened") {
-                            s_adjStd$ = adjTotal * (flatPrice - activeE);
+                            s_adjStd$ = adjTotal * contractMultiplier * (flatPrice - activeE);
                             s_adjFull$ = s_adjStd$;
                             s_adjInv$ = s_adjStd$;
                         } else if (exitCond === "TP hit, stopped out") {
-                            s_adjStd$ = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (activeE - activeE));
-                            s_adjFull$ = adjTotal * (shadowTpTarget - activeE);
-                            s_adjInv$ = (adjBody * (activeE - activeE)) + (adjRunner * (shadowTpTarget - activeE));
+                            s_adjStd$ = (adjBody * contractMultiplier * (shadowTpTarget - activeE)) + (adjRunner * contractMultiplier * (activeE - activeE));
+                            s_adjFull$ = adjTotal * contractMultiplier * (shadowTpTarget - activeE);
+                            s_adjInv$ = (adjBody * contractMultiplier * (activeE - activeE)) + (adjRunner * contractMultiplier * (shadowTpTarget - activeE));
                         } else if (exitCond === "TP hit, flattened") {
-                            s_adjStd$ = (adjBody * (shadowTpTarget - activeE)) + (adjRunner * (flatPrice - activeE));
-                            s_adjFull$ = adjTotal * (shadowTpTarget - activeE);
-                            s_adjInv$ = (adjBody * (flatPrice - activeE)) + (adjRunner * (shadowTpTarget - activeE));
+                            s_adjStd$ = (adjBody * contractMultiplier * (shadowTpTarget - activeE)) + (adjRunner * contractMultiplier * (flatPrice - activeE));
+                            s_adjFull$ = adjTotal * contractMultiplier * (shadowTpTarget - activeE);
+                            s_adjInv$ = (adjBody * contractMultiplier * (flatPrice - activeE)) + (adjRunner * contractMultiplier * (shadowTpTarget - activeE));
                         }
                     }
                 }
