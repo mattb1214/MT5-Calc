@@ -133,7 +133,6 @@
 
             const maxAllowedRiskDollars = b * r;
             
-            // Check contract multiplier for XUSD or gold-type symbols under MT5
             let contractMultiplier = 1;
             if (brokerage === "MT5" && (ticker.includes("XUSD") || ticker.includes("XAU"))) {
                 contractMultiplier = 100;
@@ -272,6 +271,7 @@
                     const unadjInvCol = unadjInvRunner >= 0 ? '#22c55e' : '#ef4444';
                     const unadjInvSign = unadjInvRunner >= 0 ? '+' : '';
 
+                    // Recalculates lot/share size proportional to the new distance, capped by initial risk size
                     const rawAdjTotal = (brokerage === "ETRADE") ? Math.floor(maxAllowedRiskDollars / effectiveCustomStopDist) : parseFloat((maxAllowedRiskDollars / effectiveCustomStopDist).toFixed(2));
                     const adjTotal = Math.min(rawAdjTotal, totalBase);
 
