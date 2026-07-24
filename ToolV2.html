@@ -249,82 +249,99 @@
                 if (customStopDist > 0) {
                     const effectiveCustomStopDist = customStopDist * contractMultiplier;
 
-                    let unadjPLDollars = 0, unadjFullTP = 0, unadjInvRunner = 0;
+                    let unadjPL_shadowTP = 0, unadjFull_shadowTP = 0, unadjInv_shadowTP = 0;
+                    let unadjPL_regTP = 0, unadjFull_regTP = 0, unadjInv_regTP = 0;
                     const unadjBody = bodyBase, unadjRunner = runnerBase;
 
                     if (entryCond !== "Entry price not hit" && entryCond !== "Only regular entry price is hit" && exitCond !== "No trade") {
                         if (exitCond === "Stopped out") {
-                            unadjPLDollars = totalBase * contractMultiplier * (sl - activeE);
-                            unadjFullTP = totalBase * contractMultiplier * (sl - activeE);
-                            unadjInvRunner = totalBase * contractMultiplier * (sl - activeE);
+                            unadjPL_shadowTP = totalBase * contractMultiplier * (sl - activeE);
+                            unadjFull_shadowTP = unadjPL_shadowTP;
+                            unadjInv_shadowTP = unadjPL_shadowTP;
+                            unadjPL_regTP = unadjPL_shadowTP;
+                            unadjFull_regTP = unadjPL_shadowTP;
+                            unadjInv_regTP = unadjPL_shadowTP;
                         } else if (exitCond === "TP not hit, flattened") {
-                            unadjPLDollars = totalBase * contractMultiplier * (flatPrice - activeE);
-                            unadjFullTP = totalBase * contractMultiplier * (flatPrice - activeE);
-                            unadjInvRunner = totalBase * contractMultiplier * (flatPrice - activeE);
-                        } else if (exitCond === "TP hit, stopped out") {
-                            unadjPLDollars = (unadjBody * contractMultiplier * (shadowTpTarget - activeE)) + (unadjRunner * contractMultiplier * (activeE - activeE));
-                            unadjFullTP = totalBase * contractMultiplier * (shadowTpTarget - activeE);
-                            unadjInvRunner = (unadjBody * contractMultiplier * (activeE - activeE)) + (unadjRunner * contractMultiplier * (shadowTpTarget - activeE));
-                        } else if (exitCond === "TP hit, flattened") {
-                            unadjPLDollars = (unadjBody * contractMultiplier * (shadowTpTarget - activeE)) + (unadjRunner * contractMultiplier * (flatPrice - activeE));
-                            unadjFullTP = totalBase * contractMultiplier * (shadowTpTarget - activeE);
-                            unadjInvRunner = (unadjBody * contractMultiplier * (flatPrice - activeE)) + (unadjRunner * contractMultiplier * (shadowTpTarget - activeE));
+                            unadjPL_shadowTP = totalBase * contractMultiplier * (flatPrice - activeE);
+                            unadjFull_shadowTP = unadjPL_shadowTP;
+                            unadjInv_shadowTP = unadjPL_shadowTP;
+                            unadjPL_regTP = unadjPL_shadowTP;
+                            unadjFull_regTP = unadjPL_shadowTP;
+                            unadjInv_regTP = unadjPL_shadowTP;
+                        } else if (exitCond === "TP hit, stopped out" || exitCond === "TP hit, flattened") {
+                            // Shadow Target Calculation
+                            const pClose_shadow = exitCond === "TP hit, stopped out" ? activeE : flatPrice;
+                            unadjPL_shadowTP = (unadjBody * contractMultiplier * (shadowTpTarget - activeE)) + (unadjRunner * contractMultiplier * (pClose_shadow - activeE));
+                            unadjFull_shadowTP = totalBase * contractMultiplier * (shadowTpTarget - activeE);
+                            unadjInv_shadowTP = (unadjBody * contractMultiplier * (pClose_shadow - activeE)) + (unadjRunner * contractMultiplier * (shadowTpTarget - activeE));
+
+                            // Regular Baseline Target Extended Calculation
+                            const pClose_reg = exitCond === "TP hit, stopped out" ? activeE : flatPrice;
+                            unadjPL_regTP = (unadjBody * contractMultiplier * (tpTargetBase - activeE)) + (unadjRunner * contractMultiplier * (pClose_reg - activeE));
+                            unadjFull_regTP = totalBase * contractMultiplier * (tpTargetBase - activeE);
+                            unadjInv_regTP = (unadjBody * contractMultiplier * (pClose_reg - activeE)) + (unadjRunner * contractMultiplier * (tpTargetBase - activeE));
                         }
                     }
-                    const unadjPLPercent = (unadjPLDollars / b) * 100;
-                    const unadjColor = unadjPLDollars >= 0 ? '#22c55e' : '#ef4444';
-                    const unadjSign = unadjPLDollars >= 0 ? '+' : '';
 
-                    const unadjFullPct = (unadjFullTP / b) * 100;
-                    const unadjFullCol = unadjFullTP >= 0 ? '#22c55e' : '#ef4444';
-                    const unadjFullSign = unadjFullTP >= 0 ? '+' : '';
+                    const unadjPct_sTP = (unadjPL_shadowTP / b) * 100;
+                    const unadjCol_sTP = unadjPL_shadowTP >= 0 ? '#22c55e' : '#ef4444';
+                    const unadjSign_sTP = unadjPL_shadowTP >= 0 ? '+' : '';
 
-                    const unadjInvPct = (unadjInvRunner / b) * 100;
-                    const unadjInvCol = unadjInvRunner >= 0 ? '#22c55e' : '#ef4444';
-                    const unadjInvSign = unadjInvRunner >= 0 ? '+' : '';
+                    const unadjPct_rTP = (unadjPL_regTP / b) * 100;
+                    const unadjCol_rTP = unadjPL_regTP >= 0 ? '#22c55e' : '#ef4444';
+                    const unadjSign_rTP = unadjPL_regTP >= 0 ? '+' : '';
 
                     const adjTotal = (brokerage === "ETRADE") ? Math.floor(maxAllowedRiskDollars / effectiveCustomStopDist) : parseFloat((maxAllowedRiskDollars / effectiveCustomStopDist).toFixed(2));
-
                     const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : parseFloat((adjTotal / 3).toFixed(2));
                     const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
 
-                    let adjPLDollars = 0, adjFullTP = 0, adjInvRunner = 0;
+                    let adjPL_shadowTP = 0, adjFull_shadowTP = 0, adjInv_shadowTP = 0;
+                    let adjPL_regTP = 0, adjFull_regTP = 0, adjInv_regTP = 0;
 
                     if (entryCond !== "Entry price not hit" && entryCond !== "Only regular entry price is hit" && exitCond !== "No trade") {
                         if (exitCond === "Stopped out") {
-                            adjPLDollars = adjTotal * contractMultiplier * (sl - activeE);
-                            adjFullTP = adjTotal * contractMultiplier * (sl - activeE);
-                            adjInvRunner = adjTotal * contractMultiplier * (sl - activeE);
+                            adjPL_shadowTP = adjTotal * contractMultiplier * (sl - activeE);
+                            adjFull_shadowTP = adjPL_shadowTP;
+                            adjInv_shadowTP = adjPL_shadowTP;
+                            adjPL_regTP = adjPL_shadowTP;
+                            adjFull_regTP = adjPL_shadowTP;
+                            adjInv_regTP = adjPL_shadowTP;
                         } else if (exitCond === "TP not hit, flattened") {
-                            adjPLDollars = adjTotal * contractMultiplier * (flatPrice - activeE);
-                            adjFullTP = adjTotal * contractMultiplier * (flatPrice - activeE);
-                            adjInvRunner = adjTotal * contractMultiplier * (flatPrice - activeE);
-                        } else if (exitCond === "TP hit, stopped out") {
-                            adjPLDollars = (adjBody * contractMultiplier * (shadowTpTarget - activeE)) + (adjRunner * contractMultiplier * (activeE - activeE));
-                            adjFullTP = adjTotal * contractMultiplier * (shadowTpTarget - activeE);
-                            adjInvRunner = (adjBody * contractMultiplier * (activeE - activeE)) + (adjRunner * contractMultiplier * (shadowTpTarget - activeE));
-                        } else if (exitCond === "TP hit, flattened") {
-                            adjPLDollars = (adjBody * contractMultiplier * (shadowTpTarget - activeE)) + (adjRunner * contractMultiplier * (flatPrice - activeE));
-                            adjFullTP = adjTotal * contractMultiplier * (shadowTpTarget - activeE);
-                            adjInvRunner = (adjBody * contractMultiplier * (flatPrice - activeE)) + (adjRunner * contractMultiplier * (shadowTpTarget - activeE));
+                            adjPL_shadowTP = adjTotal * contractMultiplier * (flatPrice - activeE);
+                            adjFull_shadowTP = adjPL_shadowTP;
+                            adjInv_shadowTP = adjPL_shadowTP;
+                            adjPL_regTP = adjPL_shadowTP;
+                            adjFull_regTP = adjPL_shadowTP;
+                            adjInv_regTP = adjPL_shadowTP;
+                        } else if (exitCond === "TP hit, stopped out" || exitCond === "TP hit, flattened") {
+                            const pClose_shadow_adj = exitCond === "TP hit, stopped out" ? activeE : flatPrice;
+                            adjPL_shadowTP = (adjBody * contractMultiplier * (shadowTpTarget - activeE)) + (adjRunner * contractMultiplier * (pClose_shadow_adj - activeE));
+                            adjFull_shadowTP = adjTotal * contractMultiplier * (shadowTpTarget - activeE);
+                            adjInv_shadowTP = (adjBody * contractMultiplier * (pClose_shadow_adj - activeE)) + (adjRunner * contractMultiplier * (shadowTpTarget - activeE));
+
+                            const pClose_reg_adj = exitCond === "TP hit, stopped out" ? activeE : flatPrice;
+                            adjPL_regTP = (adjBody * contractMultiplier * (tpTargetBase - activeE)) + (adjRunner * contractMultiplier * (pClose_reg_adj - activeE));
+                            adjFull_regTP = adjTotal * contractMultiplier * (tpTargetBase - activeE);
+                            adjInv_regTP = (adjBody * contractMultiplier * (pClose_reg_adj - activeE)) + (adjRunner * contractMultiplier * (tpTargetBase - activeE));
                         }
                     }
-                    const adjPLPercent = (adjPLDollars / b) * 100;
-                    const adjColor = adjPLDollars >= 0 ? '#22c55e' : '#ef4444';
-                    const adjSign = adjPLDollars >= 0 ? '+' : '';
 
-                    const adjFullPct = (adjFullTP / b) * 100;
-                    const adjFullCol = adjFullTP >= 0 ? '#22c55e' : '#ef4444';
-                    const adjFullSign = adjFullTP >= 0 ? '+' : '';
+                    const adjPct_sTP = (adjPL_shadowTP / b) * 100;
+                    const adjCol_sTP = adjPL_shadowTP >= 0 ? '#22c55e' : '#ef4444';
+                    const adjSign_sTP = adjPL_shadowTP >= 0 ? '+' : '';
 
-                    const adjInvPct = (adjInvRunner / b) * 100;
-                    const adjInvCol = adjInvRunner >= 0 ? '#22c55e' : '#ef4444';
-                    const adjInvSign = adjInvRunner >= 0 ? '+' : '';
+                    const adjPct_rTP = (adjPL_regTP / b) * 100;
+                    const adjCol_rTP = adjPL_regTP >= 0 ? '#22c55e' : '#ef4444';
+                    const adjSign_rTP = adjPL_regTP >= 0 ? '+' : '';
 
                     document.getElementById(`off-metrics-${i}`).innerHTML = `<b>Shadow Trade Comparisons & P&L:</b><br>
                     Shadow E: ${activeE.toFixed(2)} | Shadow TP: ${shadowTpTarget.toFixed(2)}<br>
-                    <b>1. Unadj (${totalBase} ${unitLabel}):</b> Std: <span style="color:${unadjColor}">${unadjSign}${unadjPLPercent.toFixed(2)}% ($${unadjPLDollars.toFixed(2)})</span> | Full: <span style="color:${unadjFullCol}">${unadjFullSign}${unadjFullPct.toFixed(2)}% ($${unadjFullTP.toFixed(2)})</span> | Inv: <span style="color:${unadjInvCol}">${unadjInvSign}${unadjInvPct.toFixed(2)}% ($${unadjInvRunner.toFixed(2)})</span><br>
-                    <b>2. Recalc (${adjTotal} ${unitLabel}):</b> Std: <span style="color:${adjColor}">${adjSign}${adjPLPercent.toFixed(2)}% ($${adjPLDollars.toFixed(2)})</span> | Full: <span style="color:${adjFullCol}">${adjFullSign}${adjFullPct.toFixed(2)}% ($${adjFullTP.toFixed(2)})</span> | Inv: <span style="color:${adjInvCol}">${adjInvSign}${adjInvPct.toFixed(2)}% ($${adjInvRunner.toFixed(2)})</span>`;
+                    <b>1. Unadj (${totalBase} ${unitLabel}):</b><br>
+                    &nbsp;&bull; Shadow TP: <span style="color:${unadjCol_sTP}">${unadjSign_sTP}${unadjPct_sTP.toFixed(2)}% ($${unadjPL_shadowTP.toFixed(2)})</span> | Full: $${unadjFull_shadowTP.toFixed(2)} | Inv: $${unadjInv_shadowTP.toFixed(2)}<br>
+                    &nbsp;&bull; Regular TP: <span style="color:${unadjCol_rTP}">${unadjSign_rTP}${unadjPct_rTP.toFixed(2)}% ($${unadjPL_regTP.toFixed(2)})</span> | Full: $${unadjFull_regTP.toFixed(2)} | Inv: $${unadjInv_regTP.toFixed(2)}<br>
+                    <b>2. Recalc (${adjTotal} ${unitLabel}):</b><br>
+                    &nbsp;&bull; Shadow TP: <span style="color:${adjCol_sTP}">${adjSign_sTP}${adjPct_sTP.toFixed(2)}% ($${adjPL_shadowTP.toFixed(2)})</span> | Full: $${adjFull_shadowTP.toFixed(2)} | Inv: $${adjInv_shadowTP.toFixed(2)}<br>
+                    &nbsp;&bull; Regular TP: <span style="color:${adjCol_rTP}">${adjSign_rTP}${adjPct_rTP.toFixed(2)}% ($${adjPL_regTP.toFixed(2)})</span> | Full: $${adjFull_regTP.toFixed(2)} | Inv: $${adjInv_regTP.toFixed(2)}`;
                 } else {
                     document.getElementById(`off-metrics-${i}`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry below stop loss.</span>`;
                 }
@@ -342,8 +359,10 @@
                       "IntradayHigh,IntradayHighTime,IntradayLow,IntradayLowTime," +
                       "IntraTradeHigh,IntraTradeHighTime,IntraTradeLow,IntraTradeLowTime,FlattenedPrice,Offset%,TPOffset%," +
                       "RegStandardPct,RegStandard$,RegFullTPPct,RegFullTP$,Reg13RunnerPct,Reg13Runner$,[" +
-                      "ShadowUnadj_StandardPct,ShadowUnadj_Standard$,ShadowUnadj_FullTPPct,ShadowUnadj_FullTP$,ShadowUnadj_13RunnerPct,ShadowUnadj_13Runner$,[" +
-                      "ShadowAdj_StandardPct,ShadowAdj_Standard$,ShadowAdj_FullTPPct,ShadowAdj_FullTP$,ShadowAdj_13RunnerPct,ShadowAdj_13Runner$,TradeNotes\n";
+                      "ShadowUnadj_ShadowTP_StandardPct,ShadowUnadj_ShadowTP_Standard$,ShadowUnadj_ShadowTP_FullTP$,ShadowUnadj_ShadowTP_Inv$,[" +
+                      "ShadowUnadj_RegularTP_StandardPct,ShadowUnadj_RegularTP_Standard$,ShadowUnadj_RegularTP_FullTP$,ShadowUnadj_RegularTP_Inv$,[" +
+                      "ShadowAdj_ShadowTP_StandardPct,ShadowAdj_ShadowTP_Standard$,ShadowAdj_ShadowTP_FullTP$,ShadowAdj_ShadowTP_Inv$,[" +
+                      "ShadowAdj_RegularTP_StandardPct,ShadowAdj_RegularTP_Standard$,ShadowAdj_RegularTP_FullTP$,ShadowAdj_RegularTP_Inv$,TradeNotes\n";
 
             for(let i=0; i<8; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
@@ -428,9 +447,10 @@
                 const regFullPct = (regFull$ / b) * 100;
                 const regInvPct = (regInv$ / b) * 100;
 
-                let s_unadjStd$, s_unadjFull$, s_unadjInv$;
-                let s_adjStd$, s_adjFull$, s_adjInv$;
-                s_unadjStd$ = s_unadjFull$ = s_unadjInv$ = s_adjStd$ = s_adjFull$ = s_adjInv$ = 0;
+                let s_unadj_sTP_std$ = 0, s_unadj_sTP_full$ = 0, s_unadj_sTP_inv$ = 0;
+                let s_unadj_rTP_std$ = 0, s_unadj_rTP_full$ = 0, s_unadj_rTP_inv$ = 0;
+                let s_adj_sTP_std$ = 0, s_adj_sTP_full$ = 0, s_adj_sTP_inv$ = 0;
+                let s_adj_rTP_std$ = 0, s_adj_rTP_full$ = 0, s_adj_rTP_inv$ = 0;
 
                 if (entryCond !== "Entry price not hit" && entryCond !== "Only regular entry price is hit" && exitCond !== "No trade" && !isNaN(offsetInput) && document.getElementById(`off-${i}`).value !== "" && stopDistBase > 0) {
                     const activeE = baseE - (stopDistBase * (offsetInput / 100));
@@ -445,21 +465,28 @@
                         const unadjRunner = runnerBase;
 
                         if (exitCond === "Stopped out") {
-                            s_unadjStd$ = totalBase * contractMultiplier * (sl - activeE);
-                            s_unadjFull$ = s_unadjStd$;
-                            s_unadjInv$ = s_unadjStd$;
+                            s_unadj_sTP_std$ = totalBase * contractMultiplier * (sl - activeE);
+                            s_unadj_sTP_full$ = s_unadj_sTP_std$;
+                            s_unadj_sTP_inv$ = s_unadj_sTP_std$;
+                            s_unadj_rTP_std$ = s_unadj_sTP_std$;
+                            s_unadj_rTP_full$ = s_unadj_sTP_std$;
+                            s_unadj_rTP_inv$ = s_unadj_sTP_std$;
                         } else if (exitCond === "TP not hit, flattened") {
-                            s_unadjStd$ = totalBase * contractMultiplier * (flatPrice - activeE);
-                            s_unadjFull$ = s_unadjStd$;
-                            s_unadjInv$ = s_unadjStd$;
-                        } else if (exitCond === "TP hit, stopped out") {
-                            s_unadjStd$ = (unadjBody * contractMultiplier * (shadowTpTarget - activeE)) + (unadjRunner * contractMultiplier * (activeE - activeE));
-                            s_unadjFull$ = totalBase * contractMultiplier * (shadowTpTarget - activeE);
-                            s_unadjInv$ = (unadjBody * contractMultiplier * (activeE - activeE)) + (unadjRunner * contractMultiplier * (shadowTpTarget - activeE));
-                        } else if (exitCond === "TP hit, flattened") {
-                            s_unadjStd$ = (unadjBody * contractMultiplier * (shadowTpTarget - activeE)) + (unadjRunner * contractMultiplier * (flatPrice - activeE));
-                            s_unadjFull$ = totalBase * contractMultiplier * (shadowTpTarget - activeE);
-                            s_unadjInv$ = (unadjBody * contractMultiplier * (flatPrice - activeE)) + (unadjRunner * contractMultiplier * (shadowTpTarget - activeE));
+                            s_unadj_sTP_std$ = totalBase * contractMultiplier * (flatPrice - activeE);
+                            s_unadj_sTP_full$ = s_unadj_sTP_std$;
+                            s_unadj_sTP_inv$ = s_unadj_sTP_std$;
+                            s_unadj_rTP_std$ = s_unadj_sTP_std$;
+                            s_unadj_rTP_full$ = s_unadj_sTP_std$;
+                            s_unadj_rTP_inv$ = s_unadj_sTP_std$;
+                        } else if (exitCond === "TP hit, stopped out" || exitCond === "TP hit, flattened") {
+                            const pClose_s = exitCond === "TP hit, stopped out" ? activeE : flatPrice;
+                            s_unadj_sTP_std$ = (unadjBody * contractMultiplier * (shadowTpTarget - activeE)) + (unadjRunner * contractMultiplier * (pClose_s - activeE));
+                            s_unadj_sTP_full$ = totalBase * contractMultiplier * (shadowTpTarget - activeE);
+                            s_unadj_sTP_inv$ = (unadjBody * contractMultiplier * (pClose_s - activeE)) + (unadjRunner * contractMultiplier * (shadowTpTarget - activeE));
+
+                            s_unadj_rTP_std$ = (unadjBody * contractMultiplier * (tpTargetBase - activeE)) + (unadjRunner * contractMultiplier * (pClose_s - activeE));
+                            s_unadj_rTP_full$ = totalBase * contractMultiplier * (tpTargetBase - activeE);
+                            s_unadj_rTP_inv$ = (unadjBody * contractMultiplier * (pClose_s - activeE)) + (unadjRunner * contractMultiplier * (tpTargetBase - activeE));
                         }
 
                         const effectiveCustomStopDist = customStopDist * contractMultiplier;
@@ -468,31 +495,36 @@
                         const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
 
                         if (exitCond === "Stopped out") {
-                            s_adjStd$ = adjTotal * contractMultiplier * (sl - activeE);
-                            s_adjFull$ = s_adjStd$;
-                            s_adjInv$ = s_adjStd$;
+                            s_adj_sTP_std$ = adjTotal * contractMultiplier * (sl - activeE);
+                            s_adj_sTP_full$ = s_adj_sTP_std$;
+                            s_adj_sTP_inv$ = s_adj_sTP_std$;
+                            s_adj_rTP_std$ = s_adj_sTP_std$;
+                            s_adj_rTP_full$ = s_adj_sTP_std$;
+                            s_adj_rTP_inv$ = s_adj_sTP_std$;
                         } else if (exitCond === "TP not hit, flattened") {
-                            s_adjStd$ = adjTotal * contractMultiplier * (flatPrice - activeE);
-                            s_adjFull$ = s_adjStd$;
-                            s_adjInv$ = s_adjStd$;
-                        } else if (exitCond === "TP hit, stopped out") {
-                            s_adjStd$ = (adjBody * contractMultiplier * (shadowTpTarget - activeE)) + (adjRunner * contractMultiplier * (activeE - activeE));
-                            s_adjFull$ = adjTotal * contractMultiplier * (shadowTpTarget - activeE);
-                            s_adjInv$ = (adjBody * contractMultiplier * (activeE - activeE)) + (adjRunner * contractMultiplier * (shadowTpTarget - activeE));
-                        } else if (exitCond === "TP hit, flattened") {
-                            s_adjStd$ = (adjBody * contractMultiplier * (shadowTpTarget - activeE)) + (adjRunner * contractMultiplier * (flatPrice - activeE));
-                            s_adjFull$ = adjTotal * contractMultiplier * (shadowTpTarget - activeE);
-                            s_adjInv$ = (adjBody * contractMultiplier * (flatPrice - activeE)) + (adjRunner * contractMultiplier * (shadowTpTarget - activeE));
+                            s_adj_sTP_std$ = adjTotal * contractMultiplier * (flatPrice - activeE);
+                            s_adj_sTP_full$ = s_adj_sTP_std$;
+                            s_adj_sTP_inv$ = s_adj_sTP_std$;
+                            s_adj_rTP_std$ = s_adj_sTP_std$;
+                            s_adj_rTP_full$ = s_adj_sTP_std$;
+                            s_adj_rTP_inv$ = s_adj_sTP_std$;
+                        } else if (exitCond === "TP hit, stopped out" || exitCond === "TP hit, flattened") {
+                            const pClose_adj = exitCond === "TP hit, stopped out" ? activeE : flatPrice;
+                            s_adj_sTP_std$ = (adjBody * contractMultiplier * (shadowTpTarget - activeE)) + (adjRunner * contractMultiplier * (pClose_adj - activeE));
+                            s_adj_sTP_full$ = adjTotal * contractMultiplier * (shadowTpTarget - activeE);
+                            s_adj_sTP_inv$ = (adjBody * contractMultiplier * (pClose_adj - activeE)) + (adjRunner * contractMultiplier * (shadowTpTarget - activeE));
+
+                            s_adj_rTP_std$ = (adjBody * contractMultiplier * (tpTargetBase - activeE)) + (adjRunner * contractMultiplier * (pClose_adj - activeE));
+                            s_adj_rTP_full$ = adjTotal * contractMultiplier * (tpTargetBase - activeE);
+                            s_adj_rTP_inv$ = (adjBody * contractMultiplier * (pClose_adj - activeE)) + (adjRunner * contractMultiplier * (tpTargetBase - activeE));
                         }
                     }
                 }
 
-                const s_unadjStdPct = (s_unadjStd$ / b) * 100;
-                const s_unadjFullPct = (s_unadjFull$ / b) * 100;
-                const s_unadjInvPct = (s_unadjInv$ / b) * 100;
-                const s_adjStdPct = (s_adjStd$ / b) * 100;
-                const s_adjFullPct = (s_adjFull$ / b) * 100;
-                const s_adjInvPct = (s_adjInv$ / b) * 100;
+                const s_unadj_sTP_std_pct = (s_unadj_sTP_std$ / b) * 100;
+                const s_unadj_rTP_std_pct = (s_unadj_rTP_std$ / b) * 100;
+                const s_adj_sTP_std_pct = (s_adj_sTP_std$ / b) * 100;
+                const s_adj_rTP_std_pct = (s_adj_rTP_std$ / b) * 100;
 
                 csv += `${new Date().toLocaleDateString()},${status},${brokerage},${ticker},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${baseE.toFixed(2)},${sl.toFixed(2)},${tpTargetBase.toFixed(2)},` +
                        `"${entryCond}","${exitCond}",` +
@@ -500,8 +532,10 @@
                        `${ih},"${ihTime}",${il},"${ilTime}",` +
                        `${ith},"${ithTime}",${itl},"${itlTime}",${flatPrice},${offsetInput},${tpOffsetInput},` +
                        `${regStdPct.toFixed(3)}%,${regStd$.toFixed(2)},${regFullPct.toFixed(3)}%,${regFull$.toFixed(2)},${regInvPct.toFixed(3)}%,${regInv$.toFixed(2)},` +
-                       `${s_unadjStdPct.toFixed(3)}%,${s_unadjStd$.toFixed(2)},${s_unadjFullPct.toFixed(3)}%,${s_unadjFull$.toFixed(2)},${s_unadjInvPct.toFixed(3)}%,${s_unadjInv$.toFixed(2)},` +
-                       `${s_adjStdPct.toFixed(3)}%,${s_adjStd$.toFixed(2)},${s_adjFullPct.toFixed(3)}%,${s_adjFull$.toFixed(2)},${s_adjInvPct.toFixed(3)}%,${s_adjInv$.toFixed(2)},"${notes}"\n`;
+                       `${s_unadj_sTP_std_pct.toFixed(3)}%,${s_unadj_sTP_std$.toFixed(2)},${s_unadj_sTP_full$.toFixed(2)},${s_unadj_sTP_inv$.toFixed(2)},` +
+                       `${s_unadj_rTP_std_pct.toFixed(3)}%,${s_unadj_rTP_std$.toFixed(2)},${s_unadj_rTP_full$.toFixed(2)},${s_unadj_rTP_inv$.toFixed(2)},` +
+                       `${s_adj_sTP_std_pct.toFixed(3)}%,${s_adj_sTP_std$.toFixed(2)},${s_adj_sTP_full$.toFixed(2)},${s_adj_sTP_inv$.toFixed(2)},` +
+                       `${s_adj_rTP_std_pct.toFixed(3)}%,${s_adj_rTP_std$.toFixed(2)},${s_adj_rTP_full$.toFixed(2)},${s_adj_rTP_inv$.toFixed(2)},"${notes}"\n`;
             }
 
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
