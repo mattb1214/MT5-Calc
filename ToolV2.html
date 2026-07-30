@@ -70,40 +70,40 @@
                     </div>
 
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Entry Price Hit" id="entry-price-${i}" style="flex:2;" value="" oninput="calc(${i})">
+                        <input type="number" step="any" placeholder="Entry Price Hit" id="entry-price-${i}" style="flex:2;" value="" oninput="calc(${i})">
                         <input type="text" placeholder="Time (e.g. 930)" class="time-input" id="entry-time-${i}" style="flex:1;" value="" onblur="formatTimeInput(${i}, 'entry-time-${i}')">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Shadow Entry Hit" id="shadow-price-${i}" style="flex:2;" value="" oninput="calc(${i})">
+                        <input type="number" step="any" placeholder="Shadow Entry Hit" id="shadow-price-${i}" style="flex:2;" value="" oninput="calc(${i})">
                         <input type="text" placeholder="Time (e.g. 1015)" class="time-input" id="shadow-time-${i}" style="flex:1;" value="" onblur="formatTimeInput(${i}, 'shadow-time-${i}')">
                     </div>
 
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intraday High" id="ih-${i}" style="flex:2;" value="" oninput="calc(${i})">
+                        <input type="number" step="any" placeholder="Intraday High" id="ih-${i}" style="flex:2;" value="" oninput="calc(${i})">
                         <input type="text" placeholder="Time" class="time-input" id="ih-time-${i}" style="flex:1;" value="" onblur="formatTimeInput(${i}, 'ih-time-${i}')">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intraday Low" id="il-${i}" style="flex:2;" value="" oninput="calc(${i})">
+                        <input type="number" step="any" placeholder="Intraday Low" id="il-${i}" style="flex:2;" value="" oninput="calc(${i})">
                         <input type="text" placeholder="Time" class="time-input" id="il-time-${i}" style="flex:1;" value="" onblur="formatTimeInput(${i}, 'il-time-${i}')">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intra Trade High" id="ith-${i}" style="flex:2;" value="" oninput="calc(${i})">
+                        <input type="number" step="any" placeholder="Intra Trade High" id="ith-${i}" style="flex:2;" value="" oninput="calc(${i})">
                         <input type="text" placeholder="Time" class="time-input" id="ith-time-${i}" style="flex:1;" value="" onblur="formatTimeInput(${i}, 'ith-time-${i}')">
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" placeholder="Intra Trade Low" id="itl-${i}" style="flex:2;" value="" oninput="calc(${i})">
+                        <input type="number" step="any" placeholder="Intra Trade Low" id="itl-${i}" style="flex:2;" value="" oninput="calc(${i})">
                         <input type="text" placeholder="Time" class="time-input" id="itl-time-${i}" style="flex:1;" value="" onblur="formatTimeInput(${i}, 'itl-time-${i}')">
                     </div>
                     <div>
-                        <input type="number" placeholder="Flattened Price" id="ex-${i}" value="" oninput="calc(${i})">
+                        <input type="number" step="any" placeholder="Flattened Price" id="ex-${i}" value="" oninput="calc(${i})">
                     </div>
 
                     <div style="display:flex; gap:5px; margin-top:5px;">
-                        <input type="number" placeholder="Entry Offset % (e.g. 35)" id="off-${i}" value="35" oninput="calc(${i})">
+                        <input type="number" step="any" placeholder="Entry Offset % (e.g. 35)" id="off-${i}" value="35" oninput="calc(${i})">
                         <input type="text" placeholder="Custom Entry Value" id="off-res-${i}" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
                     <div style="display:flex; gap:5px; margin-top:2px;">
-                        <input type="number" placeholder="TP Offset % (e.g. 25)" id="tp-off-${i}" value="25" oninput="calc(${i})">
+                        <input type="number" step="any" placeholder="TP Offset % (e.g. 25)" id="tp-off-${i}" value="25" oninput="calc(${i})">
                         <input type="text" placeholder="Custom TP Value" id="tp-off-res-${i}" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
                     
@@ -208,8 +208,12 @@
                 return;
             }
             
-            const baseE = Math.round(h + (h * 0.001) + (a * 0.05));
-            const sl = Math.round(l - (a * 0.1));
+            // Allow full decimal precision for E*TRADE or general assets without forcing Math.round() truncation
+            const rawBaseE = h + (h * 0.001) + (a * 0.05);
+            const rawSl = l - (a * 0.1);
+
+            const baseE = (brokerage === "ETRADE") ? rawBaseE : Math.round(rawBaseE);
+            const sl = (brokerage === "ETRADE") ? rawSl : Math.round(rawSl);
             const stopDistBase = baseE - sl;
             
             if (stopDistBase <= 0) return;
@@ -217,7 +221,7 @@
             const entryPriceInput = document.getElementById(`entry-price-${i}`);
             const shadowPriceInput = document.getElementById(`shadow-price-${i}`);
             if (entryPriceInput && entryPriceInput.value === "") {
-                entryPriceInput.value = baseE;
+                entryPriceInput.value = (brokerage === "ETRADE") ? baseE : Math.round(baseE);
             }
             
             const offsetInputVal = parseFloat(document.getElementById(`off-${i}`).value);
@@ -227,11 +231,13 @@
             
             if (!isNaN(offsetInputVal) && document.getElementById(`off-${i}`).value !== "") {
                 const distanceToSL = baseE - sl;
-                activeE = Math.round(baseE - (distanceToSL * (offsetInputVal / 100)));
-                document.getElementById(`off-res-${i}`).value = activeE;
+                const rawActiveE = baseE - (distanceToSL * (offsetInputVal / 100));
+                activeE = (brokerage === "ETRADE") ? rawActiveE : Math.round(rawActiveE);
+                
+                document.getElementById(`off-res-${i}`).value = (brokerage === "ETRADE") ? activeE.toFixed(4) : activeE;
                 
                 if (shadowPriceInput) {
-                    shadowPriceInput.value = activeE;
+                    shadowPriceInput.value = (brokerage === "ETRADE") ? activeE : Math.round(activeE);
                 }
             } else {
                 document.getElementById(`off-res-${i}`).value = "";
@@ -239,8 +245,9 @@
 
             if (!isNaN(tpOffsetInput) && document.getElementById(`tp-off-${i}`).value !== "") {
                 const distanceToSL = baseE - sl;
-                const shadowTpTarget = Math.round(baseE + (distanceToSL * (1 - (tpOffsetInput / 100))));
-                document.getElementById(`tp-off-res-${i}`).value = shadowTpTarget;
+                const rawShadowTp = baseE + (distanceToSL * (1 - (tpOffsetInput / 100)));
+                const shadowTpTarget = (brokerage === "ETRADE") ? rawShadowTp : Math.round(rawShadowTp);
+                document.getElementById(`tp-off-res-${i}`).value = (brokerage === "ETRADE") ? shadowTpTarget.toFixed(4) : shadowTpTarget;
             } else {
                 document.getElementById(`tp-off-res-${i}`).value = "";
             }
@@ -273,10 +280,15 @@
                 if (sat <= maxSatVal) status = "APPROVED";
             }
 
+            const displayE = (brokerage === "ETRADE") ? baseE.toFixed(2) : baseE;
+            const displaySL = (brokerage === "ETRADE") ? sl.toFixed(2) : sl;
+            const rawTP = baseE + stopDistBase;
+            const displayTP = (brokerage === "ETRADE") ? rawTP.toFixed(2) : Math.round(rawTP);
+
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
             Total: ${totalBase} ${unitLabel} | Body (1/3): ${bodyBase} | Runner (2/3): ${runnerBase}<br>
-            E: ${baseE} | SL: ${sl}<br>
-            TP (Body Target): ${Math.round(baseE + stopDistBase)}`;
+            E: ${displayE} | SL: ${displaySL}<br>
+            TP (Body Target): ${displayTP}`;
 
             const entryCond = document.getElementById(`entry-cond-${i}`).value;
             const exitCond = document.getElementById(`exit-cond-${i}`).value;
@@ -298,25 +310,25 @@
                     regularPLDollars = totalBase * contractMultiplier * (sl - baseE);
                     regFullTPDollars = totalBase * contractMultiplier * (sl - baseE);
                     regInvertedRunnerDollars = totalBase * contractMultiplier * (sl - baseE);
-                    regExecutionDesc = `Full position stopped out at initial SL (${sl}).`;
+                    regExecutionDesc = `Full position stopped out at initial SL (${displaySL}).`;
                 } 
                 else if (exitCond === "TP not hit, flattened") {
                     regularPLDollars = totalBase * contractMultiplier * (flatPrice - baseE);
                     regFullTPDollars = totalBase * contractMultiplier * (flatPrice - baseE);
                     regInvertedRunnerDollars = totalBase * contractMultiplier * (flatPrice - baseE);
-                    regExecutionDesc = `Flattened prior to TP at ${Math.round(flatPrice)}.`;
+                    regExecutionDesc = `Flattened prior to TP at ${flatPrice}.`;
                 } 
                 else if (exitCond === "TP hit, stopped out") {
                     regularPLDollars = (bodyBase * contractMultiplier * (tpTargetBase - baseE)) + (runnerBase * contractMultiplier * (baseE - baseE));
                     regFullTPDollars = totalBase * contractMultiplier * (tpTargetBase - baseE);
                     regInvertedRunnerDollars = (bodyBase * contractMultiplier * (baseE - baseE)) + (runnerBase * contractMultiplier * (tpTargetBase - baseE));
-                    regExecutionDesc = `Body hit TP (${Math.round(tpTargetBase)}). Runner stopped out at Breakeven.`;
+                    regExecutionDesc = `Body hit TP (${displayTP}). Runner stopped out at Breakeven.`;
                 } 
                 else if (exitCond === "TP hit, flattened") {
                     regularPLDollars = (bodyBase * contractMultiplier * (tpTargetBase - baseE)) + (runnerBase * contractMultiplier * (flatPrice - baseE));
                     regFullTPDollars = totalBase * contractMultiplier * (tpTargetBase - baseE);
                     regInvertedRunnerDollars = (bodyBase * contractMultiplier * (flatPrice - baseE)) + (runnerBase * contractMultiplier * (tpTargetBase - baseE));
-                    regExecutionDesc = `Body hit TP (${Math.round(tpTargetBase)}). Runner flattened at ${Math.round(flatPrice)}.`;
+                    regExecutionDesc = `Body hit TP (${displayTP}). Runner flattened at ${flatPrice}.`;
                 }
             }
 
@@ -342,7 +354,8 @@
                 let shadowTpTarget = baseE + stopDistBase; 
                 if (!isNaN(tpOffsetInput) && document.getElementById(`tp-off-${i}`).value !== "") {
                     const distanceToSL = baseE - sl;
-                    shadowTpTarget = Math.round(baseE + (distanceToSL * (1 - (tpOffsetInput / 100))));
+                    const rawShadowTp = baseE + (distanceToSL * (1 - (tpOffsetInput / 100)));
+                    shadowTpTarget = (brokerage === "ETRADE") ? rawShadowTp : Math.round(rawShadowTp);
                 }
 
                 const customStopDist = activeE - sl;
@@ -432,8 +445,11 @@
                     const adjCol_rTP = adjPL_regTP >= 0 ? '#22c55e' : '#ef4444';
                     const adjSign_rTP = adjPL_regTP >= 0 ? '+' : '';
 
+                    const displayActiveE = (brokerage === "ETRADE") ? activeE.toFixed(2) : activeE;
+                    const displayShadowTP = (brokerage === "ETRADE") ? shadowTpTarget.toFixed(2) : shadowTpTarget;
+
                     document.getElementById(`off-metrics-${i}`).innerHTML = `<b>Shadow Trade Comparisons & P&L:</b><br>
-                    Shadow E: ${activeE} | Shadow TP: ${shadowTpTarget}<br>
+                    Shadow E: ${displayActiveE} | Shadow TP: ${displayShadowTP}<br>
                     <b>1. Unadj (${totalBase} ${unitLabel}):</b><br>
                     &nbsp;&bull; Shadow TP: <span style="color:${unadjCol_sTP}">${unadjSign_sTP}${unadjPct_sTP.toFixed(2)}% ($${unadjPL_shadowTP.toFixed(2)})</span> | Full: $${unadjFull_shadowTP.toFixed(2)} | Inv: $${unadjInv_shadowTP.toFixed(2)}<br>
                     &nbsp;&bull; Regular TP: <span style="color:${unadjCol_rTP}">${unadjSign_rTP}${unadjPct_rTP.toFixed(2)}% ($${unadjPL_regTP.toFixed(2)})</span> | Full: $${unadjFull_regTP.toFixed(2)} | Inv: $${unadjInv_regTP.toFixed(2)}<br>
@@ -466,8 +482,10 @@
                 const brokerage = document.getElementById(`m-${i}`).value;
                 const ticker = (document.getElementById(`t-${i}`).value || "").trim().toUpperCase();
                 
-                const baseE = Math.round(h + (h * 0.001) + (a * 0.05));
-                const sl = Math.round(l - (a * 0.1));
+                const rawBaseE = h + (h * 0.001) + (a * 0.05);
+                const rawSl = l - (a * 0.1);
+                const baseE = (brokerage === "ETRADE") ? rawBaseE : Math.round(rawBaseE);
+                const sl = (brokerage === "ETRADE") ? rawSl : Math.round(rawSl);
                 const stopDistBase = baseE - sl;
                 const sat = ((h - l) / a) * 100;
                 
@@ -539,7 +557,11 @@
                 const regFullPct = (regFull$ / b) * 100;
                 const regInvPct = (regInv$ / b) * 100;
 
-                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${ticker},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${baseE},${sl},${Math.round(tpTargetBase)},` +
+                const csvE = (brokerage === "ETRADE") ? baseE.toFixed(2) : baseE;
+                const csvSL = (brokerage === "ETRADE") ? sl.toFixed(2) : sl;
+                const csvTP = (brokerage === "ETRADE") ? tpTargetBase.toFixed(2) : Math.round(tpTargetBase);
+
+                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${ticker},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${csvE},${csvSL},${csvTP},` +
                        `"${entryCond}","${exitCond}",` +
                        `${entryPriceHit},"${entryTime}",${shadowPriceHit},"${shadowTime}",` +
                        `${ih},"${ihTime}",${il},"${ilTime}",` +
