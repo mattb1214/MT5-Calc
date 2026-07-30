@@ -99,11 +99,11 @@
                     </div>
 
                     <div style="display:flex; gap:5px; margin-top:5px;">
-                        <input type="number" placeholder="Entry Offset % (e.g. 35)" id="off-${i}" value="35" oninput="calc(${i})">
+                        <input type="number" placeholder="Entry Offset % (e.g. 35)" id="off-${i}" value="" oninput="calc(${i})">
                         <input type="text" placeholder="Custom Entry Value" id="off-res-${i}" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
                     <div style="display:flex; gap:5px; margin-top:2px;">
-                        <input type="number" placeholder="TP Offset % (e.g. 25)" id="tp-off-${i}" value="25" oninput="calc(${i})">
+                        <input type="number" placeholder="TP Offset % (e.g. 25)" id="tp-off-${i}" value="" oninput="calc(${i})">
                         <input type="text" placeholder="Custom TP Value" id="tp-off-res-${i}" readonly style="background:#1e293b; color:#94a3b8;">
                     </div>
                     
@@ -175,6 +175,8 @@
             document.getElementById(`itl-${i}`).value = "";
             document.getElementById(`ith-${i}`).value = "";
             document.getElementById(`ex-${i}`).value = "";
+            document.getElementById(`off-${i}`).value = "";
+            document.getElementById(`tp-off-${i}`).value = "";
             
             document.getElementById(`entry-time-${i}`).value = "";
             document.getElementById(`shadow-time-${i}`).value = "";
@@ -219,10 +221,33 @@
             }
             
             const offsetInputVal = parseFloat(document.getElementById(`off-${i}`).value);
+            const tpOffsetInput = parseFloat(document.getElementById(`tp-off-${i}`).value);
+
+            let activeE = baseE;
             
-            if (shadowPriceInput && shadowPriceInput.value === "" && !isNaN(offsetInputVal)) {
-                const autoShadowE = Math.round(baseE - (stopDistBase * (offsetInputVal / 100)));
-                shadowPriceInput.value = autoShadowE;
+            if (!isNaN(offsetInputVal) && document.getElementById(`off-${i}`).value !== "") {
+                // Entry offset is percentage of distance between entry (baseE) and stop loss (sl)
+                const distanceToSL = baseE - sl;
+                activeE = Math.round(baseE - (distanceToSL * (offsetInputVal / 100)));
+                document.getElementById(`off-res-${i}`).value = activeE;
+                
+                // Automatically populate the shadow entry hit box with the custom entry value calculation
+                if (shadowPriceInput) {
+                    shadowPriceInput.value = activeE;
+                }
+            } else {
+                document.getElementById(`off-res-${i}`).value = "";
+                if (shadowPriceInput && shadowPriceInput.value === baseE) {
+                    // clear out if offset was emptied
+                }
+            }
+
+            if (!isNaN(tpOffsetInput) && document.getElementById(`tp-off-${i}`).value !== "") {
+                const distanceToSL = baseE - sl;
+                const shadowTpTarget = Math.round(baseE + (distanceToSL * (1 - (tpOffsetInput / 100))));
+                document.getElementById(`tp-off-res-${i}`).value = shadowTpTarget;
+            } else {
+                document.getElementById(`tp-off-res-${i}`).value = "";
             }
 
             const maxAllowedRiskDollars = b * r;
@@ -318,18 +343,12 @@
             1/3 Runner Split: <span style="color: ${regInvColor}; font-weight: bold;">${regInvSign}${regInvPct.toFixed(3)}% (${regInvSign}$${regInvertedRunnerDollars.toFixed(2)})</span><br>
             <span style="font-size: 0.85em; color: #94a3b8;">${regExecutionDesc}</span>`;
 
-            const tpOffsetInput = parseFloat(document.getElementById(`tp-off-${i}`).value);
-            let activeE = baseE;
-            
             if (!isNaN(offsetInputVal) && document.getElementById(`off-${i}`).value !== "") {
-                activeE = Math.round(baseE - (stopDistBase * (offsetInputVal / 100)));
-                document.getElementById(`off-res-${i}`).value = activeE;
-
                 let shadowTpTarget = baseE + stopDistBase; 
                 if (!isNaN(tpOffsetInput) && document.getElementById(`tp-off-${i}`).value !== "") {
-                    shadowTpTarget = Math.round(baseE + (stopDistBase * (1 - (tpOffsetInput / 100))));
+                    const distanceToSL = baseE - sl;
+                    shadowTpTarget = Math.round(baseE + (distanceToSL * (1 - (tpOffsetInput / 100))));
                 }
-                document.getElementById(`tp-off-res-${i}`).value = shadowTpTarget;
 
                 const customStopDist = activeE - sl;
                 if (customStopDist > 0) {
@@ -430,8 +449,6 @@
                     document.getElementById(`off-metrics-${i}`).innerHTML = `<span style="color:#ef4444;">Error: Custom entry below stop loss.</span>`;
                 }
             } else {
-                document.getElementById(`off-res-${i}`).value = "";
-                document.getElementById(`tp-off-res-${i}`).value = "";
                 document.getElementById(`off-metrics-${i}`).innerHTML = `Custom Entry Adjustments: Enter Offset %`;
             }
         }
