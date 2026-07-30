@@ -208,12 +208,12 @@
                 return;
             }
             
-            // Allow full decimal precision for E*TRADE or general assets without forcing Math.round() truncation
+            // Round E*TRADE to hundredth position (2 decimal places) using Number(val.toFixed(2))
             const rawBaseE = h + (h * 0.001) + (a * 0.05);
             const rawSl = l - (a * 0.1);
 
-            const baseE = (brokerage === "ETRADE") ? rawBaseE : Math.round(rawBaseE);
-            const sl = (brokerage === "ETRADE") ? rawSl : Math.round(rawSl);
+            const baseE = (brokerage === "ETRADE") ? parseFloat(rawBaseE.toFixed(2)) : Math.round(rawBaseE);
+            const sl = (brokerage === "ETRADE") ? parseFloat(rawSl.toFixed(2)) : Math.round(rawSl);
             const stopDistBase = baseE - sl;
             
             if (stopDistBase <= 0) return;
@@ -221,7 +221,7 @@
             const entryPriceInput = document.getElementById(`entry-price-${i}`);
             const shadowPriceInput = document.getElementById(`shadow-price-${i}`);
             if (entryPriceInput && entryPriceInput.value === "") {
-                entryPriceInput.value = (brokerage === "ETRADE") ? baseE : Math.round(baseE);
+                entryPriceInput.value = (brokerage === "ETRADE") ? baseE.toFixed(2) : Math.round(baseE);
             }
             
             const offsetInputVal = parseFloat(document.getElementById(`off-${i}`).value);
@@ -232,12 +232,12 @@
             if (!isNaN(offsetInputVal) && document.getElementById(`off-${i}`).value !== "") {
                 const distanceToSL = baseE - sl;
                 const rawActiveE = baseE - (distanceToSL * (offsetInputVal / 100));
-                activeE = (brokerage === "ETRADE") ? rawActiveE : Math.round(rawActiveE);
+                activeE = (brokerage === "ETRADE") ? parseFloat(rawActiveE.toFixed(2)) : Math.round(rawActiveE);
                 
-                document.getElementById(`off-res-${i}`).value = (brokerage === "ETRADE") ? activeE.toFixed(4) : activeE;
+                document.getElementById(`off-res-${i}`).value = (brokerage === "ETRADE") ? activeE.toFixed(2) : activeE;
                 
                 if (shadowPriceInput) {
-                    shadowPriceInput.value = (brokerage === "ETRADE") ? activeE : Math.round(activeE);
+                    shadowPriceInput.value = (brokerage === "ETRADE") ? activeE.toFixed(2) : Math.round(activeE);
                 }
             } else {
                 document.getElementById(`off-res-${i}`).value = "";
@@ -246,8 +246,8 @@
             if (!isNaN(tpOffsetInput) && document.getElementById(`tp-off-${i}`).value !== "") {
                 const distanceToSL = baseE - sl;
                 const rawShadowTp = baseE + (distanceToSL * (1 - (tpOffsetInput / 100)));
-                const shadowTpTarget = (brokerage === "ETRADE") ? rawShadowTp : Math.round(rawShadowTp);
-                document.getElementById(`tp-off-res-${i}`).value = (brokerage === "ETRADE") ? shadowTpTarget.toFixed(4) : shadowTpTarget;
+                const shadowTpTarget = (brokerage === "ETRADE") ? parseFloat(rawShadowTp.toFixed(2)) : Math.round(rawShadowTp);
+                document.getElementById(`tp-off-res-${i}`).value = (brokerage === "ETRADE") ? shadowTpTarget.toFixed(2) : shadowTpTarget;
             } else {
                 document.getElementById(`tp-off-res-${i}`).value = "";
             }
@@ -283,7 +283,7 @@
             const displayE = (brokerage === "ETRADE") ? baseE.toFixed(2) : baseE;
             const displaySL = (brokerage === "ETRADE") ? sl.toFixed(2) : sl;
             const rawTP = baseE + stopDistBase;
-            const displayTP = (brokerage === "ETRADE") ? rawTP.toFixed(2) : Math.round(rawTP);
+            const displayTP = (brokerage === "ETRADE") ? parseFloat(rawTP.toFixed(2)) : Math.round(rawTP);
 
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
             Total: ${totalBase} ${unitLabel} | Body (1/3): ${bodyBase} | Runner (2/3): ${runnerBase}<br>
@@ -355,7 +355,7 @@
                 if (!isNaN(tpOffsetInput) && document.getElementById(`tp-off-${i}`).value !== "") {
                     const distanceToSL = baseE - sl;
                     const rawShadowTp = baseE + (distanceToSL * (1 - (tpOffsetInput / 100)));
-                    shadowTpTarget = (brokerage === "ETRADE") ? rawShadowTp : Math.round(rawShadowTp);
+                    shadowTpTarget = (brokerage === "ETRADE") ? parseFloat(rawShadowTp.toFixed(2)) : Math.round(rawShadowTp);
                 }
 
                 const customStopDist = activeE - sl;
@@ -484,8 +484,8 @@
                 
                 const rawBaseE = h + (h * 0.001) + (a * 0.05);
                 const rawSl = l - (a * 0.1);
-                const baseE = (brokerage === "ETRADE") ? rawBaseE : Math.round(rawBaseE);
-                const sl = (brokerage === "ETRADE") ? rawSl : Math.round(rawSl);
+                const baseE = (brokerage === "ETRADE") ? parseFloat(rawBaseE.toFixed(2)) : Math.round(rawBaseE);
+                const sl = (brokerage === "ETRADE") ? parseFloat(rawSl.toFixed(2)) : Math.round(rawSl);
                 const stopDistBase = baseE - sl;
                 const sat = ((h - l) / a) * 100;
                 
