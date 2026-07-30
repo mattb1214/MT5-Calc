@@ -17,7 +17,6 @@
         /* Remove spinner arrows */
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
-        /* Hide native time spinners/icons cleanly if desired, or let text inputs handle smart parsing */
         input[type=text].time-input { font-family: monospace; }
 
         .dashboard input { width: 50px; padding: 3px; font-size: 0.9em; }
@@ -124,7 +123,6 @@
             let val = el.value.trim();
             if (!val) return;
 
-            // Strip existing AM/PM or spaces to re-evaluate clean numbers
             val = val.toUpperCase().replace(/[^0-9:]/g, '');
             
             let hours = 0;
@@ -148,17 +146,15 @@
             if (isNaN(hours)) return;
 
             let modifier = "AM";
-            // If hours fall strictly between 12 and 3 (or explicit afternoon values like 12, 1, 2, 3), treat as PM
             if (hours >= 12 && hours <= 3) {
                 modifier = "PM";
             } else if (hours >= 8 && hours <= 11) {
                 modifier = "AM";
             } else {
-                // Default fallback rules based on standard trading hours window (8:30 AM to 3:00 PM)
                 if (hours >= 1 && hours <= 3) {
                     modifier = "PM";
                 } else if (hours >= 4 && hours <= 7) {
-                    modifier = "PM"; // Just in case late session
+                    modifier = "PM";
                 } else if (hours >= 8 && hours <= 11) {
                     modifier = "AM";
                 } else {
@@ -170,7 +166,6 @@
             calc(i);
         }
 
-        // Specific Tile Reset Button functionality
         function clearTile(i) {
             document.getElementById(`a-${i}`).value = "";
             document.getElementById(`h-${i}`).value = "";
@@ -213,23 +208,24 @@
                 return;
             }
             
-            const baseE = h + (h * 0.001) + (a * 0.05);
-            const sl = l - (a * 0.1);
+            // FIX: Rounded core baseline parameters to the nearest whole integer (no decimals)
+            const baseE = Math.round(h + (h * 0.001) + (a * 0.05));
+            const sl = Math.round(l - (a * 0.1));
             const stopDistBase = baseE - sl;
             
             if (stopDistBase <= 0) return;
 
-            // Auto-fill entry price hit and shadow entry hit fields upon calculation readiness
             const entryPriceInput = document.getElementById(`entry-price-${i}`);
             const shadowPriceInput = document.getElementById(`shadow-price-${i}`);
             if (entryPriceInput && entryPriceInput.value === "") {
-                entryPriceInput.value = baseE.toFixed(2);
+                entryPriceInput.value = baseE;
             }
             
             const offsetInputVal = parseFloat(document.getElementById(`off-${i}`).value);
             if (shadowPriceInput && shadowPriceInput.value === "" && !isNaN(offsetInputVal)) {
-                const autoShadowE = baseE - (stopDistBase * (offsetInputVal / 100));
-                shadowPriceInput.value = autoShadowE.toFixed(2);
+                // FIX: Ensure auto-populated shadow entry is rounded cleanly to whole integers
+                const autoShadowE = Math.round(baseE - (stopDistBase * (offsetInputVal / 100)));
+                shadowPriceInput.value = autoShadowE;
             }
 
             const maxAllowedRiskDollars = b * r;
@@ -261,10 +257,11 @@
                 if (sat <= maxSatVal) status = "APPROVED";
             }
 
+            // FIX: Render output calculations using rounded whole integers for prices
             document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
             Total: ${totalBase} ${unitLabel} | Body (1/3): ${bodyBase} | Runner (2/3): ${runnerBase}<br>
-            E: ${baseE.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
-            TP (Body Target): ${(baseE+stopDistBase).toFixed(2)}`;
+            E: ${baseE} | SL: ${sl}<br>
+            TP (Body Target): ${Math.round(baseE + stopDistBase)}`;
 
             const entryCond = document.getElementById(`entry-cond-${i}`).value;
             const exitCond = document.getElementById(`exit-cond-${i}`).value;
@@ -286,25 +283,25 @@
                     regularPLDollars = totalBase * contractMultiplier * (sl - baseE);
                     regFullTPDollars = totalBase * contractMultiplier * (sl - baseE);
                     regInvertedRunnerDollars = totalBase * contractMultiplier * (sl - baseE);
-                    regExecutionDesc = `Full position stopped out at initial SL (${sl.toFixed(2)}).`;
+                    regExecutionDesc = `Full position stopped out at initial SL (${sl}).`;
                 } 
                 else if (exitCond === "TP not hit, flattened") {
                     regularPLDollars = totalBase * contractMultiplier * (flatPrice - baseE);
                     regFullTPDollars = totalBase * contractMultiplier * (flatPrice - baseE);
                     regInvertedRunnerDollars = totalBase * contractMultiplier * (flatPrice - baseE);
-                    regExecutionDesc = `Flattened prior to TP at ${flatPrice.toFixed(2)}.`;
+                    regExecutionDesc = `Flattened prior to TP at ${Math.round(flatPrice)}.`;
                 } 
                 else if (exitCond === "TP hit, stopped out") {
                     regularPLDollars = (bodyBase * contractMultiplier * (tpTargetBase - baseE)) + (runnerBase * contractMultiplier * (baseE - baseE));
                     regFullTPDollars = totalBase * contractMultiplier * (tpTargetBase - baseE);
                     regInvertedRunnerDollars = (bodyBase * contractMultiplier * (baseE - baseE)) + (runnerBase * contractMultiplier * (tpTargetBase - baseE));
-                    regExecutionDesc = `Body hit TP (${tpTargetBase.toFixed(2)}). Runner stopped out at Breakeven.`;
+                    regExecutionDesc = `Body hit TP (${Math.round(tpTargetBase)}). Runner stopped out at Breakeven.`;
                 } 
                 else if (exitCond === "TP hit, flattened") {
                     regularPLDollars = (bodyBase * contractMultiplier * (tpTargetBase - baseE)) + (runnerBase * contractMultiplier * (flatPrice - baseE));
                     regFullTPDollars = totalBase * contractMultiplier * (tpTargetBase - baseE);
                     regInvertedRunnerDollars = (bodyBase * contractMultiplier * (flatPrice - baseE)) + (runnerBase * contractMultiplier * (tpTargetBase - baseE));
-                    regExecutionDesc = `Body hit TP (${tpTargetBase.toFixed(2)}). Runner flattened at ${flatPrice.toFixed(2)}.`;
+                    regExecutionDesc = `Body hit TP (${Math.round(tpTargetBase)}). Runner flattened at ${Math.round(flatPrice)}.`;
                 }
             }
 
@@ -331,14 +328,15 @@
             let activeE = baseE;
             
             if (!isNaN(offsetInputVal) && document.getElementById(`off-${i}`).value !== "") {
-                activeE = baseE - (stopDistBase * (offsetInputVal / 100));
-                document.getElementById(`off-res-${i}`).value = activeE.toFixed(2);
+                // FIX: Rounded custom entry to the nearest integer
+                activeE = Math.round(baseE - (stopDistBase * (offsetInputVal / 100)));
+                document.getElementById(`off-res-${i}`).value = activeE;
 
                 let shadowTpTarget = baseE + stopDistBase; 
                 if (!isNaN(tpOffsetInput) && document.getElementById(`tp-off-${i}`).value !== "") {
-                    shadowTpTarget = baseE + (stopDistBase * (1 - (tpOffsetInput / 100)));
+                    shadowTpTarget = Math.round(baseE + (stopDistBase * (1 - (tpOffsetInput / 100))));
                 }
-                document.getElementById(`tp-off-res-${i}`).value = shadowTpTarget.toFixed(2);
+                document.getElementById(`tp-off-res-${i}`).value = shadowTpTarget;
 
                 const customStopDist = activeE - sl;
                 if (customStopDist > 0) {
@@ -427,8 +425,9 @@
                     const adjCol_rTP = adjPL_regTP >= 0 ? '#22c55e' : '#ef4444';
                     const adjSign_rTP = adjPL_regTP >= 0 ? '+' : '';
 
+                    // FIX: Render whole integer rounded values for Shadow E and Shadow TP outputs
                     document.getElementById(`off-metrics-${i}`).innerHTML = `<b>Shadow Trade Comparisons & P&L:</b><br>
-                    Shadow E: ${activeE.toFixed(2)} | Shadow TP: ${shadowTpTarget.toFixed(2)}<br>
+                    Shadow E: ${activeE} | Shadow TP: ${shadowTpTarget}<br>
                     <b>1. Unadj (${totalBase} ${unitLabel}):</b><br>
                     &nbsp;&bull; Shadow TP: <span style="color:${unadjCol_sTP}">${unadjSign_sTP}${unadjPct_sTP.toFixed(2)}% ($${unadjPL_shadowTP.toFixed(2)})</span> | Full: $${unadjFull_shadowTP.toFixed(2)} | Inv: $${unadjInv_shadowTP.toFixed(2)}<br>
                     &nbsp;&bull; Regular TP: <span style="color:${unadjCol_rTP}">${unadjSign_rTP}${unadjPct_rTP.toFixed(2)}% ($${unadjPL_regTP.toFixed(2)})</span> | Full: $${unadjFull_regTP.toFixed(2)} | Inv: $${unadjInv_regTP.toFixed(2)}<br>
@@ -466,8 +465,10 @@
                 const r = riskInput === "" ? 0 : parseFloat(riskInput)/100;
                 const brokerage = document.getElementById(`m-${i}`).value;
                 const ticker = (document.getElementById(`t-${i}`).value || "").trim().toUpperCase();
-                const baseE = h + (h * 0.001) + (a * 0.05);
-                const sl = l - (a * 0.1);
+                
+                // FIX: Ensure CSV baseline values are rounded cleanly
+                const baseE = Math.round(h + (h * 0.001) + (a * 0.05));
+                const sl = Math.round(l - (a * 0.1));
                 const stopDistBase = baseE - sl;
                 const sat = ((h - l) / a) * 100;
                 
@@ -546,10 +547,10 @@
                 let s_adj_rTP_std$ = 0, s_adj_rTP_full$ = 0, s_adj_rTP_inv$ = 0;
 
                 if (entryCond !== "Entry price not hit" && entryCond !== "Only regular entry price is hit" && exitCond !== "No trade" && !isNaN(offsetInput) && document.getElementById(`off-${i}`).value !== "" && stopDistBase > 0) {
-                    const activeE = baseE - (stopDistBase * (offsetInput / 100));
+                    const activeE = Math.round(baseE - (stopDistBase * (offsetInput / 100)));
                     let shadowTpTarget = baseE + stopDistBase;
                     if (!isNaN(tpOffsetInput) && document.getElementById(`tp-off-${i}`).value !== "") {
-                        shadowTpTarget = baseE + (stopDistBase * (1 - (tpOffsetInput / 100)));
+                        shadowTpTarget = Math.round(baseE + (stopDistBase * (1 - (tpOffsetInput / 100))));
                     }
 
                     const customStopDist = activeE - sl;
@@ -619,7 +620,7 @@
                 const s_adj_sTP_std_pct = (s_adj_sTP_std$ / b) * 100;
                 const s_adj_rTP_std_pct = (s_adj_rTP_std$ / b) * 100;
 
-                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${ticker},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${baseE.toFixed(2)},${sl.toFixed(2)},${tpTargetBase.toFixed(2)},` +
+                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${ticker},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${baseE},${sl},${Math.round(tpTargetBase)},` +
                        `"${entryCond}","${exitCond}",` +
                        `${entryPriceHit},"${entryTime}",${shadowPriceHit},"${shadowTime}",` +
                        `${ih},"${ihTime}",${il},"${ilTime}",` +
