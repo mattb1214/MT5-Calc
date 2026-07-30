@@ -187,6 +187,7 @@
 
             document.getElementById(`entry-cond-${i}`).value = "Entry price not hit";
             document.getElementById(`exit-cond-${i}`).value = "No trade";
+            document.getElementById(`n1-${i}`).value = "";
 
             calc(i);
         }
@@ -464,15 +465,17 @@
         }
 
         function exportCSV() {
-            let csv = "Date,Status,Brokerage,Ticker,Balance,Risk%,ATR,15mHigh,15mLow,VolRatio%,Entry,SL,TP," +
-                      "EntryCondition,ExitCondition," +
-                      "EntryPriceHit,EntryTime,ShadowEntryHit,ShadowTime," +
-                      "IntradayHigh,IntradayHighTime,IntradayLow,IntradayLowTime," +
-                      "IntraTradeHigh,IntraTradeHighTime,IntraTradeLow,IntraTradeLowTime,FlattenedPrice,Offset%,TPOffset%," +
-                      "CustomEntryPrice,CustomTPPrice," +
-                      "RegStandardPct,RegStandard$,RegFullTPPct,RegFullTP$,Reg13RunnerPct,Reg13Runner$," +
-                      "UnadjShadowTPPct,UnadjShadowTP$,UnadjRegTPPct,UnadjRegTP$,UnadjFull$,UnadjInv$," +
-                      "RecalcShadowTPPct,RecalcShadowTP$,RecalcRegTPPct,RecalcRegTP$,RecalcFull$,RecalcInv$,\n";
+            let csv = "Date,Update status,broker,ticker,balance,risk percentage,15 minute high,15 minute low,volatility ratio,entry,stop loss,take profit," +
+                      "entry condition,exit condition,entry price,entry time,shadow entry hit,shadow time," +
+                      "intraday high,intraday high time,intraday low,intraday low time," +
+                      "intratrade high,intratrade high time,intratrade low,intratrade low time," +
+                      "flatten,flattened price,offset percentage,TP offset percentage,regular standard PCT,regular standard dollar sign," +
+                      "regular full TP PCT,regular full TP dollar sign,regular 13 runner PCT,regular 13 runner dollar sign," +
+                      "shadow unadjusted shadow TP standard PCT,shadow unadjusted shadow TP standard dollar sign,shadow unadjusted shadow TP full TP dollar sign,shadow unadjusted shadow TP inverted dollar sign," +
+                      "shadow unadjusted regular TP standard PCT,shadow unadjusted regular TP standard dollar sign,shadow unadjusted regular TP full TP dollar sign,shadow unadjusted regular TP inverted dollar sign," +
+                      "shadow adjusted shadow TP standard PCT,shadow adjusted shadow TP standard dollar sign,shadow adjusted shadow TP full TP dollar sign,shadow adjusted shadow TP inverted dollar sign," +
+                      "shadow adjusted regular TP standard PCT,shadow adjusted regular TP standard dollar sign,shadow adjusted regular TP full TP dollar sign,shadow adjusted regular TP inverted dollar sign," +
+                      "trade notes\n";
 
             for(let i=0; i<8; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
@@ -522,6 +525,7 @@
                 const flatPrice = parseFloat(document.getElementById(`ex-${i}`).value) || baseE;
                 const offsetInput = parseFloat(document.getElementById(`off-${i}`).value) || 0;
                 const tpOffsetInput = parseFloat(document.getElementById(`tp-off-${i}`).value) || 0;
+                const tradeNotes = (document.getElementById(`n1-${i}`).value || "").replace(/"/g, '""');
 
                 let contractMultiplier = 1;
                 if (brokerage === "MT5" && (ticker.includes("XUSD") || ticker.includes("XAU"))) {
@@ -561,8 +565,10 @@
 
                 let customEntryVal = "";
                 let customTPVal = "";
-                let unadjS_pct = 0, unadjS_$ = 0, unadjR_pct = 0, unadjR_$ = 0, unadjFull_$ = 0, unadjInv_$ = 0;
-                let recalcS_pct = 0, recalcS_$ = 0, recalcR_pct = 0, recalcR_$ = 0, recalcFull_$ = 0, recalcInv_$ = 0;
+                let unadjS_pct = 0, unadjS_$ = 0, unadjFull_$ = 0, unadjInv_$ = 0;
+                let unadjR_pct = 0, unadjR_$ = 0, unadjRFull_$ = 0, unadjRInv_$ = 0;
+                let recalcS_pct = 0, recalcS_$ = 0, recalcFull_$ = 0, recalcInv_$ = 0;
+                let recalcR_pct = 0, recalcR_$ = 0, recalcRFull_$ = 0, recalcRInv_$ = 0;
 
                 if (!isNaN(offsetInput) && document.getElementById(`off-${i}`).value !== "") {
                     const distanceToSL = baseE - sl;
@@ -590,21 +596,32 @@
                             if (exitCond === "Stopped out" || exitCond === "TP not hit, flattened") {
                                 const flatOrStopVal = exitCond === "Stopped out" ? sl : flatPrice;
                                 unadjS_$ = totalBase * contractMultiplier * (flatOrStopVal - activeE);
-                                unadjR_$ = unadjS_$; unadjFull_$ = unadjS_$; unadjInv_$ = unadjS_$;
+                                unadjFull_$ = unadjS_$; unadjInv_$ = unadjS_$;
+                                unadjR_$ = unadjS_$; unadjRFull_$ = unadjS_$; unadjRInv_$ = unadjS_$;
+
                                 recalcS_$ = adjTotal * contractMultiplier * (flatOrStopVal - activeE);
-                                recalcR_$ = recalcS_$; recalcFull_$ = recalcS_$; recalcInv_$ = recalcS_$;
+                                recalcFull_$ = recalcS_$; recalcInv_$ = recalcS_$;
+                                recalcR_$ = recalcS_$; recalcRFull_$ = recalcS_$; recalcRInv_$ = recalcS_$;
                             } else {
+                                // Unadjusted Shadow TP variants
                                 unadjS_$ = (bodyBase * contractMultiplier * (shadowTpTarget - activeE)) + (runnerBase * contractMultiplier * (pClose - activeE));
                                 unadjFull_$ = totalBase * contractMultiplier * (shadowTpTarget - activeE);
                                 unadjInv_$ = (bodyBase * contractMultiplier * (pClose - activeE)) + (runnerBase * contractMultiplier * (shadowTpTarget - activeE));
 
+                                // Unadjusted Regular TP variants
                                 unadjR_$ = (bodyBase * contractMultiplier * (tpTargetBase - activeE)) + (runnerBase * contractMultiplier * (pClose - activeE));
-                                
+                                unadjRFull_$ = totalBase * contractMultiplier * (tpTargetBase - activeE);
+                                unadjRInv_$ = (bodyBase * contractMultiplier * (pClose - activeE)) + (runnerBase * contractMultiplier * (tpTargetBase - activeE));
+
+                                // Recalculated Shadow TP variants
                                 recalcS_$ = (adjBody * contractMultiplier * (shadowTpTarget - activeE)) + (adjRunner * contractMultiplier * (pClose - activeE));
                                 recalcFull_$ = adjTotal * contractMultiplier * (shadowTpTarget - activeE);
                                 recalcInv_$ = (adjBody * contractMultiplier * (pClose - activeE)) + (adjRunner * contractMultiplier * (shadowTpTarget - activeE));
 
+                                // Recalculated Regular TP variants
                                 recalcR_$ = (adjBody * contractMultiplier * (tpTargetBase - activeE)) + (adjRunner * contractMultiplier * (pClose - activeE));
+                                recalcRFull_$ = adjTotal * contractMultiplier * (tpTargetBase - activeE);
+                                recalcRInv_$ = (adjBody * contractMultiplier * (pClose - activeE)) + (adjRunner * contractMultiplier * (tpTargetBase - activeE));
                             }
                         }
                         unadjS_pct = (b > 0) ? (unadjS_$ / b) * 100 : 0;
@@ -618,15 +635,18 @@
                 const csvSL = (brokerage === "ETRADE") ? sl.toFixed(2) : sl;
                 const csvTP = (brokerage === "ETRADE") ? tpTargetBase.toFixed(2) : Math.round(tpTargetBase);
 
-                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${ticker},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${sat.toFixed(2)}%,${csvE},${csvSL},${csvTP},` +
+                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${ticker},${b},${(r*100).toFixed(2)}%,${h},${l},${sat.toFixed(2)}%,${csvE},${csvSL},${csvTP},` +
                        `"${entryCond}","${exitCond}",` +
                        `${entryPriceHit},"${entryTime}",${shadowPriceHit},"${shadowTime}",` +
                        `${ih},"${ihTime}",${il},"${ilTime}",` +
                        `${ith},"${ithTime}",${itl},"${itlTime}",${flatPrice},${offsetInput},${tpOffsetInput},` +
                        `${customEntryVal},${customTPVal},` +
                        `${regStdPct.toFixed(3)}%,${regStd$.toFixed(2)},${regFullPct.toFixed(3)}%,${regFull$.toFixed(2)},${regInvPct.toFixed(3)}%,${regInv$.toFixed(2)},` +
-                       `${unadjS_pct.toFixed(3)}%,${unadjS_$.toFixed(2)},${unadjR_pct.toFixed(3)}%,${unadjR_$.toFixed(2)},${unadjFull_$.toFixed(2)},${unadjInv_$.toFixed(2)},` +
-                       `${recalcS_pct.toFixed(3)}%,${recalcS_$.toFixed(2)},${recalcR_pct.toFixed(3)}%,${recalcR_$.toFixed(2)},${recalcFull_$.toFixed(2)},${recalcInv_$.toFixed(2)}\n`;
+                       `${unadjS_pct.toFixed(3)}%,${unadjS_$.toFixed(2)},${unadjFull_$.toFixed(2)},${unadjInv_$.toFixed(2)},` +
+                       `${unadjR_pct.toFixed(3)}%,${unadjR_$.toFixed(2)},${unadjRFull_$.toFixed(2)},${unadjRInv_$.toFixed(2)},` +
+                       `${recalcS_pct.toFixed(3)}%,${recalcS_$.toFixed(2)},${recalcFull_$.toFixed(2)},${recalcInv_$.toFixed(2)},` +
+                       `${recalcR_pct.toFixed(3)}%,${recalcR_$.toFixed(2)},${recalcRFull_$.toFixed(2)},${recalcRInv_$.toFixed(2)},` +
+                       `"${tradeNotes}"\n`;
             }
 
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
