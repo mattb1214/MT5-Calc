@@ -208,7 +208,6 @@
                 return;
             }
             
-            // Round E*TRADE to hundredth position (2 decimal places) using Number(val.toFixed(2))
             const rawBaseE = h + (h * 0.001) + (a * 0.05);
             const rawSl = l - (a * 0.1);
 
@@ -470,7 +469,10 @@
                       "EntryPriceHit,EntryTime,ShadowEntryHit,ShadowTime," +
                       "IntradayHigh,IntradayHighTime,IntradayLow,IntradayLowTime," +
                       "IntraTradeHigh,IntraTradeHighTime,IntraTradeLow,IntraTradeLowTime,FlattenedPrice,Offset%,TPOffset%," +
-                      "RegStandardPct,RegStandard$,RegFullTPPct,RegFullTP$,Reg13RunnerPct,Reg13Runner$,\n";
+                      "CustomEntryPrice,CustomTPPrice," +
+                      "RegStandardPct,RegStandard$,RegFullTPPct,RegFullTP$,Reg13RunnerPct,Reg13Runner$," +
+                      "UnadjShadowTPPct,UnadjShadowTP$,UnadjRegTPPct,UnadjRegTP$,UnadjFull$,UnadjInv$," +
+                      "RecalcShadowTPPct,RecalcShadowTP$,RecalcRegTPPct,RecalcRegTP$,RecalcFull$,RecalcInv$,\n";
 
             for(let i=0; i<8; i++) {
                 const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
@@ -553,9 +555,64 @@
                         regInv$ = (bodyBase * contractMultiplier * (flatPrice - baseE)) + (runnerBase * contractMultiplier * (tpTargetBase - baseE));
                     }
                 }
-                const regStdPct = (regStd$ / b) * 100;
-                const regFullPct = (regFull$ / b) * 100;
-                const regInvPct = (regInv$ / b) * 100;
+                const regStdPct = (b > 0) ? (regStd$ / b) * 100 : 0;
+                const regFullPct = (b > 0) ? (regFull$ / b) * 100 : 0;
+                const regInvPct = (b > 0) ? (regInv$ / b) * 100 : 0;
+
+                let customEntryVal = "";
+                let customTPVal = "";
+                let unadjS_pct = 0, unadjS_$ = 0, unadjR_pct = 0, unadjR_$ = 0, unadjFull_$ = 0, unadjInv_$ = 0;
+                let recalcS_pct = 0, recalcS_$ = 0, recalcR_pct = 0, recalcR_$ = 0, recalcFull_$ = 0, recalcInv_$ = 0;
+
+                if (!isNaN(offsetInput) && document.getElementById(`off-${i}`).value !== "") {
+                    const distanceToSL = baseE - sl;
+                    const rawActiveE = baseE - (distanceToSL * (offsetInput / 100));
+                    const activeE = (brokerage === "ETRADE") ? parseFloat(rawActiveE.toFixed(2)) : Math.round(rawActiveE);
+                    customEntryVal = (brokerage === "ETRADE") ? activeE.toFixed(2) : activeE;
+
+                    let shadowTpTarget = baseE + stopDistBase;
+                    if (!isNaN(tpOffsetInput) && document.getElementById(`tp-off-${i}`).value !== "") {
+                        const rawShadowTp = baseE + (distanceToSL * (1 - (tpOffsetInput / 100)));
+                        shadowTpTarget = (brokerage === "ETRADE") ? parseFloat(rawShadowTp.toFixed(2)) : Math.round(rawShadowTp);
+                    }
+                    customTPVal = (brokerage === "ETRADE") ? shadowTpTarget.toFixed(2) : shadowTpTarget;
+
+                    const customStopDist = activeE - sl;
+                    if (customStopDist > 0) {
+                        const effectiveCustomStopDist = customStopDist * contractMultiplier;
+                        const adjTotal = (brokerage === "ETRADE") ? Math.floor(maxAllowedRiskDollars / effectiveCustomStopDist) : parseFloat((maxAllowedRiskDollars / effectiveCustomStopDist).toFixed(2));
+                        const adjBody = (brokerage === "ETRADE") ? Math.floor(adjTotal / 3) : parseFloat((adjTotal / 3).toFixed(2));
+                        const adjRunner = (brokerage === "ETRADE") ? (adjTotal - adjBody) : parseFloat((adjTotal - adjBody).toFixed(2));
+
+                        if (entryCond !== "Entry price not hit" && entryCond !== "Only regular entry price is hit" && exitCond !== "No trade") {
+                            const pClose = exitCond === "TP hit, stopped out" ? activeE : flatPrice;
+
+                            if (exitCond === "Stopped out" || exitCond === "TP not hit, flattened") {
+                                const flatOrStopVal = exitCond === "Stopped out" ? sl : flatPrice;
+                                unadjS_$ = totalBase * contractMultiplier * (flatOrStopVal - activeE);
+                                unadjR_$ = unadjS_$; unadjFull_$ = unadjS_$; unadjInv_$ = unadjS_$;
+                                recalcS_$ = adjTotal * contractMultiplier * (flatOrStopVal - activeE);
+                                recalcR_$ = recalcS_$; recalcFull_$ = recalcS_$; recalcInv_$ = recalcS_$;
+                            } else {
+                                unadjS_$ = (bodyBase * contractMultiplier * (shadowTpTarget - activeE)) + (runnerBase * contractMultiplier * (pClose - activeE));
+                                unadjFull_$ = totalBase * contractMultiplier * (shadowTpTarget - activeE);
+                                unadjInv_$ = (bodyBase * contractMultiplier * (pClose - activeE)) + (runnerBase * contractMultiplier * (shadowTpTarget - activeE));
+
+                                unadjR_$ = (bodyBase * contractMultiplier * (tpTargetBase - activeE)) + (runnerBase * contractMultiplier * (pClose - activeE));
+                                
+                                recalcS_$ = (adjBody * contractMultiplier * (shadowTpTarget - activeE)) + (adjRunner * contractMultiplier * (pClose - activeE));
+                                recalcFull_$ = adjTotal * contractMultiplier * (shadowTpTarget - activeE);
+                                recalcInv_$ = (adjBody * contractMultiplier * (pClose - activeE)) + (adjRunner * contractMultiplier * (shadowTpTarget - activeE));
+
+                                recalcR_$ = (adjBody * contractMultiplier * (tpTargetBase - activeE)) + (adjRunner * contractMultiplier * (pClose - activeE));
+                            }
+                        }
+                        unadjS_pct = (b > 0) ? (unadjS_$ / b) * 100 : 0;
+                        unadjR_pct = (b > 0) ? (unadjR_$ / b) * 100 : 0;
+                        recalcS_pct = (b > 0) ? (recalcS_$ / b) * 100 : 0;
+                        recalcR_pct = (b > 0) ? (recalcR_$ / b) * 100 : 0;
+                    }
+                }
 
                 const csvE = (brokerage === "ETRADE") ? baseE.toFixed(2) : baseE;
                 const csvSL = (brokerage === "ETRADE") ? sl.toFixed(2) : sl;
@@ -566,7 +623,10 @@
                        `${entryPriceHit},"${entryTime}",${shadowPriceHit},"${shadowTime}",` +
                        `${ih},"${ihTime}",${il},"${ilTime}",` +
                        `${ith},"${ithTime}",${itl},"${itlTime}",${flatPrice},${offsetInput},${tpOffsetInput},` +
-                       `${regStdPct.toFixed(3)}%,${regStd$.toFixed(2)},${regFullPct.toFixed(3)}%,${regFull$.toFixed(2)},${regInvPct.toFixed(3)}%,${regInv$.toFixed(2)}\n`;
+                       `${customEntryVal},${customTPVal},` +
+                       `${regStdPct.toFixed(3)}%,${regStd$.toFixed(2)},${regFullPct.toFixed(3)}%,${regFull$.toFixed(2)},${regInvPct.toFixed(3)}%,${regInv$.toFixed(2)},` +
+                       `${unadjS_pct.toFixed(3)}%,${unadjS_$.toFixed(2)},${unadjR_pct.toFixed(3)}%,${unadjR_$.toFixed(2)},${unadjFull_$.toFixed(2)},${unadjInv_$.toFixed(2)},` +
+                       `${recalcS_pct.toFixed(3)}%,${recalcS_$.toFixed(2)},${recalcR_pct.toFixed(3)}%,${recalcR_$.toFixed(2)},${recalcFull_$.toFixed(2)},${recalcInv_$.toFixed(2)}\n`;
             }
 
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
