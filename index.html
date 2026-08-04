@@ -2,120 +2,769 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Engine 61</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gridlocked: Core Tactical Simulation</title>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #6366f1; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
-        .dashboard { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--accent); margin-bottom: 20px; display: flex; gap: 15px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; }
-        .card { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid #334155; }
-        .output { font-family: monospace; font-size: 0.9em; margin: 10px 0; background: #020617; padding: 12px; border-left: 4px solid var(--accent); color: #e2e8f0; }
-        .approved { color: #22c55e; font-weight: bold; }
-        .disqualified { color: #ef4444; font-weight: bold; }
-        .seq-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; margin: 10px 0; }
-        input, select, textarea { width: 100%; padding: 6px; margin: 2px 0; background: #334155; color: #fff; border: 1px solid #475569; }
-        .export-btn { margin-top: 20px; padding: 15px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+            --accent-yellow: #eab308;
+            --grid-line: #334155;
+            --cell-size: 36px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        header h1 {
+            font-size: 1.75rem;
+            letter-spacing: 0.05em;
+            color: var(--text-main);
+            margin-bottom: 0.25rem;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 1.5rem;
+            max-width: 1400px;
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .game-board-wrapper {
+            background: var(--panel-bg);
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(16, var(--cell-size));
+            grid-template-rows: repeat(16, var(--cell-size));
+            gap: 1px;
+            background-color: var(--grid-line);
+            border: 2px solid var(--grid-line);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background-color: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+            transition: background-color 0.15s ease;
+        }
+
+        .cell:hover {
+            background-color: #334155;
+        }
+
+        .cell.highlight {
+            background-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .cell.attack-highlight {
+            background-color: rgba(239, 68, 68, 0.3);
+        }
+
+        /* Hazard & Feature Styling on Grid */
+        .cell.wall {
+            background-color: #64748b;
+            color: #fff;
+            border: 2px solid #475569;
+        }
+
+        .cell.grass {
+            background-color: #14532d;
+        }
+
+        .cell.sinkhole {
+            background-color: #450a0a;
+        }
+
+        .cell.vent {
+            background-color: #581c87;
+        }
+
+        .cell.radar {
+            background-color: #713f12;
+        }
+
+        .cell.coil {
+            background-color: #164e63;
+        }
+
+        /* Unit Tokens */
+        .unit-token {
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            color: white;
+            font-weight: 800;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            z-index: 2;
+        }
+
+        .unit-p1 {
+            border: 2px solid #93c5fd;
+        }
+
+        .unit-p2 {
+            border: 2px solid #fca5a5;
+        }
+
+        .unit-token.selected {
+            box-shadow: 0 0 0 3px #fff, 0 0 10px var(--accent-blue);
+            transform: scale(1.1);
+        }
+
+        /* Side Controls & Dashboard */
+        .dashboard {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            width: 380px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel h2 {
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid var(--grid-line);
+            padding-bottom: 0.35rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .status-item {
+            background: #0f172a;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+        }
+
+        .status-item span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .action-budget {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .budget-badge {
+            flex: 1;
+            text-align: center;
+            background: #0f172a;
+            padding: 0.35rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            border: 1px solid var(--grid-line);
+        }
+
+        .budget-badge.active {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .btn-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        button {
+            background-color: #334155;
+            color: white;
+            border: none;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.15s, transform 0.1s;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #475569;
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background-color: var(--accent-blue);
+        }
+
+        button.primary:hover:not(:disabled) {
+            background-color: #2563eb;
+        }
+
+        button.danger {
+            background-color: var(--accent-red);
+        }
+
+        button.full-width {
+            grid-column: span 2;
+        }
+
+        .log-box {
+            background: #0f172a;
+            border: 1px solid var(--grid-line);
+            border-radius: 0.375rem;
+            height: 140px;
+            overflow-y: auto;
+            padding: 0.5rem;
+            font-size: 0.75rem;
+            font-family: monospace;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .log-entry {
+            color: var(--text-muted);
+        }
+
+        .log-entry.p1 { color: #93c5fd; }
+        .log-entry.p2 { color: #fca5a5; }
+        .log-entry.system { color: var(--accent-yellow); }
+
+        .unit-info-card {
+            font-size: 0.875rem;
+            background: #0f172a;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Modal / Setup Overlays */
+        .setup-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .setup-screen h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--text-main);
+        }
+
+        .setup-screen p {
+            color: var(--text-muted);
+            max-width: 600px;
+            margin-bottom: 2rem;
+        }
+
+        .roster-picker {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 800px;
+            max-height: 40vh;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .roster-card {
+            background: var(--panel-bg);
+            border: 2px solid var(--grid-line);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            width: 140px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .roster-card:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .roster-card.selected {
+            border-color: var(--accent-green);
+            background: rgba(34, 197, 94, 0.1);
+        }
     </style>
 </head>
 <body>
-    <h2>Engine 61</h2>
-    <div class="dashboard">
-        Risk%: <input type="number" id="gRisk" value="0.75" step="0.05" style="width:60px">
-        Min Sat: <input type="number" id="gMin" value="32.5" style="width:60px">
-        Max Sat: <input type="number" id="gMax" value="52.5" style="width:60px">
+
+    <header>
+        <h1>GRIDLOCKED</h1>
+        <p>Tactical 16x16 Grid Simulation Core Engine</p>
+    </header>
+
+    <div class="main-container">
+        <!-- Game Board Matrix -->
+        <div class="game-board-wrapper">
+            <div id="gridMatrix" class="grid"></div>
+        </div>
+
+        <!-- Dashboard Panel -->
+        <div class="dashboard">
+            <!-- Turn & Phase Status -->
+            <div class="panel">
+                <h2>
+                    <span>Match Status</span>
+                    <span id="roundIndicator" style="font-size: 0.8rem; color: var(--accent-yellow);">Round 1</span>
+                </h2>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span>Current Turn</span>
+                        <strong id="currentTurnTeam" style="color: var(--accent-blue);">Player 1</strong>
+                    </div>
+                    <div class="status-item">
+                        <span>Selected Unit</span>
+                        <strong id="selectedUnitName">None</strong>
+                    </div>
+                </div>
+                <div class="action-budget">
+                    <div id="budgetMove" class="budget-badge">Move: 1/1</div>
+                    <div id="budgetAttack" class="budget-badge">Attack: 1/1</div>
+                    <div id="budgetSpecial" class="budget-badge">Special: 1/1</div>
+                </div>
+                <div class="btn-container">
+                    <button id="btnMoveMode" onclick="setActionMode('move')">Move Mode</button>
+                    <button id="btnAttackMode" onclick="setActionMode('attack')">Attack Mode</button>
+                    <button id="btnSpecialMode" onclick="setActionMode('special')">Special Action</button>
+                    <button class="primary full-width" onclick="endTeamTurn()">End Team Turn</button>
+                </div>
+            </div>
+
+            <!-- Unit Inspector Card -->
+            <div class="panel">
+                <h2>Unit Details</h2>
+                <div id="unitInfoCard" class="unit-info-card">
+                    Click any deployed unit token on the grid matrix to review stats, health points, and execute actions.
+                </div>
+            </div>
+
+            <!-- Combat & Simulation Log -->
+            <div class="panel">
+                <h2>Action Log</h2>
+                <div id="actionLog" class="log-box">
+                    <div class="log-entry system">[SYSTEM] Match matrix initialized successfully. Ready for deployment.</div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div id="grid" class="grid"></div>
-    <button class="export-btn" onclick="exportCSV()">Export 29-Column Forensic CSV</button>
+
+    <!-- Pre-Match Setup Modal -->
+    <div id="setupModal" class="setup-screen">
+        <h2>Select Squads (3 Units Each)</h2>
+        <p>Pick your champions from the Master Roster. Player 1 chooses first, followed by Player 2.</p>
+        <div id="rosterPickerContainer" class="roster-picker"></div>
+        <button class="primary" id="btnConfirmDraft" onclick="confirmDraft()" disabled>Confirm Squad Selection</button>
+    </div>
 
     <script>
-        function init() {
-            const grid = document.getElementById('grid');
-            for(let i=0; i<8; i++) {
-                grid.innerHTML += `
-                    <div class="card">
-                        <input type="text" placeholder="Ticker" id="t-${i}">
-                        <select id="m-${i}" onchange="calc(${i})"><option value="MT5">MT5</option><option value="ETRADE">E*TRADE</option></select>
-                        <div style="display:flex; gap:5px;"><input type="number" placeholder="Bal" id="b-${i}" oninput="calc(${i})"><input type="number" placeholder="ATR" id="a-${i}" oninput="calc(${i})"></div>
-                        <div style="display:flex; gap:5px;"><input type="number" placeholder="15m High" id="h-${i}" oninput="calc(${i})"><input type="number" placeholder="15m Low" id="l-${i}" oninput="calc(${i})"></div>
-                        <div class="output" id="res-${i}">Calculations...</div>
-                        <div class="seq-row">
-                            <input placeholder="E" id="s-e-${i}"><input placeholder="T1" id="s-t1-${i}"><input placeholder="T2" id="s-t2-${i}"><input placeholder="T3" id="s-t3-${i}"><input placeholder="S" id="s-s-${i}"><input placeholder="F" id="s-f-${i}">
-                        </div>
-                        <div style="display:flex; gap:5px;"><input type="number" placeholder="IntraHigh" id="ih-${i}"><input type="number" placeholder="IntraLow" id="il-${i}"><input type="number" placeholder="Flatten" id="ex-${i}"></div>
-                        <div style="display:flex; gap:5px;"><input type="number" placeholder="Actual P/L" id="pl-${i}"><input type="number" placeholder="Max Price" id="mp-${i}"></div>
-                        <select id="exit-type-${i}"><option value="Normal">Normal</option><option value="BE">BE</option><option value="Stopped">Stopped</option></select>
-                        <textarea placeholder="Trade Notes" id="n1-${i}"></textarea>
-                    </div>
-                `;
+        // --- GAME CONFIG & STATE ---
+        const BOARD_SIZE = 16;
+        let gameState = {
+            round: 1,
+            activeTeam: 1, // 1 for Player 1, 2 for Player 2
+            actionsRemaining: { move: 1, attack: 1, special: 1 },
+            units: [],
+            hazards: [], // {x, y, type} -> wall, grass, sinkhole, vent, radar, coil
+            selectedUnitId: null,
+            actionMode: null, // 'move', 'attack', 'special'
+            draftingPlayer: 1,
+            p1Draft: [],
+            p2Draft: [],
+        };
+
+        // Master Roster Subset available for drafting in this digital engine build
+        const MASTER_ROSTER = [
+            { id: 1, name: "Vanguard", hp: 7, maxHp: 7, move: 3, range: 1, dmg: 3, color: "#ef4444", desc: "Solid frontline infantry." },
+            { id: 2, name: "Deadeye", hp: 7, maxHp: 7, move: 2, range: 5, dmg: 1, color: "#3b82f6", desc: "Long-range precision shooter." },
+            { id: 3, name: "Guardian", hp: 7, maxHp: 7, move: 2, range: 2, dmg: 2, color: "#eab308", desc: "Shield-bearing protector." },
+            { id: 4, name: "Storm-Blader", hp: 5, maxHp: 5, move: 5, range: 1, dmg: 1, color: "#22c55e", desc: "High mobility melee striker." },
+            { id: 5, name: "Frost-Warden", hp: 5, maxHp: 5, move: 2, range: 2, dmg: 1, color: "#a855f7", desc: "Slows adjacent enemy movement." },
+            { id: 6, name: "The Viper", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 0, color: "#10b981", desc: "Inflicts persistent poison tokens." }
+        ];
+
+        let selectedDraftPicks = [];
+
+        // --- INITIALIZATION & SETUP ---
+        function initDraft() {
+            const container = document.getElementById('rosterPickerContainer');
+            container.innerHTML = '';
+            MASTER_ROSTER.forEach(unit => {
+                const card = document.createElement('div');
+                card.className = 'roster-card';
+                card.innerHTML = `<strong>${unit.name}</strong><br><small>HP: ${unit.hp} | Mov: ${unit.move}</small><br><span style="font-size:0.7rem; color:#94a3b8">${unit.desc}</span>`;
+                card.onclick = () => toggleDraftPick(unit.id, card);
+                container.appendChild(card);
+            });
+        }
+
+        function toggleDraftPick(id, element) {
+            if (selectedDraftPicks.includes(id)) {
+                selectedDraftPicks = selectedDraftPicks.filter(item => item !== id);
+                element.classList.remove('selected');
+            } else {
+                if (selectedDraftPicks.length < 3) {
+                    selectedDraftPicks.push(id);
+                    element.classList.add('selected');
+                }
+            }
+            document.getElementById('btnConfirmDraft').disabled = selectedDraftPicks.length !== 3;
+        }
+
+        function confirmDraft() {
+            if (gameState.draftingPlayer === 1) {
+                gameState.p1Draft = [...selectedDraftPicks];
+                selectedDraftPicks = [];
+                gameState.draftingPlayer = 2;
+                document.querySelector('#setupModal h2').innerText = "Player 2: Select Your Squad (3 Units)";
+                initDraft();
+            } else {
+                gameState.p2Draft = [...selectedDraftPicks];
+                document.getElementById('setupModal').style.display = 'none';
+                startGame();
             }
         }
 
-        function calc(i) {
-            const b = parseFloat(document.getElementById(`b-${i}`).value);
-            const a = parseFloat(document.getElementById(`a-${i}`).value);
-            const h = parseFloat(document.getElementById(`h-${i}`).value);
-            const l = parseFloat(document.getElementById(`l-${i}`).value);
-            const brokerage = document.getElementById(`m-${i}`).value;
-            const r = parseFloat(document.getElementById('gRisk').value)/100;
-            
-            if(!b || !a || !h || !l) return;
-            
-            const e = h + (h * 0.001) + (a * 0.05);
-            const sl = l - (a * 0.1);
-            const stopDist = e - sl;
-            
-            const total = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
-            const unitLabel = (brokerage === "MT5") ? "Lots" : "Shares";
-            const body = (brokerage === "ETRADE") ? Math.floor(total / 3) : (total / 3).toFixed(2);
-            const runner = (brokerage === "ETRADE") ? (total - body) : (total - parseFloat(body)).toFixed(2);
-            
-            const sat = ((h - l) / a) * 100;
-            const status = (sat >= parseFloat(document.getElementById('gMin').value) && sat <= parseFloat(document.getElementById('gMax').value)) ? "APPROVED" : "DISQUALIFIED";
-
-            document.getElementById(`res-${i}`).innerHTML = `<b class="${status === 'APPROVED' ? 'approved' : 'disqualified'}">${status} (${sat.toFixed(1)}%)</b><br>
-            Total: ${total} ${unitLabel} | Body: ${body} | Runner: ${runner}<br>
-            E: ${e.toFixed(2)} | SL: ${sl.toFixed(2)}<br>
-            TP1: ${(e+stopDist).toFixed(2)} | TP2: ${(e+stopDist*2).toFixed(2)} | TP3: ${(e+stopDist*3).toFixed(2)}`;
+        function startGame() {
+            spawnUnits();
+            generateEnvironmentHazards();
+            renderGrid();
+            updateDashboard();
+            logMessage("Match started! Player 1 turn.", "system");
         }
 
-        function exportCSV() {
-            let csv = "Date,Status,Brokerage,Ticker,Balance,Risk%,ATR,15mHigh,15mLow,VolRatio%,Entry,SL,TP1,TP2,TP3,SeqE,SeqT1,SeqT2,SeqT3,SeqS,SeqF,IntraHigh,IntraLow,Flatten,MaxPrice,ActualPL,Efficiency%,GainLoss%,TradeNotes\n";
-            for(let i=0; i<8; i++) {
-                const b = parseFloat(document.getElementById(`b-${i}`).value) || 0;
-                const a = parseFloat(document.getElementById(`a-${i}`).value) || 0;
-                const h = parseFloat(document.getElementById(`h-${i}`).value) || 0;
-                const l = parseFloat(document.getElementById(`l-${i}`).value) || 0;
-                const r = parseFloat(document.getElementById('gRisk').value)/100;
-                const brokerage = document.getElementById(`m-${i}`).value;
-                const e = h + (h * 0.001) + (a * 0.05);
-                const sl = l - (a * 0.1);
-                const stopDist = e - sl;
-                const totalUnits = (brokerage === "ETRADE") ? Math.floor((b * r) / stopDist) : parseFloat(((b * r) / stopDist).toFixed(2));
-                
-                const sE = document.getElementById(`s-e-${i}`).value;
-                const sT1 = document.getElementById(`s-t1-${i}`).value;
-                const sT2 = document.getElementById(`s-t2-${i}`).value;
-                const sT3 = document.getElementById(`s-t3-${i}`).value;
-                const sS = document.getElementById(`s-s-${i}`).value;
-                const sF = document.getElementById(`s-f-${i}`).value;
-                const isBlank = (!sE && !sT1 && !sT2 && !sT3 && !sS && !sF);
-                
-                const ih = document.getElementById(`ih-${i}`).value || 0;
-                const il = document.getElementById(`il-${i}`).value || 0;
-                const pl = document.getElementById(`pl-${i}`).value || 0;
-                const flatP = parseFloat(document.getElementById(`ex-${i}`).value) || 0;
-                const maxP = parseFloat(document.getElementById(`mp-${i}`).value) || 0;
-                const status = ( ((h-l)/a)*100 >= parseFloat(document.getElementById('gMin').value) && ((h-l)/a)*100 <= parseFloat(document.getElementById('gMax').value) ) ? "APPROVED" : "DISQUALIFIED";
-                
-                const eff = (maxP > e && flatP > e) ? (((flatP - e) / (maxP - e)) * 100).toFixed(2) : "N/A";
-                const gl = isBlank ? "0%" : (((flatP - e) * totalUnits) / b * 100).toFixed(2) + "%";
+        // --- UNIT & HAZARD SPAWNING ---
+        function spawnUnits() {
+            // Spawn P1 along Row 1 (y = 0), spacing them out
+            gameState.p1Draft.forEach((unitId, index) => {
+                const template = MASTER_ROSTER.find(u => u.id === unitId);
+                gameState.units.push({
+                    instanceId: `p1_${index}`,
+                    team: 1,
+                    x: 3 + (index * 4),
+                    y: 0,
+                    ...template,
+                    poisonTokens: 0,
+                    stunned: false
+                });
+            });
 
-                csv += `${new Date().toLocaleDateString()},${status},${brokerage},${document.getElementById(`t-${i}`).value},${b},${(r*100).toFixed(2)}%,${a},${h},${l},${(((h-l)/a)*100).toFixed(2)}%,${e.toFixed(2)},${sl.toFixed(2)},${(e+stopDist).toFixed(2)},${(e+stopDist*2).toFixed(2)},${(e+stopDist*3).toFixed(2)},${sE},${sT1},${sT2},${sT3},${sS},${sF},${ih},${il},${flatP},${maxP},${pl},${eff}%,${gl},"${document.getElementById(`n1-${i}`).value}"\n`;
+            // Spawn P2 along Row 16 (y = 15), spacing them out
+            gameState.p2Draft.forEach((unitId, index) => {
+                const template = MASTER_ROSTER.find(u => u.id === unitId);
+                gameState.units.push({
+                    instanceId: `p2_${index}`,
+                    team: 2,
+                    x: 3 + (index * 4),
+                    y: 15,
+                    ...template,
+                    poisonTokens: 0,
+                    stunned: false
+                });
+            });
+        }
+
+        function generateEnvironmentHazards() {
+            // Drop some architectural walls, tall grass, and powerups avoiding rows 0 and 15
+            const hazardsList = [
+                { type: 'wall', x: 5, y: 5 }, { type: 'wall', x: 6, y: 5 }, { type: 'wall', x: 10, y: 10 },
+                { type: 'grass', x: 7, y: 7 }, { type: 'grass', x: 8, y: 7 },
+                { type: 'sinkhole', x: 3, y: 8 }, { type: 'radar', x: 7, y: 3 }, { type: 'coil', x: 8, y: 12 }
+            ];
+            gameState.hazards = hazardsList;
+        }
+
+        // --- GRID RENDERING ---
+        function renderGrid() {
+            const gridEl = document.getElementById('gridMatrix');
+            gridEl.innerHTML = '';
+
+            for (let y = 0; y < BOARD_SIZE; y++) {
+                for (let x = 0; x < BOARD_SIZE; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+
+                    // Check hazards
+                    const hazard = gameState.hazards.find(h => h.x === x && h.y === y);
+                    if (hazard) {
+                        cell.classList.add(hazard.type);
+                        if (hazard.type === 'wall') cell.innerText = 'W';
+                        if (hazard.type === 'grass') cell.innerText = 'GR';
+                        if (hazard.type === 'sinkhole') cell.innerText = 'SK';
+                        if (hazard.type === 'radar') cell.innerText = 'RD';
+                        if (hazard.type === 'coil') cell.innerText = 'EC';
+                    }
+
+                    // Check units
+                    const unit = gameState.units.find(u => u.x === x && u.y === y);
+                    if (unit) {
+                        const token = document.createElement('div');
+                        token.className = `unit-token ${unit.team === 1 ? 'unit-p1' : 'unit-p2'}`;
+                        if (gameState.selectedUnitId === unit.instanceId) {
+                            token.classList.add('selected');
+                        }
+                        token.style.backgroundColor = unit.color;
+                        token.innerText = unit.name[0] + unit.hp;
+                        cell.appendChild(token);
+                    }
+
+                    cell.onclick = () => handleCellClick(x, y);
+                    gridEl.appendChild(cell);
+                }
             }
-            const a = document.createElement('a');
-            a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); a.download = 'Forensic_Log.csv'; a.click();
         }
-        window.onload = init;
+
+        // --- INTERACTION & TURN LOGIC ---
+        function handleCellClick(x, y) {
+            const unitAtCoord = gameState.units.find(u => u.x === x && u.y === y);
+
+            if (gameState.actionMode === 'move' && gameState.selectedUnitId) {
+                executeMove(x, y);
+                return;
+            }
+
+            if (gameState.actionMode === 'attack' && gameState.selectedUnitId) {
+                executeAttack(x, y);
+                return;
+            }
+
+            if (unitAtCoord) {
+                if (unitAtCoord.team === gameState.activeTeam) {
+                    gameState.selectedUnitId = unitAtCoord.instanceId;
+                    logMessage(`Selected unit: ${unitAtCoord.name} (Team ${unit.team})`, unitAtCoord.team === 1 ? 'p1' : 'p2');
+                    updateUnitInfoCard(unitAtCoord);
+                    renderGrid();
+                } else {
+                    if (gameState.selectedUnitId && gameState.actionMode === 'attack') {
+                        executeAttack(x, y);
+                    } else {
+                        updateUnitInfoCard(unitAtCoord);
+                    }
+                }
+            }
+        }
+
+        function setActionMode(mode) {
+            if (!gameState.selectedUnitId) {
+                logMessage("Select an active squad unit first.", "system");
+                return;
+            }
+            gameState.actionMode = mode;
+            logMessage(`Action mode set to: ${mode.toUpperCase()}`, "system");
+        }
+
+        function executeMove(targetX, targetY) {
+            const unit = gameState.units.find(u => u.instanceId === gameState.selectedUnitId);
+            if (!unit) return;
+
+            const dist = Math.abs(unit.x - targetX) + Math.abs(unit.y - targetY);
+            if (dist <= unit.move && gameState.actionsRemaining.move > 0) {
+                unit.x = targetX;
+                unit.y = targetY;
+                gameState.actionsRemaining.move--;
+                logMessage(`${unit.name} moved to coordinates (${targetX}, ${targetY}).`, unit.team === 1 ? 'p1' : 'p2');
+                gameState.actionMode = null;
+                renderGrid();
+                updateDashboard();
+            } else {
+                logMessage("Invalid movement: Distance exceeds movement capacity or move action spent.", "system");
+            }
+        }
+
+        function executeAttack(targetX, targetY) {
+            const attacker = gameState.units.find(u => u.instanceId === gameState.selectedUnitId);
+            const target = gameState.units.find(u => u.x === targetX && u.y === targetY);
+
+            if (!attacker || gameState.actionsRemaining.attack <= 0) {
+                logMessage("No attack actions remaining or unit not selected.", "system");
+                return;
+            }
+
+            const dist = Math.abs(attacker.x - targetX) + Math.abs(attacker.y - targetY);
+            if (target && dist <= attacker.range) {
+                target.hp -= attacker.dmg;
+                gameState.actionsRemaining.attack--;
+                logMessage(`${attacker.name} attacked ${target.name} for ${attacker.dmg} damage!`, attacker.team === 1 ? 'p1' : 'p2');
+
+                // Check elimination
+                if (target.hp <= 0) {
+                    logMessage(`${target.name} was eliminated from the match matrix!`, "system");
+                    gameState.units = gameState.units.filter(u => u.instanceId !== target.instanceId);
+                    checkVictoryConditions();
+                }
+
+                gameState.actionMode = null;
+                renderGrid();
+                updateDashboard();
+            } else {
+                logMessage("Target out of range or invalid target selection.", "system");
+            }
+        }
+
+        function endTeamTurn() {
+            // Process status ticks (Poison math)
+            gameState.units.forEach(u => {
+                if (u.team === gameState.activeTeam && u.poisonTokens > 0) {
+                    u.hp -= 1; // Simplified flat poison tick for core engine loop
+                    logMessage(`${u.name} took 1 poison damage.`, "system");
+                }
+            });
+
+            // Clean up defeated units from poison
+            gameState.units = gameState.units.filter(u => u.hp > 0);
+
+            // Switch team turn
+            gameState.activeTeam = gameState.activeTeam === 1 ? 2 : 1;
+            if (gameState.activeTeam === 1) {
+                gameState.round++;
+            }
+
+            // Reset action budget
+            gameState.actionsRemaining = { move: 1, attack: 1, special: 1 };
+            gameState.selectedUnitId = null;
+            gameState.actionMode = null;
+
+            renderGrid();
+            updateDashboard();
+            checkVictoryConditions();
+            logMessage(`Round ${gameState.round} - Player ${gameState.activeTeam}'s Turn Started.`, "system");
+        }
+
+        function checkVictoryConditions() {
+            const p1Units = gameState.units.filter(u => u.team === 1);
+            const p2Units = gameState.units.filter(u => u.team === 2);
+
+            if (p1Units.length === 0) {
+                alert("Player 2 Wins by Standard Elimination!");
+                location.reload();
+            } else if (p2Units.length === 0) {
+                alert("Player 1 Wins by Standard Elimination!");
+                location.reload();
+            }
+        }
+
+        // --- DASHBOARD UPDATES ---
+        function updateDashboard() {
+            document.getElementById('roundIndicator').innerText = `Round ${gameState.round}`;
+            const teamEl = document.getElementById('currentTurnTeam');
+            teamEl.innerText = `Player ${gameState.activeTeam}`;
+            teamEl.style.color = gameState.activeTeam === 1 ? '#93c5fd' : '#fca5a5';
+
+            document.getElementById('budgetMove').innerText = `Move: ${gameState.actionsRemaining.move}/1`;
+            document.getElementById('budgetAttack').innerText = `Attack: ${gameState.actionsRemaining.attack}/1`;
+            document.getElementById('budgetSpecial').innerText = `Special: ${gameState.actionsRemaining.special}/1`;
+
+            if (gameState.selectedUnitId) {
+                const unit = gameState.units.find(u => u.instanceId === gameState.selectedUnitId);
+                if (unit) document.getElementById('selectedUnitName').innerText = unit.name;
+            } else {
+                document.getElementById('selectedUnitName').innerText = "None";
+            }
+        }
+
+        function updateUnitInfoCard(unit) {
+            const card = document.getElementById('unitInfoCard');
+            card.innerHTML = `
+                <strong>${unit.name} (Team ${unit.team})</strong><br>
+                HP: ${unit.hp} / ${unit.maxHp} | Move: ${unit.move}<br>
+                Range: ${unit.range} | Damage: ${unit.dmg}<br>
+                <em>${unit.desc}</em>
+            `;
+        }
+
+        function logMessage(text, type = 'system') {
+            const logBox = document.getElementById('actionLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerText = `> ${text}`;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // Initialize Draft Window on Load
+        window.onload = () => {
+            initDraft();
+        };
     </script>
 </body>
 </html>
