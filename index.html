@@ -144,7 +144,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             color: white;
             font-weight: 800;
             box-shadow: 0 2px 4px rgba(0,0,0,0.4);
@@ -273,6 +273,10 @@
             background-color: var(--accent-red);
         }
 
+        button.danger:hover:not(:disabled) {
+            background-color: #dc2626;
+        }
+
         button.full-width {
             grid-column: span 2;
         }
@@ -334,13 +338,13 @@
         }
 
         .roster-picker {
-            display: flex;
-            gap: 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 0.75rem;
             margin-bottom: 2rem;
-            flex-wrap: wrap;
-            justify-content: center;
-            max-width: 800px;
-            max-height: 40vh;
+            width: 100%;
+            max-width: 900px;
+            max-height: 55vh;
             overflow-y: auto;
             padding: 0.5rem;
         }
@@ -350,9 +354,9 @@
             border: 2px solid var(--grid-line);
             padding: 0.75rem;
             border-radius: 0.5rem;
-            width: 140px;
             cursor: pointer;
             transition: all 0.2s;
+            text-align: left;
         }
 
         .roster-card:hover {
@@ -361,7 +365,7 @@
 
         .roster-card.selected {
             border-color: var(--accent-green);
-            background: rgba(34, 197, 94, 0.1);
+            background: rgba(34, 197, 94, 0.15);
         }
     </style>
 </head>
@@ -406,6 +410,7 @@
                     <button id="btnAttackMode" onclick="setActionMode('attack')">Attack Mode</button>
                     <button id="btnSpecialMode" onclick="setActionMode('special')">Special Action</button>
                     <button class="primary full-width" onclick="endTeamTurn()">End Team Turn</button>
+                    <button class="danger full-width" onclick="returnToCharacterSelect()">Back to Character Select</button>
                 </div>
             </div>
 
@@ -429,10 +434,10 @@
 
     <!-- Pre-Match Setup Modal -->
     <div id="setupModal" class="setup-screen">
-        <h2>Select Squads (3 Units Each)</h2>
-        <p>Pick your champions from the Master Roster. Player 1 chooses first, followed by Player 2.</p>
+        <h2 id="setupTitle">Player 1: Select Your Squad (3 Units)</h2>
+        <p id="setupSubtitle">Pick your 3 champions from the complete Master Roster.</p>
         <div id="rosterPickerContainer" class="roster-picker"></div>
-        <button class="primary" id="btnConfirmDraft" onclick="confirmDraft()" disabled>Confirm Squad Selection</button>
+        <button class="primary" id="btnConfirmDraft" onclick="confirmDraft()" disabled>Confirm Player 1 Squad</button>
     </div>
 
     <script>
@@ -440,31 +445,66 @@
         const BOARD_SIZE = 16;
         let gameState = {
             round: 1,
-            activeTeam: 1, // 1 for Player 1, 2 for Player 2
+            activeTeam: 1,
             actionsRemaining: { move: 1, attack: 1, special: 1 },
             units: [],
-            hazards: [], // {x, y, type} -> wall, grass, sinkhole, vent, radar, coil
+            hazards: [],
             selectedUnitId: null,
-            actionMode: null, // 'move', 'attack', 'special'
+            actionMode: null,
             draftingPlayer: 1,
             p1Draft: [],
             p2Draft: [],
         };
 
-        // Master Roster Subset available for drafting in this digital engine build
+        // Complete Master Roster of all 40 characters from your son's ruleset
         const MASTER_ROSTER = [
             { id: 1, name: "Vanguard", hp: 7, maxHp: 7, move: 3, range: 1, dmg: 3, color: "#ef4444", desc: "Solid frontline infantry." },
             { id: 2, name: "Deadeye", hp: 7, maxHp: 7, move: 2, range: 5, dmg: 1, color: "#3b82f6", desc: "Long-range precision shooter." },
             { id: 3, name: "Guardian", hp: 7, maxHp: 7, move: 2, range: 2, dmg: 2, color: "#eab308", desc: "Shield-bearing protector." },
             { id: 4, name: "Storm-Blader", hp: 5, maxHp: 5, move: 5, range: 1, dmg: 1, color: "#22c55e", desc: "High mobility melee striker." },
             { id: 5, name: "Frost-Warden", hp: 5, maxHp: 5, move: 2, range: 2, dmg: 1, color: "#a855f7", desc: "Slows adjacent enemy movement." },
-            { id: 6, name: "The Viper", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 0, color: "#10b981", desc: "Inflicts persistent poison tokens." }
+            { id: 6, name: "The Viper", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 0, color: "#10b981", desc: "Inflicts persistent poison tokens." },
+            { id: 7, name: "The Medic", hp: 6, maxHp: 6, move: 2, range: 2, dmg: 0, color: "#ec4899", desc: "Heals allies and clears poison/virus." },
+            { id: 8, name: "Pyromancer", hp: 6, maxHp: 6, move: 2, range: 3, dmg: 1, color: "#f97316", desc: "Area cross-shaped fire blasts." },
+            { id: 9, name: "Barbarian", hp: 7, maxHp: 7, move: 2, range: 1, dmg: 1, color: "#7f1d1d", desc: "Gets stronger as HP drops." },
+            { id: 10, name: "Ironclad", hp: 8, maxHp: 8, move: 1, range: 1, dmg: 5, color: "#94a3b8", desc: "Heavy armored striker." },
+            { id: 11, name: "Zephyr", hp: 5, maxHp: 5, move: 3, range: 3, dmg: 0, color: "#38bdf8", desc: "Doubles ally movement speed." },
+            { id: 12, name: "Boxer", hp: 7, maxHp: 7, move: 3, range: 1, dmg: 2, color: "#991b1b", desc: "Punches enemies back with crash physics." },
+            { id: 13, name: "The Trapper", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 1, color: "#1e40af", desc: "Lays secret damaging spike traps." },
+            { id: 14, name: "The Tactician", hp: 6, maxHp: 6, move: 2, range: 3, dmg: 1, color: "#1e3a8a", desc: "Grants hyper bonus actions on next turn." },
+            { id: 15, name: "The Necromancer", hp: 5, maxHp: 5, move: 2, range: 3, dmg: 1, color: "#0f172a", desc: "Spawns skeletons from fallen souls." },
+            { id: 16, name: "The Chrono-Mage", hp: 5, maxHp: 5, move: 2, range: 2, dmg: 1, color: "#06b6d4", desc: "Rewinds time to undo a unit's turn." },
+            { id: 17, name: "The Collector", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 1, color: "#ca8a04", desc: "Gains power from starred map walls." },
+            { id: 18, name: "The Ninja", hp: 5, maxHp: 5, move: 3, range: 3, dmg: 2, color: "#334155", desc: "Vaults over walls and slips into shadows." },
+            { id: 19, name: "The Toxicologist", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 1, color: "#15803d", desc: "Cleanses poison to heal self." },
+            { id: 20, name: "Cactus-Knight", hp: 7, maxHp: 7, move: 2, range: 1, dmg: 2, color: "#16a34a", desc: "Fires needles and deals melee recoil." },
+            { id: 21, name: "The Boomer", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 1, color: "#b91c1c", desc: "Lights a fuse for massive area explosions." },
+            { id: 22, name: "The Archivist", hp: 6, maxHp: 6, move: 2, range: 2, dmg: 1, color: "#fef08a", desc: "Plagiarizes enemy special actions." },
+            { id: 23, name: "The Chameleon", hp: 5, maxHp: 5, move: 3, range: 2, dmg: 1, color: "#14b8a6", desc: "Pulls targets and gains armor near walls." },
+            { id: 24, name: "The Gossamer", hp: 5, maxHp: 5, move: 3, range: 3, dmg: 1, color: "#c084fc", desc: "Strings stun tripwires between walls." },
+            { id: 25, name: "The Overlord", hp: 10, maxHp: 10, move: 1, range: 3, dmg: 1, color: "#4ade80", desc: "Vents poison and locks down enemy specials." },
+            { id: 26, name: "The Shock-Trooper", hp: 5, maxHp: 5, move: 3, range: 2, dmg: 1, color: "#eab308", desc: "Stuns melee attackers and absorbs stuns." },
+            { id: 27, name: "The Gavel-Master", hp: 7, maxHp: 7, move: 2, range: 1, dmg: 2, color: "#78350f", desc: "Slides enemies across the courtroom grid." },
+            { id: 28, name: "The Graviton", hp: 7, maxHp: 7, move: 2, range: 3, dmg: 1, color: "#9f1239", desc: "Creates heavy gravity pulling zones." },
+            { id: 29, name: "The Void-Stalker", hp: 5, maxHp: 5, move: 3, range: 1, dmg: 2, color: "#1e1b4b", desc: "Slips into the ether for surprise ambushes." },
+            { id: 30, name: "The Glass-Cannon", hp: 4, maxHp: 4, move: 2, range: 4, dmg: 4, color: "#f1f5f9", desc: "Devastating beams with heavy recoil." },
+            { id: 31, name: "The Bounty Hunter", hp: 6, maxHp: 6, move: 3, range: 4, dmg: 1, color: "#fca5a5", desc: "Places target bounties for bonus damage." },
+            { id: 32, name: "The Plague-Sower", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 1, color: "#84cc16", desc: "Infects enemies with spreading virus marks." },
+            { id: 33, name: "The Magnetic-Knight", hp: 7, maxHp: 7, move: 2, range: 2, dmg: 1, color: "#cbd5e1", desc: "Pulls targets with magnetic rail impact." },
+            { id: 34, name: "The Phalanx", hp: 8, maxHp: 8, move: 2, range: 2, dmg: 2, color: "#b45309", desc: "Unmovable shield wall protecting allies." },
+            { id: 35, name: "The Infestor", hp: 5, maxHp: 5, move: 3, range: 1, dmg: 1, color: "#f8fafc", desc: "Parasitically rides inside ally or enemy hosts." },
+            { id: 36, name: "The Smog-Shifter", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 1, color: "#475569", desc: "Swaps places with allies and chokes vapor." },
+            { id: 37, name: "The Shuffler", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 2, color: "#059669", desc: "Draws random trick cards to alter battle." },
+            { id: 38, name: "The Shadow-Weaver", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 1, color: "#8b5cf6", desc: "Manifests a floating spectral chilling token." },
+            { id: 39, name: "The Spore-Cultivator", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 1, color: "#f472b6", desc: "Grows cactus bulb companions and thorns." },
+            { id: 40, name: "The Vampire", hp: 8, maxHp: 8, move: 2, range: 1, dmg: 0, color: "#581c87", desc: "Summons bats and drains blood to heal." }
         ];
 
         let selectedDraftPicks = [];
 
         // --- INITIALIZATION & SETUP ---
         function initDraft() {
+            selectedDraftPicks = [];
             const container = document.getElementById('rosterPickerContainer');
             container.innerHTML = '';
             MASTER_ROSTER.forEach(unit => {
@@ -474,6 +514,7 @@
                 card.onclick = () => toggleDraftPick(unit.id, card);
                 container.appendChild(card);
             });
+            document.getElementById('btnConfirmDraft').disabled = true;
         }
 
         function toggleDraftPick(id, element) {
@@ -492,15 +533,28 @@
         function confirmDraft() {
             if (gameState.draftingPlayer === 1) {
                 gameState.p1Draft = [...selectedDraftPicks];
-                selectedDraftPicks = [];
                 gameState.draftingPlayer = 2;
-                document.querySelector('#setupModal h2').innerText = "Player 2: Select Your Squad (3 Units)";
+                document.getElementById('setupTitle').innerText = "Player 2: Select Your Squad (3 Units)";
+                document.getElementById('setupSubtitle').innerText = "Pick your 3 champions from the complete Master Roster.";
+                document.getElementById('btnConfirmDraft').innerText = "Confirm Squad Selection & Start Match";
                 initDraft();
             } else {
                 gameState.p2Draft = [...selectedDraftPicks];
                 document.getElementById('setupModal').style.display = 'none';
                 startGame();
             }
+        }
+
+        function returnToCharacterSelect() {
+            document.getElementById('setupModal').style.display = 'flex';
+            gameState.draftingPlayer = 1;
+            gameState.p1Draft = [];
+            gameState.p2Draft = [];
+            gameState.units = [];
+            document.getElementById('setupTitle').innerText = "Player 1: Select Your Squad (3 Units)";
+            document.getElementById('setupSubtitle').innerText = "Pick your 3 champions from the complete Master Roster.";
+            document.getElementById('btnConfirmDraft').innerText = "Confirm Player 1 Squad";
+            initDraft();
         }
 
         function startGame() {
@@ -513,6 +567,7 @@
 
         // --- UNIT & HAZARD SPAWNING ---
         function spawnUnits() {
+            gameState.units = [];
             // Spawn P1 along Row 1 (y = 0), spacing them out
             gameState.p1Draft.forEach((unitId, index) => {
                 const template = MASTER_ROSTER.find(u => u.id === unitId);
@@ -543,7 +598,6 @@
         }
 
         function generateEnvironmentHazards() {
-            // Drop some architectural walls, tall grass, and powerups avoiding rows 0 and 15
             const hazardsList = [
                 { type: 'wall', x: 5, y: 5 }, { type: 'wall', x: 6, y: 5 }, { type: 'wall', x: 10, y: 10 },
                 { type: 'grass', x: 7, y: 7 }, { type: 'grass', x: 8, y: 7 },
@@ -584,7 +638,7 @@
                             token.classList.add('selected');
                         }
                         token.style.backgroundColor = unit.color;
-                        token.innerText = unit.name[0] + unit.hp;
+                        token.innerText = unit.name.substring(0, 3) + '\n' + unit.hp;
                         cell.appendChild(token);
                     }
 
@@ -611,7 +665,7 @@
             if (unitAtCoord) {
                 if (unitAtCoord.team === gameState.activeTeam) {
                     gameState.selectedUnitId = unitAtCoord.instanceId;
-                    logMessage(`Selected unit: ${unitAtCoord.name} (Team ${unit.team})`, unitAtCoord.team === 1 ? 'p1' : 'p2');
+                    logMessage(`Selected unit: ${unitAtCoord.name} (Team ${unitAtCoord.team})`, unitAtCoord.team === 1 ? 'p1' : 'p2');
                     updateUnitInfoCard(unitAtCoord);
                     renderGrid();
                 } else {
@@ -666,7 +720,6 @@
                 gameState.actionsRemaining.attack--;
                 logMessage(`${attacker.name} attacked ${target.name} for ${attacker.dmg} damage!`, attacker.team === 1 ? 'p1' : 'p2');
 
-                // Check elimination
                 if (target.hp <= 0) {
                     logMessage(`${target.name} was eliminated from the match matrix!`, "system");
                     gameState.units = gameState.units.filter(u => u.instanceId !== target.instanceId);
@@ -682,24 +735,20 @@
         }
 
         function endTeamTurn() {
-            // Process status ticks (Poison math)
             gameState.units.forEach(u => {
                 if (u.team === gameState.activeTeam && u.poisonTokens > 0) {
-                    u.hp -= 1; // Simplified flat poison tick for core engine loop
+                    u.hp -= 1;
                     logMessage(`${u.name} took 1 poison damage.`, "system");
                 }
             });
 
-            // Clean up defeated units from poison
             gameState.units = gameState.units.filter(u => u.hp > 0);
 
-            // Switch team turn
             gameState.activeTeam = gameState.activeTeam === 1 ? 2 : 1;
             if (gameState.activeTeam === 1) {
                 gameState.round++;
             }
 
-            // Reset action budget
             gameState.actionsRemaining = { move: 1, attack: 1, special: 1 };
             gameState.selectedUnitId = null;
             gameState.actionMode = null;
@@ -716,14 +765,13 @@
 
             if (p1Units.length === 0) {
                 alert("Player 2 Wins by Standard Elimination!");
-                location.reload();
+                returnToCharacterSelect();
             } else if (p2Units.length === 0) {
                 alert("Player 1 Wins by Standard Elimination!");
-                location.reload();
+                returnToCharacterSelect();
             }
         }
 
-        // --- DASHBOARD UPDATES ---
         function updateDashboard() {
             document.getElementById('roundIndicator').innerText = `Round ${gameState.round}`;
             const teamEl = document.getElementById('currentTurnTeam');
@@ -761,7 +809,6 @@
             logBox.scrollTop = logBox.scrollHeight;
         }
 
-        // Initialize Draft Window on Load
         window.onload = () => {
             initDraft();
         };
