@@ -15,7 +15,7 @@
             --accent-green: #22c55e;
             --accent-yellow: #eab308;
             --grid-line: #334155;
-            --cell-size: 36px;
+            --cell-size: 34px;
         }
 
         * {
@@ -37,7 +37,7 @@
 
         header {
             text-align: center;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
         }
 
         header h1 {
@@ -75,11 +75,13 @@
             display: grid;
             grid-template-columns: repeat(16, var(--cell-size));
             grid-template-rows: repeat(16, var(--cell-size));
-            gap: 1px;
+            gap: 0px;
             background-color: var(--grid-line);
             border: 2px solid var(--grid-line);
             border-radius: 4px;
             overflow: hidden;
+            width: calc(16 * var(--cell-size) + 2px);
+            height: calc(16 * var(--cell-size) + 2px);
         }
 
         .cell {
@@ -89,11 +91,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: bold;
             cursor: pointer;
             position: relative;
             user-select: none;
+            border-right: 1px solid var(--grid-line);
+            border-bottom: 1px solid var(--grid-line);
             transition: background-color 0.15s ease;
         }
 
@@ -101,19 +105,10 @@
             background-color: #334155;
         }
 
-        .cell.highlight {
-            background-color: rgba(59, 130, 246, 0.3);
-        }
-
-        .cell.attack-highlight {
-            background-color: rgba(239, 68, 68, 0.3);
-        }
-
         /* Hazard & Feature Styling on Grid */
         .cell.wall {
             background-color: #64748b;
             color: #fff;
-            border: 2px solid #475569;
         }
 
         .cell.grass {
@@ -138,17 +133,21 @@
 
         /* Unit Tokens */
         .unit-token {
-            width: 80%;
-            height: 80%;
+            width: 84%;
+            height: 84%;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.6rem;
+            font-size: 0.55rem;
+            line-height: 1.1;
+            text-align: center;
             color: white;
             font-weight: 800;
             box-shadow: 0 2px 4px rgba(0,0,0,0.4);
             z-index: 2;
+            overflow: hidden;
+            padding: 2px;
         }
 
         .unit-p1 {
@@ -327,24 +326,45 @@
 
         .setup-screen h2 {
             font-size: 2rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             color: var(--text-main);
         }
 
         .setup-screen p {
             color: var(--text-muted);
             max-width: 600px;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .count-selector-box {
+            background: var(--panel-bg);
+            padding: 2rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--grid-line);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .count-selector-box select {
+            padding: 0.5rem 1rem;
+            font-size: 1.1rem;
+            background: #0f172a;
+            color: white;
+            border: 1px solid var(--grid-line);
+            border-radius: 0.375rem;
+            cursor: pointer;
         }
 
         .roster-picker {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
             gap: 0.75rem;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
             width: 100%;
             max-width: 900px;
-            max-height: 55vh;
+            max-height: 50vh;
             overflow-y: auto;
             padding: 0.5rem;
         }
@@ -434,10 +454,27 @@
 
     <!-- Pre-Match Setup Modal -->
     <div id="setupModal" class="setup-screen">
-        <h2 id="setupTitle">Player 1: Select Your Squad (3 Units)</h2>
-        <p id="setupSubtitle">Pick your 3 champions from the complete Master Roster.</p>
-        <div id="rosterPickerContainer" class="roster-picker"></div>
-        <button class="primary" id="btnConfirmDraft" onclick="confirmDraft()" disabled>Confirm Player 1 Squad</button>
+        <h2 id="setupTitle">Player 1: Squad Configuration</h2>
+        <p id="setupSubtitle">Select how many characters you want to bring into battle (1 to 5).</p>
+        
+        <!-- Step 1: Count Selection Box -->
+        <div id="countSelectorSection" class="count-selector-box">
+            <label for="squadCountSelect" style="font-weight: 600; color: var(--text-main);">Number of Characters:</label>
+            <select id="squadCountSelect">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3" selected>3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+            </select>
+            <button class="primary" onclick="proceedToRosterPick()">Proceed to Character Selection</button>
+        </div>
+
+        <!-- Step 2: Roster Picker Grid (Hidden initially) -->
+        <div id="rosterPickerSection" style="display: none; width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <div id="rosterPickerContainer" class="roster-picker"></div>
+            <button class="primary" id="btnConfirmDraft" onclick="confirmDraft()" disabled>Confirm Squad Selection</button>
+        </div>
     </div>
 
     <script>
@@ -452,59 +489,89 @@
             selectedUnitId: null,
             actionMode: null,
             draftingPlayer: 1,
+            p1Count: 3,
+            p2Count: 3,
             p1Draft: [],
             p2Draft: [],
         };
 
-        // Complete Master Roster of all 40 characters from your son's ruleset
+        // Master Roster with 'The' prefix removed from names
         const MASTER_ROSTER = [
             { id: 1, name: "Vanguard", hp: 7, maxHp: 7, move: 3, range: 1, dmg: 3, color: "#ef4444", desc: "Solid frontline infantry." },
             { id: 2, name: "Deadeye", hp: 7, maxHp: 7, move: 2, range: 5, dmg: 1, color: "#3b82f6", desc: "Long-range precision shooter." },
             { id: 3, name: "Guardian", hp: 7, maxHp: 7, move: 2, range: 2, dmg: 2, color: "#eab308", desc: "Shield-bearing protector." },
             { id: 4, name: "Storm-Blader", hp: 5, maxHp: 5, move: 5, range: 1, dmg: 1, color: "#22c55e", desc: "High mobility melee striker." },
             { id: 5, name: "Frost-Warden", hp: 5, maxHp: 5, move: 2, range: 2, dmg: 1, color: "#a855f7", desc: "Slows adjacent enemy movement." },
-            { id: 6, name: "The Viper", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 0, color: "#10b981", desc: "Inflicts persistent poison tokens." },
-            { id: 7, name: "The Medic", hp: 6, maxHp: 6, move: 2, range: 2, dmg: 0, color: "#ec4899", desc: "Heals allies and clears poison/virus." },
+            { id: 6, name: "Viper", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 0, color: "#10b981", desc: "Inflicts persistent poison tokens." },
+            { id: 7, name: "Medic", hp: 6, maxHp: 6, move: 2, range: 2, dmg: 0, color: "#ec4899", desc: "Heals allies and clears poison/virus." },
             { id: 8, name: "Pyromancer", hp: 6, maxHp: 6, move: 2, range: 3, dmg: 1, color: "#f97316", desc: "Area cross-shaped fire blasts." },
             { id: 9, name: "Barbarian", hp: 7, maxHp: 7, move: 2, range: 1, dmg: 1, color: "#7f1d1d", desc: "Gets stronger as HP drops." },
             { id: 10, name: "Ironclad", hp: 8, maxHp: 8, move: 1, range: 1, dmg: 5, color: "#94a3b8", desc: "Heavy armored striker." },
             { id: 11, name: "Zephyr", hp: 5, maxHp: 5, move: 3, range: 3, dmg: 0, color: "#38bdf8", desc: "Doubles ally movement speed." },
             { id: 12, name: "Boxer", hp: 7, maxHp: 7, move: 3, range: 1, dmg: 2, color: "#991b1b", desc: "Punches enemies back with crash physics." },
-            { id: 13, name: "The Trapper", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 1, color: "#1e40af", desc: "Lays secret damaging spike traps." },
-            { id: 14, name: "The Tactician", hp: 6, maxHp: 6, move: 2, range: 3, dmg: 1, color: "#1e3a8a", desc: "Grants hyper bonus actions on next turn." },
-            { id: 15, name: "The Necromancer", hp: 5, maxHp: 5, move: 2, range: 3, dmg: 1, color: "#0f172a", desc: "Spawns skeletons from fallen souls." },
-            { id: 16, name: "The Chrono-Mage", hp: 5, maxHp: 5, move: 2, range: 2, dmg: 1, color: "#06b6d4", desc: "Rewinds time to undo a unit's turn." },
-            { id: 17, name: "The Collector", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 1, color: "#ca8a04", desc: "Gains power from starred map walls." },
-            { id: 18, name: "The Ninja", hp: 5, maxHp: 5, move: 3, range: 3, dmg: 2, color: "#334155", desc: "Vaults over walls and slips into shadows." },
-            { id: 19, name: "The Toxicologist", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 1, color: "#15803d", desc: "Cleanses poison to heal self." },
+            { id: 13, name: "Trapper", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 1, color: "#1e40af", desc: "Lays secret damaging spike traps." },
+            { id: 14, name: "Tactician", hp: 6, maxHp: 6, move: 2, range: 3, dmg: 1, color: "#1e3a8a", desc: "Grants hyper bonus actions on next turn." },
+            { id: 15, name: "Necromancer", hp: 5, maxHp: 5, move: 2, range: 3, dmg: 1, color: "#0f172a", desc: "Spawns skeletons from fallen souls." },
+            { id: 16, name: "Chrono-Mage", hp: 5, maxHp: 5, move: 2, range: 2, dmg: 1, color: "#06b6d4", desc: "Rewinds time to undo a unit's turn." },
+            { id: 17, name: "Collector", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 1, color: "#ca8a04", desc: "Gains power from starred map walls." },
+            { id: 18, name: "Ninja", hp: 5, maxHp: 5, move: 3, range: 3, dmg: 2, color: "#334155", desc: "Vaults over walls and slips into shadows." },
+            { id: 19, name: "Toxicologist", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 1, color: "#15803d", desc: "Cleanses poison to heal self." },
             { id: 20, name: "Cactus-Knight", hp: 7, maxHp: 7, move: 2, range: 1, dmg: 2, color: "#16a34a", desc: "Fires needles and deals melee recoil." },
-            { id: 21, name: "The Boomer", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 1, color: "#b91c1c", desc: "Lights a fuse for massive area explosions." },
-            { id: 22, name: "The Archivist", hp: 6, maxHp: 6, move: 2, range: 2, dmg: 1, color: "#fef08a", desc: "Plagiarizes enemy special actions." },
-            { id: 23, name: "The Chameleon", hp: 5, maxHp: 5, move: 3, range: 2, dmg: 1, color: "#14b8a6", desc: "Pulls targets and gains armor near walls." },
-            { id: 24, name: "The Gossamer", hp: 5, maxHp: 5, move: 3, range: 3, dmg: 1, color: "#c084fc", desc: "Strings stun tripwires between walls." },
-            { id: 25, name: "The Overlord", hp: 10, maxHp: 10, move: 1, range: 3, dmg: 1, color: "#4ade80", desc: "Vents poison and locks down enemy specials." },
-            { id: 26, name: "The Shock-Trooper", hp: 5, maxHp: 5, move: 3, range: 2, dmg: 1, color: "#eab308", desc: "Stuns melee attackers and absorbs stuns." },
-            { id: 27, name: "The Gavel-Master", hp: 7, maxHp: 7, move: 2, range: 1, dmg: 2, color: "#78350f", desc: "Slides enemies across the courtroom grid." },
-            { id: 28, name: "The Graviton", hp: 7, maxHp: 7, move: 2, range: 3, dmg: 1, color: "#9f1239", desc: "Creates heavy gravity pulling zones." },
-            { id: 29, name: "The Void-Stalker", hp: 5, maxHp: 5, move: 3, range: 1, dmg: 2, color: "#1e1b4b", desc: "Slips into the ether for surprise ambushes." },
-            { id: 30, name: "The Glass-Cannon", hp: 4, maxHp: 4, move: 2, range: 4, dmg: 4, color: "#f1f5f9", desc: "Devastating beams with heavy recoil." },
-            { id: 31, name: "The Bounty Hunter", hp: 6, maxHp: 6, move: 3, range: 4, dmg: 1, color: "#fca5a5", desc: "Places target bounties for bonus damage." },
-            { id: 32, name: "The Plague-Sower", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 1, color: "#84cc16", desc: "Infects enemies with spreading virus marks." },
-            { id: 33, name: "The Magnetic-Knight", hp: 7, maxHp: 7, move: 2, range: 2, dmg: 1, color: "#cbd5e1", desc: "Pulls targets with magnetic rail impact." },
-            { id: 34, name: "The Phalanx", hp: 8, maxHp: 8, move: 2, range: 2, dmg: 2, color: "#b45309", desc: "Unmovable shield wall protecting allies." },
-            { id: 35, name: "The Infestor", hp: 5, maxHp: 5, move: 3, range: 1, dmg: 1, color: "#f8fafc", desc: "Parasitically rides inside ally or enemy hosts." },
-            { id: 36, name: "The Smog-Shifter", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 1, color: "#475569", desc: "Swaps places with allies and chokes vapor." },
-            { id: 37, name: "The Shuffler", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 2, color: "#059669", desc: "Draws random trick cards to alter battle." },
-            { id: 38, name: "The Shadow-Weaver", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 1, color: "#8b5cf6", desc: "Manifests a floating spectral chilling token." },
-            { id: 39, name: "The Spore-Cultivator", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 1, color: "#f472b6", desc: "Grows cactus bulb companions and thorns." },
-            { id: 40, name: "The Vampire", hp: 8, maxHp: 8, move: 2, range: 1, dmg: 0, color: "#581c87", desc: "Summons bats and drains blood to heal." }
+            { id: 21, name: "Boomer", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 1, color: "#b91c1c", desc: "Lights a fuse for massive area explosions." },
+            { id: 22, name: "Archivist", hp: 6, maxHp: 6, move: 2, range: 2, dmg: 1, color: "#fef08a", desc: "Plagiarizes enemy special actions." },
+            { id: 23, name: "Chameleon", hp: 5, maxHp: 5, move: 3, range: 2, dmg: 1, color: "#14b8a6", desc: "Pulls targets and gains armor near walls." },
+            { id: 24, name: "Gossamer", hp: 5, maxHp: 5, move: 3, range: 3, dmg: 1, color: "#c084fc", desc: "Strings stun tripwires between walls." },
+            { id: 25, name: "Overlord", hp: 10, maxHp: 10, move: 1, range: 3, dmg: 1, color: "#4ade80", desc: "Vents poison and locks down enemy specials." },
+            { id: 26, name: "Shock-Trooper", hp: 5, maxHp: 5, move: 3, range: 2, dmg: 1, color: "#eab308", desc: "Stuns melee attackers and absorbs stuns." },
+            { id: 27, name: "Gavel-Master", hp: 7, maxHp: 7, move: 2, range: 1, dmg: 2, color: "#78350f", desc: "Slides enemies across the courtroom grid." },
+            { id: 28, name: "Graviton", hp: 7, maxHp: 7, move: 2, range: 3, dmg: 1, color: "#9f1239", desc: "Creates heavy gravity pulling zones." },
+            { id: 29, name: "Void-Stalker", hp: 5, maxHp: 5, move: 3, range: 1, dmg: 2, color: "#1e1b4b", desc: "Slips into the ether for surprise ambushes." },
+            { id: 30, name: "Glass-Cannon", hp: 4, maxHp: 4, move: 2, range: 4, dmg: 4, color: "#f1f5f9", desc: "Devastating beams with heavy recoil." },
+            { id: 31, name: "Bounty Hunter", hp: 6, maxHp: 6, move: 3, range: 4, dmg: 1, color: "#fca5a5", desc: "Places target bounties for bonus damage." },
+            { id: 32, name: "Plague-Sower", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 1, color: "#84cc16", desc: "Infects enemies with spreading virus marks." },
+            { id: 33, name: "Magnetic-Knight", hp: 7, maxHp: 7, move: 2, range: 2, dmg: 1, color: "#cbd5e1", desc: "Pulls targets with magnetic rail impact." },
+            { id: 34, name: "Phalanx", hp: 8, maxHp: 8, move: 2, range: 2, dmg: 2, color: "#b45309", desc: "Unmovable shield wall protecting allies." },
+            { id: 35, name: "Infestor", hp: 5, maxHp: 5, move: 3, range: 1, dmg: 1, color: "#f8fafc", desc: "Parasitically rides inside ally or enemy hosts." },
+            { id: 36, name: "Smog-Shifter", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 1, color: "#475569", desc: "Swaps places with allies and chokes vapor." },
+            { id: 37, name: "Shuffler", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 2, color: "#059669", desc: "Draws random trick cards to alter battle." },
+            { id: 38, name: "Shadow-Weaver", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 1, color: "#8b5cf6", desc: "Manifests a floating spectral chilling token." },
+            { id: 39, name: "Spore-Cultivator", hp: 6, maxHp: 6, move: 3, range: 3, dmg: 1, color: "#f472b6", desc: "Grows cactus bulb companions and thorns." },
+            { id: 40, name: "Vampire", hp: 8, maxHp: 8, move: 2, range: 1, dmg: 0, color: "#581c87", desc: "Summons bats and drains blood to heal." }
         ];
 
         let selectedDraftPicks = [];
+        let targetSquadCount = 3;
 
         // --- INITIALIZATION & SETUP ---
-        function initDraft() {
+        function resetSetupFlow() {
+            gameState.draftingPlayer = 1;
+            gameState.p1Draft = [];
+            gameState.p2Draft = [];
+            document.getElementById('setupTitle').innerText = "Player 1: Squad Configuration";
+            document.getElementById('setupSubtitle').innerText = "Select how many characters you want to bring into battle (1 to 5).";
+            document.getElementById('countSelectorSection').style.display = 'flex';
+            document.getElementById('rosterPickerSection').style.display = 'none';
+        }
+
+        function proceedToRosterPick() {
+            const countVal = parseInt(document.getElementById('squadCountSelect').value);
+            if (gameState.draftingPlayer === 1) {
+                gameState.p1Count = countVal;
+            } else {
+                gameState.p2Count = countVal;
+            }
+
             selectedDraftPicks = [];
+            document.getElementById('countSelectorSection').style.display = 'none';
+            document.getElementById('rosterPickerSection').style.display = 'flex';
+            
+            const playerNum = gameState.draftingPlayer;
+            const requiredCount = playerNum === 1 ? gameState.p1Count : gameState.p2Count;
+            document.getElementById('setupTitle').innerText = `Player ${playerNum}: Pick Your ${requiredCount} Champions`;
+            document.getElementById('setupSubtitle').innerText = `Choose exactly ${requiredCount} characters from the master roster.`;
+            document.getElementById('btnConfirmDraft').innerText = `Confirm Player ${playerNum} Squad`;
+            document.getElementById('btnConfirmDraft').disabled = true;
+
             const container = document.getElementById('rosterPickerContainer');
             container.innerHTML = '';
             MASTER_ROSTER.forEach(unit => {
@@ -514,30 +581,31 @@
                 card.onclick = () => toggleDraftPick(unit.id, card);
                 container.appendChild(card);
             });
-            document.getElementById('btnConfirmDraft').disabled = true;
         }
 
         function toggleDraftPick(id, element) {
+            const requiredCount = gameState.draftingPlayer === 1 ? gameState.p1Count : gameState.p2Count;
             if (selectedDraftPicks.includes(id)) {
                 selectedDraftPicks = selectedDraftPicks.filter(item => item !== id);
                 element.classList.remove('selected');
             } else {
-                if (selectedDraftPicks.length < 3) {
+                if (selectedDraftPicks.length < requiredCount) {
                     selectedDraftPicks.push(id);
                     element.classList.add('selected');
                 }
             }
-            document.getElementById('btnConfirmDraft').disabled = selectedDraftPicks.length !== 3;
+            document.getElementById('btnConfirmDraft').disabled = selectedDraftPicks.length !== requiredCount;
         }
 
         function confirmDraft() {
             if (gameState.draftingPlayer === 1) {
                 gameState.p1Draft = [...selectedDraftPicks];
                 gameState.draftingPlayer = 2;
-                document.getElementById('setupTitle').innerText = "Player 2: Select Your Squad (3 Units)";
-                document.getElementById('setupSubtitle').innerText = "Pick your 3 champions from the complete Master Roster.";
-                document.getElementById('btnConfirmDraft').innerText = "Confirm Squad Selection & Start Match";
-                initDraft();
+                document.getElementById('setupTitle').innerText = "Player 2: Squad Configuration";
+                document.getElementById('setupSubtitle').innerText = "Select how many characters you want to bring into battle (1 to 5).";
+                document.getElementById('countSelectorSection').style.display = 'flex';
+                document.getElementById('rosterPickerSection').style.display = 'none';
+                document.getElementById('squadCountSelect').value = "3";
             } else {
                 gameState.p2Draft = [...selectedDraftPicks];
                 document.getElementById('setupModal').style.display = 'none';
@@ -547,14 +615,7 @@
 
         function returnToCharacterSelect() {
             document.getElementById('setupModal').style.display = 'flex';
-            gameState.draftingPlayer = 1;
-            gameState.p1Draft = [];
-            gameState.p2Draft = [];
-            gameState.units = [];
-            document.getElementById('setupTitle').innerText = "Player 1: Select Your Squad (3 Units)";
-            document.getElementById('setupSubtitle').innerText = "Pick your 3 champions from the complete Master Roster.";
-            document.getElementById('btnConfirmDraft').innerText = "Confirm Player 1 Squad";
-            initDraft();
+            resetSetupFlow();
         }
 
         function startGame() {
@@ -568,13 +629,16 @@
         // --- UNIT & HAZARD SPAWNING ---
         function spawnUnits() {
             gameState.units = [];
-            // Spawn P1 along Row 1 (y = 0), spacing them out
+            // Spawn P1 along Row 1 (y = 0), spacing them out safely across 16 cols
+            const p1Total = gameState.p1Draft.length;
             gameState.p1Draft.forEach((unitId, index) => {
                 const template = MASTER_ROSTER.find(u => u.id === unitId);
+                const spacing = Math.floor(16 / (p1Total + 1));
+                const posX = spacing * (index + 1);
                 gameState.units.push({
                     instanceId: `p1_${index}`,
                     team: 1,
-                    x: 3 + (index * 4),
+                    x: Math.min(posX, 15),
                     y: 0,
                     ...template,
                     poisonTokens: 0,
@@ -582,13 +646,16 @@
                 });
             });
 
-            // Spawn P2 along Row 16 (y = 15), spacing them out
+            // Spawn P2 along Row 16 (y = 15), spacing them out safely across 16 cols
+            const p2Total = gameState.p2Draft.length;
             gameState.p2Draft.forEach((unitId, index) => {
                 const template = MASTER_ROSTER.find(u => u.id === unitId);
+                const spacing = Math.floor(16 / (p2Total + 1));
+                const posX = spacing * (index + 1);
                 gameState.units.push({
                     instanceId: `p2_${index}`,
                     team: 2,
-                    x: 3 + (index * 4),
+                    x: Math.min(posX, 15),
                     y: 15,
                     ...template,
                     poisonTokens: 0,
@@ -638,7 +705,7 @@
                             token.classList.add('selected');
                         }
                         token.style.backgroundColor = unit.color;
-                        token.innerText = unit.name.substring(0, 3) + '\n' + unit.hp;
+                        token.innerHTML = `<div>${unit.name.substring(0, 4)}<br><b>${unit.hp}HP</b></div>`;
                         cell.appendChild(token);
                     }
 
@@ -810,7 +877,7 @@
         }
 
         window.onload = () => {
-            initDraft();
+            resetSetupFlow();
         };
     </script>
 </body>
