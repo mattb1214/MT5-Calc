@@ -551,7 +551,6 @@
 
         // --- LINE OF SIGHT & RAYCASTING LOGIC ---
         function hasLineOfSight(x0, y0, x1, y1) {
-            // Bresenham's line algorithm to check obstruction
             let dx = Math.abs(x1 - x0);
             let dy = Math.abs(y1 - y0);
             let sx = (x0 < x1) ? 1 : -1;
@@ -564,13 +563,12 @@
             const isRanged = (Math.abs(x1 - x0) + Math.abs(y1 - y0)) > 1;
 
             while (true) {
-                // Do not check obstruction on the starting tile or destination tile themselves
                 if (!(currX === x0 && currY === y0) && !(currX === x1 && currY === y1)) {
-                    // Check if there is a wall
+                    // Check wall obstruction
                     const wall = gameState.hazards.find(h => h.x === currX && h.y === currY && h.type === 'wall');
                     if (wall) return false;
 
-                    // Check if there is a grass tile and it's a ranged attack (> 1 square away)
+                    // Check grass obstruction for ranged attacks (> 1 square away)
                     if (isRanged) {
                         const grass = gameState.hazards.find(h => h.x === currX && h.y === currY && h.type === 'grass');
                         if (grass) return false;
@@ -699,6 +697,7 @@
                     x: Math.min(posX, 15),
                     y: 0,
                     ...template,
+                    baseMove: template.move, // store base move capacity
                     poisonTokens: 0,
                     stunned: false
                 });
@@ -715,6 +714,7 @@
                     x: Math.min(posX, 15),
                     y: 15,
                     ...template,
+                    baseMove: template.move, // store base move capacity
                     poisonTokens: 0,
                     stunned: false
                 });
@@ -899,16 +899,34 @@
                 return;
             }
 
-            if (dist <= unit.move && gameState.actionsRemaining.move > 0) {
+            const isCurrentlyInSinkhole = gameState.hazards.some(h => h.x === unit.x && h.y === unit.y && h.type === 'sinkhole');
+            const movingIntoSinkhole = gameState.hazards.some(h => h.x === targetX && h.y === targetY && h.type === 'sinkhole');
+
+            let requiredMoveCost = dist;
+
+            // Getting out of a sinkhole costs 1 extra move, unless base move is 1
+            if (isCurrentlyInSinkhole && !movingIntoSinkhole) {
+                if (unit.baseMove === 1) {
+                    if (dist > 1) {
+                        logMessage("Character with base move of 1 cannot get out of sinkhole and move further in the same turn.", "system");
+                        return;
+                    }
+                } else {
+                    requiredMoveCost += 1;
+                }
+            }
+
+            if (requiredMoveCost <= unit.move && gameState.actionsRemaining.move > 0) {
                 unit.x = targetX;
                 unit.y = targetY;
+                unit.move -= requiredMoveCost; // Deduct actual movement cost from current move pool
                 gameState.actionsRemaining.move--;
-                logMessage(`${unit.name} moved to coordinates (${targetX}, ${targetY}).`, unit.team === 1 ? 'p1' : 'p2');
+                logMessage(`${unit.name} moved to coordinates (${targetX}, ${targetY}) (Cost: ${requiredMoveCost} move).`, unit.team === 1 ? 'p1' : 'p2');
                 gameState.actionMode = null;
                 renderGrid();
                 updateDashboard();
             } else {
-                logMessage("Invalid movement: Distance exceeds movement capacity or move action spent.", "system");
+                logMessage("Invalid movement: Distance exceeds movement capacity, extra sinkhole exit cost, or move action spent.", "system");
             }
         }
 
@@ -928,6 +946,15 @@
             if (!hasLineOfSight(attacker.x, attacker.y, targetX, targetY)) {
                 logMessage("Attack blocked: Target is out of line of sight (obstructed by walls or grass).", "system");
                 return;
+            }
+
+            // Check sinkhole protection logic: if target unit is in a sinkhole, ranged attacks cannot hit them from over two spaces away
+            if (targetUnit) {
+                const targetInSinkhole = gameState.hazards.some(h => h.x === targetUnit.x && h.y === targetUnit.y && h.type === 'sinkhole');
+                if (targetInSinkhole && dist > 2) {
+                    logMessage("Attack blocked: Target is inside a sinkhole and safe from ranged attacks over 2 spaces away.", "system");
+                    return;
+                }
             }
 
             if (targetUnit && dist <= attacker.range) {
@@ -990,6 +1017,10 @@
                 if (u.team === gameState.activeTeam && u.poisonTokens > 0) {
                     u.hp -= 1;
                     logMessage(`${u.name} took 1 poison damage.`, "system");
+                }
+                // Refresh unit movement pool back to their base move at turn start
+                if (u.team === gameState.activeTeam) {
+                    u.move = u.baseMove;
                 }
             });
 
@@ -1071,7 +1102,7 @@
                 details = "Blocks ranged line of sight.";
             } else if (hazard.type === 'sinkhole') {
                 hazardTitle = "Sinkhole Hazard";
-                details = "Hazardous deep terrain.";
+                details = "Protects targets from ranged attacks > 2 spaces away. Costs 1 extra move to exit.";
             } else if (hazard.type === 'vent') {
                 hazardTitle = "Fumigation Vent";
                 details = "Releases noxious vapors.";
