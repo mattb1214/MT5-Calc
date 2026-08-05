@@ -468,9 +468,9 @@
         <div id="countSelectorSection" class="count-selector-box">
             <label for="squadCountSelect" style="font-weight: 600; color: var(--text-main);">Number of Characters:</label>
             <select id="squadCountSelect">
-                <option value="1">1</option>
+                <option value="1" selected>1</option>
                 <option value="2">2</option>
-                <option value="3" selected>3</option>
+                <option value="3">3</option>
                 <option value="4">4</option>
                 <option value="5">5</option>
             </select>
@@ -497,8 +497,8 @@
             selectedCoord: null, // Track inspected non-unit tile or object
             actionMode: null,
             draftingPlayer: 1,
-            p1Count: 3,
-            p2Count: 3,
+            p1Count: 1,
+            p2Count: 1,
             p1Draft: [],
             p2Draft: [],
         };
@@ -549,6 +549,48 @@
 
         let selectedDraftPicks = [];
 
+        // --- LINE OF SIGHT & RAYCASTING LOGIC ---
+        function hasLineOfSight(x0, y0, x1, y1) {
+            // Bresenham's line algorithm to check obstruction
+            let dx = Math.abs(x1 - x0);
+            let dy = Math.abs(y1 - y0);
+            let sx = (x0 < x1) ? 1 : -1;
+            let sy = (y0 < y1) ? 1 : -1;
+            let err = dx - dy;
+
+            let currX = x0;
+            let currY = y0;
+
+            const isRanged = (Math.abs(x1 - x0) + Math.abs(y1 - y0)) > 1;
+
+            while (true) {
+                // Do not check obstruction on the starting tile or destination tile themselves
+                if (!(currX === x0 && currY === y0) && !(currX === x1 && currY === y1)) {
+                    // Check if there is a wall
+                    const wall = gameState.hazards.find(h => h.x === currX && h.y === currY && h.type === 'wall');
+                    if (wall) return false;
+
+                    // Check if there is a grass tile and it's a ranged attack (> 1 square away)
+                    if (isRanged) {
+                        const grass = gameState.hazards.find(h => h.x === currX && h.y === currY && h.type === 'grass');
+                        if (grass) return false;
+                    }
+                }
+
+                if (currX === x1 && currY === y1) break;
+                let e2 = 2 * err;
+                if (e2 > -dy) {
+                    err -= dy;
+                    currX += sx;
+                }
+                if (e2 < dx) {
+                    err += dx;
+                    currY += sy;
+                }
+            }
+            return true;
+        }
+
         // --- INITIALIZATION & SETUP ---
         function resetSetupFlow() {
             gameState.draftingPlayer = 1;
@@ -558,6 +600,7 @@
             document.getElementById('setupSubtitle').innerText = "Select how many characters you want to bring into battle (1 to 5).";
             document.getElementById('countSelectorSection').style.display = 'flex';
             document.getElementById('rosterPickerSection').style.display = 'none';
+            document.getElementById('squadCountSelect').value = "1";
         }
 
         function proceedToRosterPick() {
@@ -612,7 +655,7 @@
                 document.getElementById('setupSubtitle').innerText = "Select how many characters you want to bring into battle (1 to 5).";
                 document.getElementById('countSelectorSection').style.display = 'flex';
                 document.getElementById('rosterPickerSection').style.display = 'none';
-                document.getElementById('squadCountSelect').value = "3";
+                document.getElementById('squadCountSelect').value = "1";
             } else {
                 gameState.p2Draft = [...selectedDraftPicks];
                 document.getElementById('setupModal').style.display = 'none';
@@ -881,6 +924,12 @@
 
             const dist = Math.abs(attacker.x - targetX) + Math.abs(attacker.y - targetY);
 
+            // Check line of sight first
+            if (!hasLineOfSight(attacker.x, attacker.y, targetX, targetY)) {
+                logMessage("Attack blocked: Target is out of line of sight (obstructed by walls or grass).", "system");
+                return;
+            }
+
             if (targetUnit && dist <= attacker.range) {
                 targetUnit.hp -= attacker.dmg;
                 gameState.actionsRemaining.attack--;
@@ -1019,7 +1068,7 @@
                 details = `HP: ${hazard.hp} / ${hazard.maxHp}`;
             } else if (hazard.type === 'grass') {
                 hazardTitle = "Grass Terrain";
-                details = "Flammable vegetation tile.";
+                details = "Blocks ranged line of sight.";
             } else if (hazard.type === 'sinkhole') {
                 hazardTitle = "Sinkhole Hazard";
                 details = "Hazardous deep terrain.";
