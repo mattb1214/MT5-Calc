@@ -473,7 +473,7 @@
         </div>
 
         <!-- Step 2: Roster Picker Grid (Hidden initially) -->
-        <div id="rosterPickerSection" style="display: none; width: 100%; display: flex; flex-direction: column; align-items: center;">
+        <div id="rosterPickerSection" style="display: none; flex-direction: column; align-items: center; width: 100%;">
             <div id="rosterPickerContainer" class="roster-picker"></div>
             <button class="primary" id="btnConfirmDraft" onclick="confirmDraft()" disabled>Confirm Squad Selection</button>
         </div>
@@ -872,7 +872,6 @@
                 gameState.actionsRemaining.attack--;
                 logMessage(`${attacker.name} attacked ${targetUnit.name} for ${attacker.dmg} damage!`, attacker.team === 1 ? 'p1' : 'p2');
 
-                // Check radius explosion if applicable (AOE lands on target coordinate)
                 if (attacker.isExplosive) {
                     triggerExplosionRadius(targetX, targetY);
                 }
@@ -891,7 +890,6 @@
                 gameState.actionsRemaining.attack--;
                 logMessage(`${attacker.name} struck a wall at (${targetX}, ${targetY}) for ${attacker.dmg} damage!`, attacker.team === 1 ? 'p1' : 'p2');
 
-                // Check radius explosion if applicable
                 if (attacker.isExplosive) {
                     triggerExplosionRadius(targetX, targetY);
                 }
@@ -911,7 +909,6 @@
 
         function triggerExplosionRadius(centerX, centerY) {
             logMessage(`Explosion AOE triggered around (${centerX}, ${centerY})!`, "system");
-            // If part of that AOE lands on the grass (i.e., grass coordinate is within the 1-block explosion footprint including center), it is destroyed.
             gameState.hazards.forEach(hazard => {
                 if (hazard.type === 'grass') {
                     const dx = Math.abs(hazard.x - centerX);
@@ -922,7 +919,6 @@
                     }
                 }
             });
-            // Filter out destroyed grass
             gameState.hazards = gameState.hazards.filter(h => !h.toDelete);
         }
 
@@ -981,7 +977,7 @@
                 if (gameState.selectedCoord.type === 'unit') {
                     document.getElementById('selectedUnitName').innerText = gameState.selectedCoord.data.name;
                 } else if (gameState.selectedCoord.type === 'hazard') {
-                    document.getElementById('selectedCoord.data.type')?.toUpperCase() || document.getElementById('selectedUnitName').innerText = gameState.selectedCoord.data.type.toUpperCase();
+                    document.getElementById('selectedUnitName').innerText = gameState.selectedCoord.data.type.toUpperCase();
                 } else {
                     document.getElementById('selectedUnitName').innerText = "Empty Cell";
                 }
