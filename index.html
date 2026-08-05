@@ -282,6 +282,10 @@
             grid-column: span 2;
         }
 
+        button.half-width {
+            grid-column: span 1;
+        }
+
         .log-box {
             background: #0f172a;
             border: 1px solid var(--grid-line);
@@ -432,7 +436,8 @@
                     <button id="btnAttackMode" onclick="setActionMode('attack')">Attack Mode</button>
                     <button id="btnSpecialMode" onclick="setActionMode('special')">Special Action</button>
                     <button class="primary full-width" onclick="endTeamTurn()">End Team Turn</button>
-                    <button class="danger full-width" onclick="returnToCharacterSelect()">Back to Character Select</button>
+                    <button class="danger half-width" onclick="returnToCharacterSelect()">Character Select</button>
+                    <button class="danger half-width" onclick="regenerateMap()">Regenerate Map</button>
                 </div>
             </div>
 
@@ -618,6 +623,15 @@
         function returnToCharacterSelect() {
             document.getElementById('setupModal').style.display = 'flex';
             resetSetupFlow();
+        }
+
+        function regenerateMap() {
+            generateEnvironmentHazards();
+            gameState.selectedUnitId = null;
+            gameState.selectedCoord = null;
+            renderGrid();
+            updateDashboard();
+            logMessage("Map regenerated with new environment hazards under original criteria.", "system");
         }
 
         function startGame() {
