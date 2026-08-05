@@ -494,7 +494,7 @@
             units: [],
             hazards: [],
             selectedUnitId: null,
-            selectedCoord: null, // Track inspected non-unit tile or object
+            selectedCoord: null,
             actionMode: null,
             draftingPlayer: 1,
             p1Count: 1,
@@ -697,7 +697,7 @@
                     x: Math.min(posX, 15),
                     y: 0,
                     ...template,
-                    baseMove: template.move, // store base move capacity
+                    baseMove: template.move,
                     poisonTokens: 0,
                     stunned: false
                 });
@@ -714,7 +714,7 @@
                     x: Math.min(posX, 15),
                     y: 15,
                     ...template,
-                    baseMove: template.move, // store base move capacity
+                    baseMove: template.move,
                     poisonTokens: 0,
                     stunned: false
                 });
@@ -744,7 +744,7 @@
                 return { x, y };
             }
 
-            // 1. Walls: min 4, max 7 (with hp: 3)
+            // 1. Walls: min 4, max 7
             let wallCount = getRandomInt(4, 7);
             for (let i = 0; i < wallCount; i++) {
                 let pos = getRandomEmptyCell();
@@ -904,7 +904,6 @@
 
             let requiredMoveCost = dist;
 
-            // Getting out of a sinkhole costs 1 extra move, unless base move is 1
             if (isCurrentlyInSinkhole && !movingIntoSinkhole) {
                 if (unit.baseMove === 1) {
                     if (dist > 1) {
@@ -919,7 +918,7 @@
             if (requiredMoveCost <= unit.move && gameState.actionsRemaining.move > 0) {
                 unit.x = targetX;
                 unit.y = targetY;
-                unit.move -= requiredMoveCost; // Deduct actual movement cost from current move pool
+                unit.move -= requiredMoveCost;
                 gameState.actionsRemaining.move--;
                 logMessage(`${unit.name} moved to coordinates (${targetX}, ${targetY}) (Cost: ${requiredMoveCost} move).`, unit.team === 1 ? 'p1' : 'p2');
                 gameState.actionMode = null;
@@ -942,6 +941,10 @@
 
             const dist = Math.abs(attacker.x - targetX) + Math.abs(attacker.y - targetY);
 
+            // Calculate effective attack range: if unit is standing on a radar dish, add +1 range (applies to melee or ranged attacks)
+            const onRadar = gameState.hazards.some(h => h.x === attacker.x && h.y === attacker.y && h.type === 'radar');
+            const effectiveRange = attacker.range + (onRadar ? 1 : 0);
+
             // Check line of sight first
             if (!hasLineOfSight(attacker.x, attacker.y, targetX, targetY)) {
                 logMessage("Attack blocked: Target is out of line of sight (obstructed by walls or grass).", "system");
@@ -957,7 +960,7 @@
                 }
             }
 
-            if (targetUnit && dist <= attacker.range) {
+            if (targetUnit && dist <= effectiveRange) {
                 targetUnit.hp -= attacker.dmg;
                 gameState.actionsRemaining.attack--;
                 logMessage(`${attacker.name} attacked ${targetUnit.name} for ${attacker.dmg} damage!`, attacker.team === 1 ? 'p1' : 'p2');
@@ -975,7 +978,7 @@
                 gameState.actionMode = null;
                 renderGrid();
                 updateDashboard();
-            } else if (targetWall && dist <= attacker.range) {
+            } else if (targetWall && dist <= effectiveRange) {
                 targetWall.hp -= attacker.dmg;
                 gameState.actionsRemaining.attack--;
                 logMessage(`${attacker.name} struck a wall at (${targetX}, ${targetY}) for ${attacker.dmg} damage!`, attacker.team === 1 ? 'p1' : 'p2');
@@ -1018,7 +1021,6 @@
                     u.hp -= 1;
                     logMessage(`${u.name} took 1 poison damage.`, "system");
                 }
-                // Refresh unit movement pool back to their base move at turn start
                 if (u.team === gameState.activeTeam) {
                     u.move = u.baseMove;
                 }
@@ -1108,7 +1110,7 @@
                 details = "Releases noxious vapors.";
             } else if (hazard.type === 'radar') {
                 hazardTitle = "Radar Dish";
-                details = "Tactical scanning power-up.";
+                details = "Grants +1 to attack range (applies to melee and ranged attacks) while standing on it.";
             } else if (hazard.type === 'coil') {
                 hazardTitle = "Energy Coil";
                 details = "High-voltage conductive coil.";
