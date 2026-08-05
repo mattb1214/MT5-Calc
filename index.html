@@ -679,6 +679,7 @@
             spawnUnits();
             generateEnvironmentHazards();
             renderGrid();
+            initializeTurnStartBudgets();
             updateDashboard();
             logMessage("Match started! Player 1 turn.", "system");
         }
@@ -779,8 +780,8 @@
                 hazardsList.push({ type: 'radar', x: pos.x, y: pos.y });
             }
 
-            // 6. Energy Coils: min 0, max 1
-            let coilCount = getRandomInt(0, 1);
+            // 6. Energy Coils: min 0, max 1 (ensure at least 1 for testing coil logic if desired, or keep random range)
+            let coilCount = getRandomInt(1, 1);
             for (let i = 0; i < coilCount; i++) {
                 let pos = getRandomEmptyCell();
                 hazardsList.push({ type: 'coil', x: pos.x, y: pos.y });
@@ -940,18 +941,14 @@
             }
 
             const dist = Math.abs(attacker.x - targetX) + Math.abs(attacker.y - targetY);
-
-            // Calculate effective attack range: if unit is standing on a radar dish, add +1 range (applies to melee or ranged attacks)
             const onRadar = gameState.hazards.some(h => h.x === attacker.x && h.y === attacker.y && h.type === 'radar');
             const effectiveRange = attacker.range + (onRadar ? 1 : 0);
 
-            // Check line of sight first
             if (!hasLineOfSight(attacker.x, attacker.y, targetX, targetY)) {
                 logMessage("Attack blocked: Target is out of line of sight (obstructed by walls or grass).", "system");
                 return;
             }
 
-            // Check sinkhole protection logic: if target unit is in a sinkhole, ranged attacks cannot hit them from over two spaces away
             if (targetUnit) {
                 const targetInSinkhole = gameState.hazards.some(h => h.x === targetUnit.x && h.y === targetUnit.y && h.type === 'sinkhole');
                 if (targetInSinkhole && dist > 2) {
@@ -1015,6 +1012,26 @@
             gameState.hazards = gameState.hazards.filter(h => !h.toDelete);
         }
 
+        function initializeTurnStartBudgets() {
+            // Base budget is 1 move action and 1 attack action
+            let moveBudget = 1;
+            let attackBudget = 1;
+
+            // Check if any character on the active team starts the turn standing in an energy coil
+            const activeTeamUnits = gameState.units.filter(u => u.team === gameState.activeTeam);
+            const teamOnCoil = activeTeamUnits.some(u => 
+                gameState.hazards.some(h => h.x === u.x && h.y === u.y && h.type === 'coil')
+            );
+
+            if (teamOnCoil) {
+                moveBudget += 1;
+                attackBudget += 1;
+                logMessage(`Energy Coil activated! Player ${gameState.activeTeam} gains +1 Move action and +1 Attack action this turn.`, "system");
+            }
+
+            gameState.actionsRemaining = { move: moveBudget, attack: attackBudget, special: 1 };
+        }
+
         function endTeamTurn() {
             gameState.units.forEach(u => {
                 if (u.team === gameState.activeTeam && u.poisonTokens > 0) {
@@ -1033,7 +1050,7 @@
                 gameState.round++;
             }
 
-            gameState.actionsRemaining = { move: 1, attack: 1, special: 1 };
+            initializeTurnStartBudgets();
             gameState.selectedUnitId = null;
             gameState.selectedCoord = null;
 
@@ -1062,8 +1079,8 @@
             teamEl.innerText = `Player ${gameState.activeTeam}`;
             teamEl.style.color = gameState.activeTeam === 1 ? '#93c5fd' : '#fca5a5';
 
-            document.getElementById('budgetMove').innerText = `Move: ${gameState.actionsRemaining.move}/1`;
-            document.getElementById('budgetAttack').innerText = `Attack: ${gameState.actionsRemaining.attack}/1`;
+            document.getElementById('budgetMove').innerText = `Move: ${gameState.actionsRemaining.move}/1+`;
+            document.getElementById('budgetAttack').innerText = `Attack: ${gameState.actionsRemaining.attack}/1+`;
             document.getElementById('budgetSpecial').innerText = `Special: ${gameState.actionsRemaining.special}/1`;
 
             if (gameState.selectedUnitId) {
@@ -1113,7 +1130,7 @@
                 details = "Grants +1 to attack range (applies to melee and ranged attacks) while standing on it.";
             } else if (hazard.type === 'coil') {
                 hazardTitle = "Energy Coil";
-                details = "High-voltage conductive coil.";
+                details = "Grants +1 move action and +1 attack action to the team starting their turn with a character standing on it.";
             }
 
             card.innerHTML = `
