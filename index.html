@@ -622,6 +622,26 @@
             return true;
         }
 
+        // --- ATTACK RANGE VALIDATION (Straight, Horizontal, Vertical, or 1x1 Diagonal) ---
+        function isValidAttackTarget(attackerX, attackerY, targetX, targetY, maxRange) {
+            let dx = targetX - attackerX;
+            let dy = targetY - attackerY;
+            let absDx = Math.abs(dx);
+            let absDy = Math.abs(dy);
+
+            // Must be within range limit
+            if (Math.max(absDx, absDy) > maxRange) return false;
+
+            // Check if it's strictly vertical (dx === 0)
+            if (dx === 0 && absDy > 0) return true;
+            // Check if it's strictly horizontal (dy === 0)
+            if (dy === 0 && absDx > 0) return true;
+            // Check if it's diagonal on a 1x1 step ratio (absDx === absDy)
+            if (absDx === absDy && absDx > 0) return true;
+
+            return false;
+        }
+
         // --- INITIALIZATION & SETUP ---
         function resetSetupFlow() {
             gameState.draftingPlayer = 1;
@@ -1032,56 +1052,59 @@
                 return;
             }
 
-            const dist = Math.abs(attacker.x - targetX) + Math.abs(attacker.y - targetY);
             const onRadar = gameState.hazards.some(h => h.x === attacker.x && h.y === attacker.y && h.type === 'radar');
             const effectiveRange = attacker.range + (onRadar ? 1 : 0);
+
+            // Validate attack trajectory (Vertical, Horizontal, or 1x1 Diagonal within effective range)
+            if (!isValidAttackTarget(attacker.x, attacker.y, targetX, targetY, effectiveRange)) {
+                logMessage("Invalid attack target: Attacks must be straight vertical, straight horizontal, or diagonal on a 1x1 ratio within range.", "system");
+                return;
+            }
 
             if (!hasLineOfSight(attacker.x, attacker.y, targetX, targetY, attacker)) {
                 logMessage("Attack blocked: Target is out of line of sight (obstructed by walls or grass).", "system");
                 return;
             }
 
+            // Distance calculation for specific checks below
+            const dist = Math.max(Math.abs(targetX - attacker.x), Math.abs(targetY - attacker.y));
+
             // If a targeted unit is Deadeye mounted on a wall, redirect the attack to the wall instead!
             if (targetUnit && targetUnit.name === "Deadeye" && targetUnit.onWall) {
                 const wallAtCoord = gameState.hazards.find(h => h.x === targetUnit.x && h.y === targetUnit.y && h.type === 'wall');
                 if (wallAtCoord) {
-                    if (dist <= effectiveRange) {
-                        wallAtCoord.hp -= attacker.dmg;
-                        gameState.actionsRemaining.attack--;
-                        logMessage(`${attacker.name} attacked Deadeye's mounted wall at (${targetX}, ${targetY}) for ${attacker.dmg} damage! (Wall shielding Deadeye)`, attacker.team === 1 ? 'p1' : 'p2');
+                    wallAtCoord.hp -= attacker.dmg;
+                    gameState.actionsRemaining.attack--;
+                    logMessage(`${attacker.name} attacked Deadeye's mounted wall at (${targetX}, ${targetY}) for ${attacker.dmg} damage! (Wall shielding Deadeye)`, attacker.team === 1 ? 'p1' : 'p2');
 
-                        if (attacker.isExplosive) {
-                            triggerExplosionRadius(targetX, targetY);
-                        }
-
-                        if (wallAtCoord.hp <= 0) {
-                            logMessage(`Wall at (${targetX}, ${targetY}) was completely destroyed! Deadeye is exposed.`, "system");
-                            
-                            gameState.units.forEach(u => {
-                                if (u.name === "Deadeye" && u.onWall && u.x === targetX && u.y === targetY) {
-                                    u.onWall = false;
-                                    u.mountedWallCoord = null;
-                                    u.hp -= 1;
-                                    u.stunnedNextTurn = true;
-                                    logMessage(`Deadeye takes 1 damage from wall collapse, loses mounted status, and will be stunned on the next turn.`, "system");
-                                    if (u.hp <= 0) {
-                                        logMessage(`Deadeye was eliminated from the match matrix due to wall collapse!`, "system");
-                                    }
-                                }
-                            });
-
-                            gameState.hazards = gameState.hazards.filter(h => !(h.x === targetX && h.y === targetY && h.type === 'wall'));
-                            checkVictoryConditions();
-                        }
-
-                        gameState.actionMode = null;
-                        renderGrid();
-                        updateDashboard();
-                        return;
-                    } else {
-                        logMessage("Target out of range.", "system");
-                        return;
+                    if (attacker.isExplosive) {
+                        triggerExplosionRadius(targetX, targetY);
                     }
+
+                    if (wallAtCoord.hp <= 0) {
+                        logMessage(`Wall at (${targetX}, ${targetY}) was completely destroyed! Deadeye is exposed.`, "system");
+                        
+                        gameState.units.forEach(u => {
+                            if (u.name === "Deadeye" && u.onWall && u.x === targetX && u.y === targetY) {
+                                u.onWall = false;
+                                u.mountedWallCoord = null;
+                                u.hp -= 1;
+                                u.stunnedNextTurn = true;
+                                logMessage(`Deadeye takes 1 damage from wall collapse, loses mounted status, and will be stunned on the next turn.`, "system");
+                                if (u.hp <= 0) {
+                                    logMessage(`Deadeye was eliminated from the match matrix due to wall collapse!`, "system");
+                                }
+                            }
+                        });
+
+                        gameState.hazards = gameState.hazards.filter(h => !(h.x === targetX && h.y === targetY && h.type === 'wall'));
+                        checkVictoryConditions();
+                    }
+
+                    gameState.actionMode = null;
+                    renderGrid();
+                    updateDashboard();
+                    return;
                 }
             }
 
@@ -1093,7 +1116,7 @@
                 }
             }
 
-            if (targetUnit && dist <= effectiveRange) {
+            if (targetUnit) {
                 let finalDmg = attacker.dmg;
 
                 // Guardian's shield passive reduces all incoming damage (melee or ranged) by 1 (can reduce to 0)
@@ -1122,7 +1145,7 @@
                 gameState.actionMode = null;
                 renderGrid();
                 updateDashboard();
-            } else if (targetWall && dist <= effectiveRange) {
+            } else if (targetWall) {
                 targetWall.hp -= attacker.dmg;
                 gameState.actionsRemaining.attack--;
                 logMessage(`${attacker.name} struck a wall at (${targetX}, ${targetY}) for ${attacker.dmg} damage!`, attacker.team === 1 ? 'p1' : 'p2');
@@ -1155,7 +1178,7 @@
                 renderGrid();
                 updateDashboard();
             } else {
-                logMessage("Target out of range or invalid target selection.", "system");
+                logMessage("Invalid target selection.", "system");
             }
         }
 
