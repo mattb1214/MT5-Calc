@@ -515,7 +515,7 @@
                 range: 5, 
                 dmg: 1, 
                 color: "#3b82f6", 
-                desc: "Long-range precision shooter. Can mount walls to gain invulnerability, line-of-sight clarity, and ignore Guardian shield reduction.",
+                desc: "Long-range precision shooter. Can mount walls to gain line-of-sight clarity and shield behind the wall's health until destroyed.",
                 isRanged: true,
                 onWall: false,
                 mountedWallCoord: null,
@@ -954,7 +954,7 @@
                     unit.onWall = true;
                     unit.mountedWallCoord = { x: adjacentWall.x, y: adjacentWall.y };
                     gameState.actionsRemaining.special--;
-                    logMessage(`${unit.name} used special action to mount the wall at (${adjacentWall.x}, ${adjacentWall.y})! Protected from attacks unless wall is destroyed.`, unit.team === 1 ? 'p1' : 'p2');
+                    logMessage(`${unit.name} used special action to mount the wall at (${adjacentWall.x}, ${adjacentWall.y})! Incoming enemy attacks will target the wall until it is destroyed.`, unit.team === 1 ? 'p1' : 'p2');
                 } else {
                     unit.onWall = false;
                     unit.mountedWallCoord = null;
@@ -1038,19 +1038,51 @@
                 return;
             }
 
-            if (targetUnit) {
-                if (targetUnit.name === "Deadeye" && targetUnit.onWall) {
-                    const supportingWall = gameState.hazards.find(h => h.x === targetUnit.x && h.y === targetUnit.y && h.type === 'wall');
-                    if (supportingWall) {
-                        logMessage("Attack blocked: Deadeye is mounted on an intact wall and cannot be hit!", "system");
+            // If a targeted unit is Deadeye mounted on a wall, redirect the attack to the wall instead!
+            if (targetUnit && targetUnit.name === "Deadeye" && targetUnit.onWall) {
+                const wallAtCoord = gameState.hazards.find(h => h.x === targetUnit.x && h.y === targetUnit.y && h.type === 'wall');
+                if (wallAtCoord) {
+                    if (dist <= effectiveRange) {
+                        wallAtCoord.hp -= attacker.dmg;
                         gameState.actionsRemaining.attack--;
+                        logMessage(`${attacker.name} attacked Deadeye's mounted wall at (${targetX}, ${targetY}) for ${attacker.dmg} damage! (Wall shielding Deadeye)`, attacker.team === 1 ? 'p1' : 'p2');
+
+                        if (attacker.isExplosive) {
+                            triggerExplosionRadius(targetX, targetY);
+                        }
+
+                        if (wallAtCoord.hp <= 0) {
+                            logMessage(`Wall at (${targetX}, ${targetY}) was completely destroyed! Deadeye is exposed.`, "system");
+                            
+                            gameState.units.forEach(u => {
+                                if (u.name === "Deadeye" && u.onWall && u.x === targetX && u.y === targetY) {
+                                    u.onWall = false;
+                                    u.mountedWallCoord = null;
+                                    u.hp -= 1;
+                                    u.stunnedNextTurn = true;
+                                    logMessage(`Deadeye takes 1 damage from wall collapse, loses mounted status, and will be stunned on the next turn.`, "system");
+                                    if (u.hp <= 0) {
+                                        logMessage(`Deadeye was eliminated from the match matrix due to wall collapse!`, "system");
+                                    }
+                                }
+                            });
+
+                            gameState.hazards = gameState.hazards.filter(h => !(h.x === targetX && h.y === targetY && h.type === 'wall'));
+                            checkVictoryConditions();
+                        }
+
                         gameState.actionMode = null;
                         renderGrid();
                         updateDashboard();
                         return;
+                    } else {
+                        logMessage("Target out of range.", "system");
+                        return;
                     }
                 }
+            }
 
+            if (targetUnit) {
                 const targetInSinkhole = gameState.hazards.some(h => h.x === targetUnit.x && h.y === targetUnit.y && h.type === 'sinkhole');
                 if (targetInSinkhole && dist > 2) {
                     logMessage("Attack blocked: Target is inside a sinkhole and safe from ranged attacks over 2 spaces away.", "system");
@@ -1248,7 +1280,7 @@
             const card = document.getElementById('unitInfoCard');
             let extraStatus = "";
             if (unit.name === "Deadeye") {
-                extraStatus = `<br>Mounted on Wall: <strong>${unit.onWall ? 'Yes' : 'No'}</strong>`;
+                extraStatus = `<br>Mounted on Wall: <strong>${unit.onWall ? 'Yes (Shielded by Wall HP)' : 'No'}</strong>`;
             } else if (unit.name === "Guardian") {
                 extraStatus = `<br>Shield Active: <strong>Yes (-1 Dmg to Melee/Ranged, can reduce to 0)</strong>`;
             }
@@ -1266,7 +1298,7 @@
             let details = "";
             if (hazard.type === 'wall') {
                 hazardTitle = "Wall Obstacle";
-                details = `HP: ${hazard.hp} / ${hazard.maxHp}. Can be mounted by Deadeye.`;
+                details = `HP: ${hazard.hp} / ${hazard.maxHp}. Can be mounted by Deadeye (absorbs attacks until destroyed).`;
             } else if (hazard.type === 'grass') {
                 hazardTitle = "Grass Terrain";
                 details = "Blocks ranged line of sight.";
