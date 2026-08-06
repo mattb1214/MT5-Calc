@@ -490,7 +490,7 @@
         let gameState = {
             round: 1,
             activeTeam: 1,
-            actionsRemaining: { move: 1, attack: 1, special: 1 },
+            actionsRemaining: { move: 2, attack: 1, special: 1 },
             units: [],
             hazards: [],
             selectedUnitId: null,
@@ -813,7 +813,7 @@
                 hazardsList.push({ type: 'radar', x: pos.x, y: pos.y });
             }
 
-            // 6. Energy Coils: min 0, max 1
+            // 6. Energy Coils: min 1, max 1
             let coilCount = getRandomInt(1, 1);
             for (let i = 0; i < coilCount; i++) {
                 let pos = getRandomEmptyCell();
@@ -1009,7 +1009,10 @@
                 unit.x = targetX;
                 unit.y = targetY;
                 unit.move -= requiredMoveCost;
+                
+                // If unit has completely used up their current move allowance or finished a move execution, decrement move budget
                 gameState.actionsRemaining.move--;
+                
                 logMessage(`${unit.name} moved to coordinates (${targetX}, ${targetY}) (Cost: ${requiredMoveCost} move).`, unit.team === 1 ? 'p1' : 'p2');
                 gameState.actionMode = null;
                 renderGrid();
@@ -1200,9 +1203,9 @@
             );
 
             if (teamOnCoil && anyNonStunned) {
-                moveBudget += 1;
-                attackBudget += 1;
-                logMessage(`Energy Coil activated! Player ${gameState.activeTeam} gains +1 Move action and +1 Attack action this turn.`, "system");
+                moveBudget = 2;
+                attackBudget = 2;
+                logMessage(`Energy Coil activated! Player ${gameState.activeTeam} gains 2 full move actions and 2 attack actions this turn.`, "system");
             }
 
             gameState.actionsRemaining = { move: moveBudget, attack: attackBudget, special: specialBudget };
@@ -1313,7 +1316,7 @@
                 details = "Grants +1 to attack range (applies to melee and ranged attacks) while standing on it.";
             } else if (hazard.type === 'coil') {
                 hazardTitle = "Energy Coil";
-                details = "Grants +1 move action and +1 attack action to the team starting their turn with a character standing on it.";
+                details = "Grants 2 full move actions (performing their max movement spaces twice) and 2 attack actions when starting a turn on this tile.";
             }
 
             card.innerHTML = `
