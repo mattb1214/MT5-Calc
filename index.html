@@ -1010,7 +1010,7 @@
                 unit.y = targetY;
                 unit.move -= requiredMoveCost;
                 
-                // If unit has completely used up their current move allowance or finished a move execution, decrement move budget
+                // If unit has completely exhausted their current move allowance or finished a move execution, decrement move budget
                 gameState.actionsRemaining.move--;
                 
                 logMessage(`${unit.name} moved to coordinates (${targetX}, ${targetY}) (Cost: ${requiredMoveCost} move).`, unit.team === 1 ? 'p1' : 'p2');
@@ -1160,7 +1160,7 @@
         }
 
         function triggerExplosionRadius(centerX, centerY) {
-            logMessage(`Explosion AOE triggered around (${centerX}, ${centerY})!`, "system");
+            logMessage(`Explosion AOE triggered around (${centerX}, (${centerY}))!`, "system");
             gameState.hazards.forEach(hazard => {
                 if (hazard.type === 'grass') {
                     const dx = Math.abs(hazard.x - centerX);
@@ -1205,7 +1205,12 @@
             if (teamOnCoil && anyNonStunned) {
                 moveBudget = 2;
                 attackBudget = 2;
-                logMessage(`Energy Coil activated! Player ${gameState.activeTeam} gains 2 full move actions and 2 attack actions this turn.`, "system");
+                activeTeamUnits.forEach(u => {
+                    if (!u.isStunnedThisTurn && gameState.hazards.some(h => h.x === u.x && h.y === u.y && h.type === 'coil')) {
+                        u.move = u.baseMove * 2;
+                    }
+                });
+                logMessage(`Energy Coil activated! Player ${gameState.activeTeam} gains 2 full move actions (doubled movement capacity) and 2 attack actions this turn.`, "system");
             }
 
             gameState.actionsRemaining = { move: moveBudget, attack: attackBudget, special: specialBudget };
@@ -1316,7 +1321,7 @@
                 details = "Grants +1 to attack range (applies to melee and ranged attacks) while standing on it.";
             } else if (hazard.type === 'coil') {
                 hazardTitle = "Energy Coil";
-                details = "Grants 2 full move actions (performing their max movement spaces twice) and 2 attack actions when starting a turn on this tile.";
+                details = "Grants 2 full move actions (performing their max movement spaces twice, doubling total distance) and 2 attack actions when starting a turn on this tile.";
             }
 
             card.innerHTML = `
