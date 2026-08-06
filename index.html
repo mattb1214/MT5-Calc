@@ -434,7 +434,7 @@
                 <div class="btn-container">
                     <button id="btnMoveMode" onclick="setActionMode('move')">Move Mode</button>
                     <button id="btnAttackMode" onclick="setActionMode('attack')">Attack Mode</button>
-                    <button id="btnSpecialMode" onclick="setActionMode('special')">Special Action</button>
+                    <button id="btnSpecialMode" onclick="executeSpecialAction()">Special Action</button>
                     <button class="primary full-width" onclick="endTeamTurn()">End Team Turn</button>
                     <button class="danger half-width" onclick="returnToCharacterSelect()">Character Select</button>
                     <button class="danger half-width" onclick="regenerateMap()">Regenerate Map</button>
@@ -503,11 +503,36 @@
             p2Draft: [],
         };
 
-        // Master Roster with 'The' prefix removed from names
+        // Master Roster with Deadeye and Guardian updated/configured
         const MASTER_ROSTER = [
             { id: 1, name: "Vanguard", hp: 7, maxHp: 7, move: 3, range: 1, dmg: 3, color: "#ef4444", desc: "Solid frontline infantry." },
-            { id: 2, name: "Deadeye", hp: 7, maxHp: 7, move: 2, range: 5, dmg: 1, color: "#3b82f6", desc: "Long-range precision shooter." },
-            { id: 3, name: "Guardian", hp: 7, maxHp: 7, move: 2, range: 2, dmg: 2, color: "#eab308", desc: "Shield-bearing protector." },
+            { 
+                id: 2, 
+                name: "Deadeye", 
+                hp: 7, 
+                maxHp: 7, 
+                move: 2, 
+                range: 5, 
+                dmg: 1, 
+                color: "#3b82f6", 
+                desc: "Long-range precision shooter. Can mount walls to gain invulnerability, line-of-sight clarity, and ignore Guardian shield reduction.",
+                isRanged: true,
+                onWall: false,
+                mountedWallCoord: null,
+                stunnedNextTurn: false
+            },
+            { 
+                id: 3, 
+                name: "Guardian", 
+                hp: 7, 
+                maxHp: 7, 
+                move: 2, 
+                range: 2, 
+                dmg: 2, 
+                color: "#eab308", 
+                desc: "Shield-bearing protector. Reduces incoming damage from standard attacks by 1.",
+                hasShield: true
+            },
             { id: 4, name: "Storm-Blader", hp: 5, maxHp: 5, move: 5, range: 1, dmg: 1, color: "#22c55e", desc: "High mobility melee striker." },
             { id: 5, name: "Frost-Warden", hp: 5, maxHp: 5, move: 2, range: 2, dmg: 1, color: "#a855f7", desc: "Slows adjacent enemy movement." },
             { id: 6, name: "Viper", hp: 6, maxHp: 6, move: 3, range: 2, dmg: 0, color: "#10b981", desc: "Inflicts persistent poison tokens." },
@@ -550,7 +575,7 @@
         let selectedDraftPicks = [];
 
         // --- LINE OF SIGHT & RAYCASTING LOGIC ---
-        function hasLineOfSight(x0, y0, x1, y1) {
+        function hasLineOfSight(x0, y0, x1, y1, attacker) {
             let dx = Math.abs(x1 - x0);
             let dy = Math.abs(y1 - y0);
             let sx = (x0 < x1) ? 1 : -1;
@@ -561,12 +586,18 @@
             let currY = y0;
 
             const isRanged = (Math.abs(x1 - x0) + Math.abs(y1 - y0)) > 1;
+            const deadeyeOnWall = attacker && attacker.name === "Deadeye" && attacker.onWall;
 
             while (true) {
                 if (!(currX === x0 && currY === y0) && !(currX === x1 && currY === y1)) {
                     // Check wall obstruction
                     const wall = gameState.hazards.find(h => h.x === currX && h.y === currY && h.type === 'wall');
-                    if (wall) return false;
+                    if (wall) {
+                        // Deadeye on a wall ignores wall obstruction in general, or if it's the specific wall they are mounted on
+                        if (!(deadeyeOnWall && (wall.x === attacker.x && wall.y === attacker.y))) {
+                            return false;
+                        }
+                    }
 
                     // Check grass obstruction for ranged attacks (> 1 square away)
                     if (isRanged) {
@@ -697,7 +728,7 @@
                     team: 1,
                     x: Math.min(posX, 15),
                     y: 0,
-                    ...template,
+                    ...JSON.parse(JSON.stringify(template)),
                     baseMove: template.move,
                     poisonTokens: 0,
                     stunned: false
@@ -714,7 +745,7 @@
                     team: 2,
                     x: Math.min(posX, 15),
                     y: 15,
-                    ...template,
+                    ...JSON.parse(JSON.stringify(template)),
                     baseMove: template.move,
                     poisonTokens: 0,
                     stunned: false
@@ -780,7 +811,7 @@
                 hazardsList.push({ type: 'radar', x: pos.x, y: pos.y });
             }
 
-            // 6. Energy Coils: min 0, max 1 (ensure at least 1 for testing coil logic if desired, or keep random range)
+            // 6. Energy Coils: min 0, max 1
             let coilCount = getRandomInt(1, 1);
             for (let i = 0; i < coilCount; i++) {
                 let pos = getRandomEmptyCell();
@@ -824,7 +855,8 @@
                             token.classList.add('selected');
                         }
                         token.style.backgroundColor = unit.color;
-                        token.innerHTML = `<div>${unit.name.substring(0, 4)}<br><b>${unit.hp}HP</b></div>`;
+                        let extraBadge = unit.onWall ? '<br><span style="font-size:0.45rem; background:#000; padding:1px; border-radius:2px;">MOUNTED</span>' : '';
+                        token.innerHTML = `<div>${unit.name.substring(0, 4)}<br><b>${unit.hp}HP</b>${extraBadge}</div>`;
                         cell.appendChild(token);
                     }
 
@@ -884,13 +916,70 @@
                 logMessage("Select an active squad unit first.", "system");
                 return;
             }
+            const unit = gameState.units.find(u => u.instanceId === gameState.selectedUnitId);
+            if (unit && unit.name === "Deadeye" && unit.onWall && mode === 'move') {
+                logMessage("Deadeye is currently mounted on a wall and cannot move normally. Use Special Action to dismount.", "system");
+                return;
+            }
             gameState.actionMode = mode;
             logMessage(`Action mode set to: ${mode.toUpperCase()}`, "system");
+        }
+
+        function executeSpecialAction() {
+            if (!gameState.selectedUnitId) {
+                logMessage("Select an active squad unit first.", "system");
+                return;
+            }
+            const unit = gameState.units.find(u => u.instanceId === gameState.selectedUnitId);
+            if (!unit) return;
+
+            if (gameState.actionsRemaining.special <= 0) {
+                logMessage("No special actions remaining this turn.", "system");
+                return;
+            }
+
+            if (unit.name === "Deadeye") {
+                if (!unit.onWall) {
+                    // Must be adjacent or immediately next to a wall
+                    const adjacentWall = gameState.hazards.find(h => 
+                        h.type === 'wall' && (Math.abs(h.x - unit.x) + Math.abs(h.y - unit.y) === 1)
+                    );
+                    if (!adjacentWall) {
+                        logMessage("Deadeye must be adjacent to a wall to use this special action and mount it.", "system");
+                        return;
+                    }
+                    // Mount the wall
+                    unit.x = adjacentWall.x;
+                    unit.y = adjacentWall.y;
+                    unit.onWall = true;
+                    unit.mountedWallCoord = { x: adjacentWall.x, y: adjacentWall.y };
+                    gameState.actionsRemaining.special--;
+                    logMessage(`${unit.name} used special action to mount the wall at (${adjacentWall.x}, ${adjacentWall.y})! Protected from attacks unless wall is destroyed.`, unit.team === 1 ? 'p1' : 'p2');
+                } else {
+                    // Dismount from wall
+                    // Move to an adjacent empty or valid cell or stay on the square where the wall was originally on
+                    unit.onWall = false;
+                    unit.mountedWallCoord = null;
+                    gameState.actionsRemaining.special--;
+                    logMessage(`${unit.name} used special action to dismount from the wall.`, unit.team === 1 ? 'p1' : 'p2');
+                }
+                gameState.actionMode = null;
+                renderGrid();
+                updateDashboard();
+                updateUnitInfoCard(unit);
+            } else {
+                logMessage("Selected unit does not have a custom special action configured yet.", "system");
+            }
         }
 
         function executeMove(targetX, targetY) {
             const unit = gameState.units.find(u => u.instanceId === gameState.selectedUnitId);
             if (!unit) return;
+
+            if (unit.name === "Deadeye" && unit.onWall) {
+                logMessage("Deadeye is mounted on a wall and cannot move normally. Spend a special action to dismount first.", "system");
+                return;
+            }
 
             const dist = Math.abs(unit.x - targetX) + Math.abs(unit.y - targetY);
             const wallInWay = gameState.hazards.find(h => h.x === targetX && h.y === targetY && h.type === 'wall');
@@ -944,12 +1033,26 @@
             const onRadar = gameState.hazards.some(h => h.x === attacker.x && h.y === attacker.y && h.type === 'radar');
             const effectiveRange = attacker.range + (onRadar ? 1 : 0);
 
-            if (!hasLineOfSight(attacker.x, attacker.y, targetX, targetY)) {
+            if (!hasLineOfSight(attacker.x, attacker.y, targetX, targetY, attacker)) {
                 logMessage("Attack blocked: Target is out of line of sight (obstructed by walls or grass).", "system");
                 return;
             }
 
             if (targetUnit) {
+                // Check if target is Deadeye mounted on a wall
+                if (targetUnit.name === "Deadeye" && targetUnit.onWall) {
+                    // Check if the wall supporting this Deadeye is still intact
+                    const supportingWall = gameState.hazards.find(h => h.x === targetUnit.x && h.y === targetUnit.y && h.type === 'wall');
+                    if (supportingWall) {
+                        logMessage("Attack blocked: Deadeye is mounted on an intact wall and cannot be hit!", "system");
+                        gameState.actionsRemaining.attack--;
+                        gameState.actionMode = null;
+                        renderGrid();
+                        updateDashboard();
+                        return;
+                    }
+                }
+
                 const targetInSinkhole = gameState.hazards.some(h => h.x === targetUnit.x && h.y === targetUnit.y && h.type === 'sinkhole');
                 if (targetInSinkhole && dist > 2) {
                     logMessage("Attack blocked: Target is inside a sinkhole and safe from ranged attacks over 2 spaces away.", "system");
@@ -958,9 +1061,20 @@
             }
 
             if (targetUnit && dist <= effectiveRange) {
-                targetUnit.hp -= attacker.dmg;
+                let finalDmg = attacker.dmg;
+
+                // Deadeye passive: ignore Guardian shield damage reduction
+                // Guardian has a shield that reduces incoming damage from standard attacks by 1
+                if (targetUnit.name === "Guardian" && targetUnit.hasShield && attacker.name !== "Deadeye") {
+                    finalDmg = Math.max(0, finalDmg - 1);
+                    logMessage(`Guardian's shield reduced incoming damage by 1!`, "system");
+                } else if (attacker.name === "Deadeye" && targetUnit.name === "Guardian") {
+                    logMessage(`Deadeye's attack bypassed Guardian's shield reduction!`, "system");
+                }
+
+                targetUnit.hp -= finalDmg;
                 gameState.actionsRemaining.attack--;
-                logMessage(`${attacker.name} attacked ${targetUnit.name} for ${attacker.dmg} damage!`, attacker.team === 1 ? 'p1' : 'p2');
+                logMessage(`${attacker.name} attacked ${targetUnit.name} for ${finalDmg} damage!`, attacker.team === 1 ? 'p1' : 'p2');
 
                 if (attacker.isExplosive) {
                     triggerExplosionRadius(targetX, targetY);
@@ -986,7 +1100,23 @@
 
                 if (targetWall.hp <= 0) {
                     logMessage(`Wall at (${targetX}, ${targetY}) was completely destroyed!`, "system");
+                    
+                    // Check if Deadeye was mounted on this wall (Deadeye passive 2)
+                    gameState.units.forEach(u => {
+                        if (u.name === "Deadeye" && u.onWall && u.x === targetX && u.y === targetY) {
+                            u.onWall = false;
+                            u.mountedWallCoord = null;
+                            u.hp -= 1;
+                            u.stunnedNextTurn = true;
+                            logMessage(`Deadeye's wall was destroyed! Deadeye takes 1 damage, loses mounted status, and will be stunned on the next turn. Staying on square (${targetX}, ${targetY}).`, "system");
+                            if (u.hp <= 0) {
+                                logMessage(`Deadeye was eliminated from the match matrix due to wall collapse!`, "system");
+                            }
+                        }
+                    });
+
                     gameState.hazards = gameState.hazards.filter(h => !(h.x === targetX && h.y === targetY && h.type === 'wall'));
+                    checkVictoryConditions();
                 }
 
                 gameState.actionMode = null;
@@ -1013,23 +1143,43 @@
         }
 
         function initializeTurnStartBudgets() {
-            // Base budget is 1 move action and 1 attack action
+            // Check stuns / turn start flags for active team units
             let moveBudget = 1;
             let attackBudget = 1;
+            let specialBudget = 1;
+
+            const activeTeamUnits = gameState.units.filter(u => u.team === gameState.activeTeam);
+            
+            activeTeamUnits.forEach(u => {
+                if (u.stunnedNextTurn) {
+                    u.stunnedNextTurn = false;
+                    u.isStunnedThisTurn = true;
+                    logMessage(`${u.name} is stunned this turn and cannot act!`, "system");
+                } else {
+                    u.isStunnedThisTurn = false;
+                }
+            });
+
+            // If all active units are stunned, turn can just pass or have 0 actions
+            const anyNonStunned = activeTeamUnits.some(u => !u.isStunnedThisTurn);
+            if (!anyNonStunned) {
+                moveBudget = 0;
+                attackBudget = 0;
+                specialBudget = 0;
+            }
 
             // Check if any character on the active team starts the turn standing in an energy coil
-            const activeTeamUnits = gameState.units.filter(u => u.team === gameState.activeTeam);
             const teamOnCoil = activeTeamUnits.some(u => 
-                gameState.hazards.some(h => h.x === u.x && h.y === u.y && h.type === 'coil')
+                !u.isStunnedThisTurn && gameState.hazards.some(h => h.x === u.x && h.y === u.y && h.type === 'coil')
             );
 
-            if (teamOnCoil) {
+            if (teamOnCoil && anyNonStunned) {
                 moveBudget += 1;
                 attackBudget += 1;
                 logMessage(`Energy Coil activated! Player ${gameState.activeTeam} gains +1 Move action and +1 Attack action this turn.`, "system");
             }
 
-            gameState.actionsRemaining = { move: moveBudget, attack: attackBudget, special: 1 };
+            gameState.actionsRemaining = { move: moveBudget, attack: attackBudget, special: specialBudget };
         }
 
         function endTeamTurn() {
@@ -1038,7 +1188,7 @@
                     u.hp -= 1;
                     logMessage(`${u.name} took 1 poison damage.`, "system");
                 }
-                if (u.team === gameState.activeTeam) {
+                if (u.team === gameState.activeTeam && !u.isStunnedThisTurn) {
                     u.move = u.baseMove;
                 }
             });
@@ -1101,10 +1251,14 @@
 
         function updateUnitInfoCard(unit) {
             const card = document.getElementById('unitInfoCard');
+            let extraStatus = "";
+            if (unit.name === "Deadeye") {
+                extraStatus = `<br>Mounted on Wall: <strong>${unit.onWall ? 'Yes' : 'No'}</strong>`;
+            }
             card.innerHTML = `
                 <strong>${unit.name} (Team ${unit.team})</strong><br>
                 HP: ${unit.hp} / ${unit.maxHp} | Move: ${unit.move}<br>
-                Range: ${unit.range} | Damage: ${unit.dmg}<br>
+                Range: ${unit.range} | Damage: ${unit.dmg}${extraStatus}<br>
                 <em>${unit.desc}</em>
             `;
         }
@@ -1115,7 +1269,7 @@
             let details = "";
             if (hazard.type === 'wall') {
                 hazardTitle = "Wall Obstacle";
-                details = `HP: ${hazard.hp} / ${hazard.maxHp}`;
+                details = `HP: ${hazard.hp} / ${hazard.maxHp}. Can be mounted by Deadeye.`;
             } else if (hazard.type === 'grass') {
                 hazardTitle = "Grass Terrain";
                 details = "Blocks ranged line of sight.";
