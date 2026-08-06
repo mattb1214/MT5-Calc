@@ -93,8 +93,8 @@
             border: 2px solid #1e293b;
             border-radius: 6px;
             overflow: hidden;
-            width: calc(16 * var(--cell-size) + 33px);
-            height: calc(16 * var(--cell-size) + 33px);
+            width: calc(16 * var(--cell-size) + 15px);
+            height: calc(16 * var(--cell-size) + 15px);
             box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
         }
 
@@ -1362,14 +1362,8 @@
             );
 
             if (teamOnCoil && anyNonStunned) {
-                moveBudget = 2;
-                attackBudget = 2;
-                activeTeamUnits.forEach(u => {
-                    if (!u.isStunnedThisTurn && gameState.hazards.some(h => h.x === u.x && h.y === u.y && h.type === 'coil')) {
-                        u.move = u.baseMove * 2;
-                    }
-                });
-                logMessage(`Energy Coil activated! Player ${gameState.activeTeam} gains 2 full move actions (doubled movement capacity) and 2 attack actions this turn.`, "system");
+                moveBudget = 2; // Allows 2 separate move actions across team characters!
+                logMessage(`Energy Coil activated! Player ${gameState.activeTeam} gains 2 move actions this turn (can be used by any character(s)).`, "system");
             }
 
             gameState.actionsRemaining = { move: moveBudget, attack: attackBudget, special: specialBudget };
@@ -1417,7 +1411,7 @@
         }
 
         function updateDashboard() {
-            document.getElementById('roundIndicator').innerText = `Round ${gameState.round}`;
+            document.getElementById('roundIndicator',).innerText = `Round ${gameState.round}`;
             const teamEl = document.getElementById('currentTurnTeam');
             teamEl.innerText = `Player ${gameState.activeTeam}`;
             teamEl.style.color = gameState.activeTeam === 1 ? '#93c5fd' : '#fca5a5';
@@ -1433,6 +1427,7 @@
                 if (gameState.selectedCoord.type === 'unit') {
                     document.getElementById('selectedUnitName').innerText = gameState.selectedCoord.data.name;
                 } else if (gameState.selectedCoord.type === 'hazard') {
+                    document.getElementById('selectedCoord.type' === 'hazard')
                     document.getElementById('selectedUnitName').innerText = gameState.selectedCoord.data.type.toUpperCase();
                 } else {
                     document.getElementById('selectedUnitName').innerText = "Empty Cell";
@@ -1470,7 +1465,7 @@
                 details = "Blocks ranged line of sight.";
             } else if (hazard.type === 'sinkhole') {
                 hazardTitle = "Sinkhole Hazard";
-                details = "Protects targets from ranged attacks > 2 spaces away. Costs 1 extra move to exit.";
+                details = "Protects targets from ranged attacks > 2 spaces away.Configs: 1 extra move to exit.";
             } else if (hazard.type === 'vent') {
                 hazardTitle = "Fumigation Vent";
                 details = "Releases noxious vapors.";
@@ -1479,7 +1474,7 @@
                 details = "Grants +1 to attack range (applies to melee and ranged attacks) while standing on it.";
             } else if (hazard.type === 'coil') {
                 hazardTitle = "Energy Coil";
-                details = "Grants 2 full move actions (performing their max movement spaces twice, doubling total distance) and 2 attack actions when starting a turn on this tile.";
+                details = "Grants 2 total move actions for the team on the turn a character starts on it (can be split across different characters or used by the same character).";
             }
 
             card.innerHTML = `
