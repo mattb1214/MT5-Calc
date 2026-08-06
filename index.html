@@ -503,7 +503,7 @@
             p2Draft: [],
         };
 
-        // Master Roster with Deadeye and Guardian updated/configured
+        // Master Roster with Deadeye and Guardian fully updated and configured
         const MASTER_ROSTER = [
             { id: 1, name: "Vanguard", hp: 7, maxHp: 7, move: 3, range: 1, dmg: 3, color: "#ef4444", desc: "Solid frontline infantry." },
             { 
@@ -527,11 +527,13 @@
                 hp: 7, 
                 maxHp: 7, 
                 move: 2, 
-                range: 2, 
+                range: 1, 
                 dmg: 2, 
                 color: "#eab308", 
-                desc: "Shield-bearing protector. Reduces incoming damage from standard attacks by 1.",
-                hasShield: true
+                desc: "Shield-bearing protector. Melee attacker with no special action. Passive shield reduces all incoming melee or ranged damage by 1 (can reduce damage to 0).",
+                isRanged: false,
+                hasShield: true,
+                hasSpecialAction: false
             },
             { id: 4, name: "Storm-Blader", hp: 5, maxHp: 5, move: 5, range: 1, dmg: 1, color: "#22c55e", desc: "High mobility melee striker." },
             { id: 5, name: "Frost-Warden", hp: 5, maxHp: 5, move: 2, range: 2, dmg: 1, color: "#a855f7", desc: "Slows adjacent enemy movement." },
@@ -940,7 +942,6 @@
 
             if (unit.name === "Deadeye") {
                 if (!unit.onWall) {
-                    // Must be adjacent or immediately next to a wall
                     const adjacentWall = gameState.hazards.find(h => 
                         h.type === 'wall' && (Math.abs(h.x - unit.x) + Math.abs(h.y - unit.y) === 1)
                     );
@@ -948,7 +949,6 @@
                         logMessage("Deadeye must be adjacent to a wall to use this special action and mount it.", "system");
                         return;
                     }
-                    // Mount the wall
                     unit.x = adjacentWall.x;
                     unit.y = adjacentWall.y;
                     unit.onWall = true;
@@ -956,8 +956,6 @@
                     gameState.actionsRemaining.special--;
                     logMessage(`${unit.name} used special action to mount the wall at (${adjacentWall.x}, ${adjacentWall.y})! Protected from attacks unless wall is destroyed.`, unit.team === 1 ? 'p1' : 'p2');
                 } else {
-                    // Dismount from wall
-                    // Move to an adjacent empty or valid cell or stay on the square where the wall was originally on
                     unit.onWall = false;
                     unit.mountedWallCoord = null;
                     gameState.actionsRemaining.special--;
@@ -967,6 +965,8 @@
                 renderGrid();
                 updateDashboard();
                 updateUnitInfoCard(unit);
+            } else if (unit.name === "Guardian") {
+                logMessage("Guardian does not have a special action defined in its profile.", "system");
             } else {
                 logMessage("Selected unit does not have a custom special action configured yet.", "system");
             }
@@ -1039,9 +1039,7 @@
             }
 
             if (targetUnit) {
-                // Check if target is Deadeye mounted on a wall
                 if (targetUnit.name === "Deadeye" && targetUnit.onWall) {
-                    // Check if the wall supporting this Deadeye is still intact
                     const supportingWall = gameState.hazards.find(h => h.x === targetUnit.x && h.y === targetUnit.y && h.type === 'wall');
                     if (supportingWall) {
                         logMessage("Attack blocked: Deadeye is mounted on an intact wall and cannot be hit!", "system");
@@ -1063,11 +1061,11 @@
             if (targetUnit && dist <= effectiveRange) {
                 let finalDmg = attacker.dmg;
 
-                // Deadeye passive: ignore Guardian shield damage reduction
-                // Guardian has a shield that reduces incoming damage from standard attacks by 1
+                // Guardian's shield passive reduces all incoming damage (melee or ranged) by 1 (can reduce to 0)
+                // Not impacted by poison/virus. Bypassed by Deadeye.
                 if (targetUnit.name === "Guardian" && targetUnit.hasShield && attacker.name !== "Deadeye") {
                     finalDmg = Math.max(0, finalDmg - 1);
-                    logMessage(`Guardian's shield reduced incoming damage by 1!`, "system");
+                    logMessage(`Guardian's shield reduced incoming damage by 1 (Final Dmg: ${finalDmg})!`, "system");
                 } else if (attacker.name === "Deadeye" && targetUnit.name === "Guardian") {
                     logMessage(`Deadeye's attack bypassed Guardian's shield reduction!`, "system");
                 }
@@ -1101,7 +1099,6 @@
                 if (targetWall.hp <= 0) {
                     logMessage(`Wall at (${targetX}, ${targetY}) was completely destroyed!`, "system");
                     
-                    // Check if Deadeye was mounted on this wall (Deadeye passive 2)
                     gameState.units.forEach(u => {
                         if (u.name === "Deadeye" && u.onWall && u.x === targetX && u.y === targetY) {
                             u.onWall = false;
@@ -1143,7 +1140,6 @@
         }
 
         function initializeTurnStartBudgets() {
-            // Check stuns / turn start flags for active team units
             let moveBudget = 1;
             let attackBudget = 1;
             let specialBudget = 1;
@@ -1160,7 +1156,6 @@
                 }
             });
 
-            // If all active units are stunned, turn can just pass or have 0 actions
             const anyNonStunned = activeTeamUnits.some(u => !u.isStunnedThisTurn);
             if (!anyNonStunned) {
                 moveBudget = 0;
@@ -1168,7 +1163,6 @@
                 specialBudget = 0;
             }
 
-            // Check if any character on the active team starts the turn standing in an energy coil
             const teamOnCoil = activeTeamUnits.some(u => 
                 !u.isStunnedThisTurn && gameState.hazards.some(h => h.x === u.x && h.y === u.y && h.type === 'coil')
             );
@@ -1185,6 +1179,7 @@
         function endTeamTurn() {
             gameState.units.forEach(u => {
                 if (u.team === gameState.activeTeam && u.poisonTokens > 0) {
+                    // Guardian's shield explicitly does not impact poison or virus damage
                     u.hp -= 1;
                     logMessage(`${u.name} took 1 poison damage.`, "system");
                 }
@@ -1254,6 +1249,8 @@
             let extraStatus = "";
             if (unit.name === "Deadeye") {
                 extraStatus = `<br>Mounted on Wall: <strong>${unit.onWall ? 'Yes' : 'No'}</strong>`;
+            } else if (unit.name === "Guardian") {
+                extraStatus = `<br>Shield Active: <strong>Yes (-1 Dmg to Melee/Ranged, can reduce to 0)</strong>`;
             }
             card.innerHTML = `
                 <strong>${unit.name} (Team ${unit.team})</strong><br>
