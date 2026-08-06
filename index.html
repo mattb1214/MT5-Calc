@@ -105,6 +105,12 @@
             background-color: #334155;
         }
 
+        /* Attack Radius Overlay Styling */
+        .cell.attack-radius {
+            background-color: rgba(239, 68, 68, 0.25);
+            box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.5);
+        }
+
         /* Hazard & Feature Styling on Grid */
         .cell.wall {
             background-color: #64748b;
@@ -622,24 +628,13 @@
             return true;
         }
 
-        // --- ATTACK RANGE VALIDATION (Straight, Horizontal, Vertical, or 1x1 Diagonal) ---
+        // --- ATTACK RANGE VALIDATION (Square Radius / Chebyshev Distance) ---
         function isValidAttackTarget(attackerX, attackerY, targetX, targetY, maxRange) {
-            let dx = targetX - attackerX;
-            let dy = targetY - attackerY;
-            let absDx = Math.abs(dx);
-            let absDy = Math.abs(dy);
+            let absDx = Math.abs(targetX - attackerX);
+            let absDy = Math.abs(targetY - attackerY);
 
-            // Must be within range limit
-            if (Math.max(absDx, absDy) > maxRange) return false;
-
-            // Check if it's strictly vertical (dx === 0)
-            if (dx === 0 && absDy > 0) return true;
-            // Check if it's strictly horizontal (dy === 0)
-            if (dy === 0 && absDx > 0) return true;
-            // Check if it's diagonal on a 1x1 step ratio (absDx === absDy)
-            if (absDx === absDy && absDx > 0) return true;
-
-            return false;
+            // Target must be within the square radius (max distance horizontally or vertically <= maxRange)
+            return Math.max(absDx, absDy) <= maxRange && (absDx > 0 || absDy > 0);
         }
 
         // --- INITIALIZATION & SETUP ---
@@ -848,12 +843,28 @@
             const gridEl = document.getElementById('gridMatrix');
             gridEl.innerHTML = '';
 
+            // Calculate active unit attack range for radius shading if in attack mode
+            let activeUnit = null;
+            let effectiveAttackRange = 0;
+            if (gameState.actionMode === 'attack' && gameState.selectedUnitId) {
+                activeUnit = gameState.units.find(u => u.instanceId === gameState.selectedUnitId);
+                if (activeUnit) {
+                    const onRadar = gameState.hazards.some(h => h.x === activeUnit.x && h.y === activeUnit.y && h.type === 'radar');
+                    effectiveAttackRange = activeUnit.range + (onRadar ? 1 : 0);
+                }
+            }
+
             for (let y = 0; y < BOARD_SIZE; y++) {
                 for (let x = 0; x < BOARD_SIZE; x++) {
                     const cell = document.createElement('div');
                     cell.className = 'cell';
                     cell.dataset.x = x;
                     cell.dataset.y = y;
+
+                    // Shade attack radius if in attack mode
+                    if (activeUnit && isValidAttackTarget(activeUnit.x, activeUnit.y, x, y, effectiveAttackRange)) {
+                        cell.classList.add('attack-radius');
+                    }
 
                     // Check hazards
                     const hazard = gameState.hazards.find(h => h.x === x && h.y === y);
@@ -945,6 +956,7 @@
             }
             gameState.actionMode = mode;
             logMessage(`Action mode set to: ${mode.toUpperCase()}`, "system");
+            renderGrid();
         }
 
         function executeSpecialAction() {
@@ -1030,7 +1042,6 @@
                 unit.y = targetY;
                 unit.move -= requiredMoveCost;
                 
-                // If unit has completely exhausted their current move allowance or finished a move execution, decrement move budget
                 gameState.actionsRemaining.move--;
                 
                 logMessage(`${unit.name} moved to coordinates (${targetX}, ${targetY}) (Cost: ${requiredMoveCost} move).`, unit.team === 1 ? 'p1' : 'p2');
@@ -1055,9 +1066,9 @@
             const onRadar = gameState.hazards.some(h => h.x === attacker.x && h.y === attacker.y && h.type === 'radar');
             const effectiveRange = attacker.range + (onRadar ? 1 : 0);
 
-            // Validate attack trajectory (Vertical, Horizontal, or 1x1 Diagonal within effective range)
+            // Validate attack target within square radius (Chebyshev distance)
             if (!isValidAttackTarget(attacker.x, attacker.y, targetX, targetY, effectiveRange)) {
-                logMessage("Invalid attack target: Attacks must be straight vertical, straight horizontal, or diagonal on a 1x1 ratio within range.", "system");
+                logMessage("Invalid attack target: Target is outside of the unit's attack radius.", "system");
                 return;
             }
 
@@ -1120,7 +1131,6 @@
                 let finalDmg = attacker.dmg;
 
                 // Guardian's shield passive reduces all incoming damage (melee or ranged) by 1 (can reduce to 0)
-                // Not impacted by poison/virus. Bypassed by Deadeye.
                 if (targetUnit.name === "Guardian" && targetUnit.hasShield && attacker.name !== "Deadeye") {
                     finalDmg = Math.max(0, finalDmg - 1);
                     logMessage(`Guardian's shield reduced incoming damage by 1 (Final Dmg: ${finalDmg})!`, "system");
@@ -1242,7 +1252,6 @@
         function endTeamTurn() {
             gameState.units.forEach(u => {
                 if (u.team === gameState.activeTeam && u.poisonTokens > 0) {
-                    // Guardian's shield explicitly does not impact poison or virus damage
                     u.hp -= 1;
                     logMessage(`${u.name} took 1 poison damage.`, "system");
                 }
@@ -1335,7 +1344,7 @@
                 details = "Blocks ranged line of sight.";
             } else if (hazard.type === 'sinkhole') {
                 hazardTitle = "Sinkhole Hazard";
-                details = "Protects targets from ranged attacks > 2 spaces away. Costs 1 extra move to exit.";
+                details = "Protects targets from ranged attacks > 2 spaces away.Costs 1 extra move to exit.";
             } else if (hazard.type === 'vent') {
                 hazardTitle = "Fumigation Vent";
                 details = "Releases noxious vapors.";
