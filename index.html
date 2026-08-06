@@ -111,6 +111,12 @@
             box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.5);
         }
 
+        /* Move Radius Overlay Styling */
+        .cell.move-radius {
+            background-color: rgba(34, 197, 94, 0.25);
+            box-shadow: inset 0 0 0 2px rgba(34, 197, 94, 0.5);
+        }
+
         /* Hazard & Feature Styling on Grid */
         .cell.wall {
             background-color: #64748b;
@@ -637,6 +643,39 @@
             return Math.max(absDx, absDy) <= maxRange && (absDx > 0 || absDy > 0);
         }
 
+        // --- MOVE VALIDATION (Manhattan Distance + Hazards & Obstacles) ---
+        function isValidMoveTarget(unit, targetX, targetY) {
+            // Deadeye on wall cannot move normally
+            if (unit.name === "Deadeye" && unit.onWall) return false;
+
+            // Cannot move out of bounds
+            if (targetX < 0 || targetX >= BOARD_SIZE || targetY < 0 || targetY >= BOARD_SIZE) return false;
+
+            // Cannot move onto a wall coordinate
+            const wallInWay = gameState.hazards.find(h => h.x === targetX && h.y === targetY && h.type === 'wall');
+            if (wallInWay) return false;
+
+            // Cannot move onto an occupied tile
+            const occupant = gameState.units.find(u => u.x === targetX && u.y === targetY);
+            if (occupant) return false;
+
+            const dist = Math.abs(unit.x - targetX) + Math.abs(unit.y - targetY);
+            const isCurrentlyInSinkhole = gameState.hazards.some(h => h.x === unit.x && h.y === unit.y && h.type === 'sinkhole');
+            const movingIntoSinkhole = gameState.hazards.some(h => h.x === targetX && h.y === targetY && h.type === 'sinkhole');
+
+            let requiredMoveCost = dist;
+
+            if (isCurrentlyInSinkhole && !movingIntoSinkhole) {
+                if (unit.baseMove === 1) {
+                    if (dist > 1) return false;
+                } else {
+                    requiredMoveCost += 1;
+                }
+            }
+
+            return requiredMoveCost <= unit.move;
+        }
+
         // --- INITIALIZATION & SETUP ---
         function resetSetupFlow() {
             gameState.draftingPlayer = 1;
@@ -846,7 +885,7 @@
             // Calculate active unit attack range for radius shading if in attack mode
             let activeUnit = null;
             let effectiveAttackRange = 0;
-            if (gameState.actionMode === 'attack' && gameState.selectedUnitId) {
+            if (gameState.selectedUnitId) {
                 activeUnit = gameState.units.find(u => u.instanceId === gameState.selectedUnitId);
                 if (activeUnit) {
                     const onRadar = gameState.hazards.some(h => h.x === activeUnit.x && h.y === activeUnit.y && h.type === 'radar');
@@ -862,8 +901,13 @@
                     cell.dataset.y = y;
 
                     // Shade attack radius if in attack mode
-                    if (activeUnit && isValidAttackTarget(activeUnit.x, activeUnit.y, x, y, effectiveAttackRange)) {
+                    if (activeUnit && gameState.actionMode === 'attack' && isValidAttackTarget(activeUnit.x, activeUnit.y, x, y, effectiveAttackRange)) {
                         cell.classList.add('attack-radius');
+                    }
+
+                    // Shade move radius if in move mode
+                    if (activeUnit && gameState.actionMode === 'move' && isValidMoveTarget(activeUnit, x, y)) {
+                        cell.classList.add('move-radius');
                     }
 
                     // Check hazards
@@ -1366,7 +1410,7 @@
         function updateEmptyCellInfoCard(x, y) {
             const card = document.getElementById('unitInfoCard');
             card.innerHTML = `
-                <strong>[${x}, ${y}] Clear Terrain</strong><br>
+                <strong>[${x}, **${y}**] Clear Terrain</strong><br>
                 Traversable open grid coordinate.
             `;
         }
